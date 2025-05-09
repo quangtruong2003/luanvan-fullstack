@@ -1,24 +1,34 @@
 package com.luanvan.luanvanbackend.entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
+import java.util.Set;
 
 @Entity
+@Table(name = "doctors")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class Doctor {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    private String name;
-    private String specialty;
-    private String phoneNumber;
-    private String email;
-    private String address;
+    private Long doctorId;
+    
+    @OneToOne
+    @MapsId
+    @JoinColumn(name = "user_id")
+    private User user;
+    
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+    
+    private Integer yearsOfExperience;
+    private String profilePictureURL;
+    
+    @OneToMany(mappedBy = "doctor")
+    private Set<DoctorSpecialty> specialties;
+    
+    @OneToMany(mappedBy = "doctor")
+    private Set<AvailabilitySlot> availabilitySlots;
 }

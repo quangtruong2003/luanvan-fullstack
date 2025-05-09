@@ -41,12 +41,36 @@ src/main/
 - Password: (không có)
 - Tự động cập nhật schema: true
 
-## Mô Hình Dữ Liệu
+## Mô Hình Dữ Liệu (Entities)
 
-Dự án đang phát triển với các thực thể (entities):
+Hệ thống sử dụng các thực thể JPA để ánh xạ với cơ sở dữ liệu. Dưới đây là danh sách các thực thể chính và một số thuộc tính quan trọng:
 
-- **Doctor**: Thực thể đại diện cho bác sĩ trong hệ thống
-  - Thuộc tính: id, name, specialty, phoneNumber, email, address
+1.  **`User`**: Lưu trữ thông tin người dùng chung của hệ thống.
+    *   `userId` (PK), `email`, `phoneNumber`, `passwordHash`, `fullName`, `role` (FK to `Role`), `dateOfBirth`, `gender`, `address`, `registrationDate`, `isActive`.
+2.  **`Role`**: Định nghĩa các vai trò trong hệ thống.
+    *   `roleId` (PK), `roleName` (ví dụ: "PATIENT", "DOCTOR", "ADMINISTRATOR").
+3.  **`Doctor`**: Lưu trữ thông tin chi tiết của bác sĩ, liên kết với `User`.
+    *   `doctorId` (PK, FK to `User.userId`), `bio`, `yearsOfExperience`, `profilePictureURL`.
+4.  **`Clinic`**: Thông tin về phòng khám/bệnh viện.
+    *   `clinicId` (PK), `name`, `address`, `phoneNumber`, `email`, `logoURL`, `description`, `workingHours`, `history`, `vision`, `mission`, `coreValues`, `facilitiesDescription`, `equipmentDescription`.
+5.  **`Specialty`**: Các chuyên khoa y tế.
+    *   `specialtyId` (PK), `name`, `description`, `clinic` (FK to `Clinic`).
+6.  **`DoctorSpecialty`**: Bảng nối thể hiện chuyên khoa của bác sĩ (quan hệ nhiều-nhiều).
+    *   `id` (PK), `doctor` (FK to `Doctor`), `specialty` (FK to `Specialty`), `isPrimary`.
+7.  **`StandardWorkShift`**: Các ca làm việc chuẩn của phòng khám.
+    *   `shiftId` (PK), `shiftName`, `dayOfWeek`, `startTime`, `endTime`, `clinic` (FK to `Clinic`), `isDefault`.
+8.  **`DoctorAvailabilityRequest`**: Yêu cầu đăng ký lịch làm việc từ bác sĩ.
+    *   `requestId` (PK), `doctor` (FK to `Doctor`), `weekStartDate`, `submissionTimestamp`, `status` (Pending, Approved, etc.), `reviewer` (FK to `User`), `reviewTimestamp`, `reviewNotes`.
+9.  **`RequestedSlot`**: Các khung giờ cụ thể trong một `DoctorAvailabilityRequest`.
+    *   `requestedSlotId` (PK), `request` (FK to `DoctorAvailabilityRequest`), `date`, `startTime`, `endTime`.
+10. **`AvailabilitySlot`**: Các khung giờ làm việc đã được duyệt và sẵn sàng cho bệnh nhân đặt.
+    *   `slotId` (PK), `doctor` (FK to `Doctor`), `date`, `startTime`, `endTime`, `status` (Available, Booked, etc.), `originalRequest` (FK to `DoctorAvailabilityRequest`), `clinic` (FK to `Clinic`).
+11. **`Appointment`**: Thông tin chi tiết về một lịch hẹn.
+    *   `appointmentId` (PK), `patient` (FK to `User`), `doctor` (FK to `User`), `slot` (FK to `AvailabilitySlot`), `specialty` (FK to `Specialty`), `clinic` (FK to `Clinic`), `appointmentDateTime`, `reasonForVisit`, `status` (PendingPayment, Confirmed, etc.), `bookingTimestamp`, `depositAmount`, `isDepositPaid`, `paymentStatusMomo`, `paymentTransactionId`, `cancellationTimestamp`, `cancellationReason`, `isDepositNonRefundable`.
+12. **`Article`**: Các bài viết, tin tức.
+    *   `articleId` (PK), `title`, `content`, `author` (FK to `User`), `publishedDate`, `lastModifiedDate`, `imageURL`, `category`, `status` (Draft, Published, etc.).
+13. **`SystemConfiguration`**: Các cấu hình toàn cục cho hệ thống.
+    *   `configId` (PK), `enableDeposit`, `defaultDepositAmount`, `momoPartnerCode`, `momoAccessKey`, `momoSecretKey`, `momoApiEndpoint`, `paymentRetryTimeoutMinutes`, `patientCancellationTimeLimitHours`, `nonRefundableDepositPolicyText`.
 
 ## Tính Năng Hiện Tại
 
