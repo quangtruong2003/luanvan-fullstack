@@ -72,6 +72,24 @@ Hệ thống sử dụng các thực thể JPA để ánh xạ với cơ sở d�
 13. **`SystemConfiguration`**: Các cấu hình toàn cục cho hệ thống.
     *   `configId` (PK), `enableDeposit`, `defaultDepositAmount`, `momoPartnerCode`, `momoAccessKey`, `momoSecretKey`, `momoApiEndpoint`, `paymentRetryTimeoutMinutes`, `patientCancellationTimeLimitHours`, `nonRefundableDepositPolicyText`.
 
+## Repositories (Data Access Layer)
+
+Đã triển khai các Spring Data JPA Repositories tương ứng cho mỗi entity, cung cấp các phương thức CRUD cơ bản và các phương thức truy vấn tùy chỉnh (query methods và @Query) để hỗ trợ logic nghiệp vụ. Ví dụ:
+
+*   **`UserRepository`**: `findByEmail`, `findByPhoneNumber`, `existsByEmail`, `existsByPhoneNumber`.
+*   **`RoleRepository`**: `findByRoleName`.
+*   **`DoctorRepository`**: `findByUserFullNameContainingIgnoreCase` (Pageable), `findBySpecialtyId` (Pageable), `findByYearsOfExperienceGreaterThanEqual`.
+*   **`ClinicRepository`**: `findByNameContainingIgnoreCase`, `findByPhoneNumber`, `findByEmail`.
+*   **`SpecialtyRepository`**: `findByNameContainingIgnoreCase`, `findByClinicClinicId`.
+*   **`DoctorSpecialtyRepository`**: `findByDoctorDoctorId`, `findBySpecialtySpecialtyId`, `deleteByDoctorDoctorIdAndSpecialtySpecialtyId`.
+*   **`StandardWorkShiftRepository`**: `findByDayOfWeek`, `findByClinicClinicId`, `findByIsDefaultTrue`.
+*   **`DoctorAvailabilityRequestRepository`**: `findByDoctorDoctorId` (List và Pageable), `findByStatus`, `findByReviewerUserId`.
+*   **`RequestedSlotRepository`**: `findByRequestRequestId`, `findByDate`.
+*   **`AvailabilitySlotRepository`**: `findByDoctorDoctorIdAndDate`, `findOverlappingSlots`, `findAvailableSlotsBySpecialtyAndDate`.
+*   **`AppointmentRepository`**: `findByPatientUserId` (List và Pageable), `findByDoctorUserId` (List và Pageable), `findByStatus`, `findBySlotSlotId`, `findUpcomingAppointmentsForReminder`.
+*   **`ArticleRepository`**: `findByStatus` (List và Pageable), `findByAuthorUserId` (List và Pageable), `findByTitleContainingIgnoreCase` (Pageable).
+*   **`SystemConfigurationRepository`**: `findFirstByOrderByConfigIdAsc`.
+
 ## Tính Năng Hiện Tại
 
 - Cấu trúc REST API cơ bản
