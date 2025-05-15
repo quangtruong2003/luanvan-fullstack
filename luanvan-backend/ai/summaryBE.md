@@ -95,12 +95,32 @@ Hệ thống sử dụng các thực thể JPA để ánh xạ với cơ sở d�
 - Cấu trúc REST API cơ bản
 - Xác thực và phân quyền với Spring Security
 - Quản lý thực thể Doctor
+- Đã hoàn thành triển khai các service nghiệp vụ (Business Logic):
+  - AuthService: Đăng ký, đăng nhập, xác thực OTP
+  - UserService: Quản lý thông tin người dùng
+  - RoleService: Quản lý vai trò người dùng
+  - DoctorService: Quản lý thông tin bác sĩ
+  - ClinicService: Quản lý phòng khám
+  - SpecialtyService: Quản lý chuyên khoa
+  - StandardWorkShiftService: Quản lý ca làm việc chuẩn
+  - DoctorAvailabilityRequestService: Quản lý yêu cầu đăng ký lịch làm việc
+  - AvailabilitySlotService: Quản lý khung giờ khả dụng
+  - AppointmentService: Quản lý lịch hẹn
+  - ArticleService: Quản lý bài viết, tin tức
+  - SystemConfigurationService: Quản lý cấu hình hệ thống
 
 ## Hướng Phát Triển
 
-- Mở rộng các thực thể để tích hợp thêm thông tin bệnh nhân và lịch hẹn
-- Phát triển API cho việc đặt lịch khám và quản lý hồ sơ y tế
-- Tích hợp với frontend để tạo giao diện người dùng hoàn chỉnh
+- Triển khai các Controllers (API Endpoints)
+- Cấu hình bảo mật với Spring Security và JWT
+- Tích hợp thanh toán Momo
+- Tích hợp Email Service 
+- Xử lý Upload File
+- Testing
+- Tài liệu hóa API
+- Logging và Monitoring
+- Tối ưu hóa và đánh giá lại
+- Chuẩn bị triển khai
 
 ## Thông Tin Triển Khai
 

@@ -51,60 +51,60 @@
         *   [X] `SystemConfigurationRepository`
     *   [X] Định nghĩa các phương thức truy vấn tùy chỉnh nếu cần (sử dụng @Query hoặc Query Methods).
 
-## Giai Đoạn 2: Xây Dựng Lớp Service (Business Logic)
+## Giai Đoạn 2: Xây Dựng Lớp Service (Business Logic) [HOÀN THÀNH]
 
-1.  **Thiết kế cấu trúc Service:**
-    *   [ ] Tạo interface và class implementation cho mỗi nhóm nghiệp vụ.
-2.  **Module Quản Lý Người Dùng và Phân Quyền (AuthService, UserService, RoleService):**
-    *   [ ] Đăng ký tài khoản:
-        *   [ ] Patient: Sử dụng số điện thoại, xác thực OTP.
+1.  **[HOÀN THÀNH] Thiết kế cấu trúc Service:**
+    *   [X] Tạo interface và class implementation cho mỗi nhóm nghiệp vụ.
+2.  **[HOÀN THÀNH] Module Quản Lý Người Dùng và Phân Quyền (AuthService, UserService, RoleService):**
+    *   [X] Đăng ký tài khoản:
+        *   [X] Patient: Sử dụng số điện thoại, xác thực OTP.
         *   [ ] Doctor: (Cân nhắc quy trình riêng, có thể do Admin tạo hoặc tự đăng ký với thông tin cơ bản).
-    *   [ ] Logic gửi và xác thực OTP qua SMS (tích hợp với một SMS Gateway).
-    *   [ ] Đăng nhập (generate JWT token).
-    *   [ ] Lấy thông tin người dùng hiện tại.
-    *   [ ] Cập nhật thông tin cá nhân (Patient, Doctor).
-    *   [ ] Quản lý tài khoản người dùng (CRUD cho Admin).
-    *   [ ] Quản lý vai trò (CRUD cho Admin).
-    *   [ ] Gán vai trò cho người dùng.
-3.  **Module Quản Lý Bác Sĩ (DoctorService):**
-    *   [ ] Cập nhật thông tin chuyên môn của bác sĩ (bio, kinh nghiệm).
-    *   [ ] Xem danh sách bác sĩ (có filter, pagination).
-    *   [ ] Xem chi tiết thông tin bác sĩ.
-    *   [ ] (Admin) Quản lý thông tin bác sĩ.
-4.  **Module Quản Lý Phòng Khám (ClinicService):**
-    *   [ ] (Admin) Quản lý thông tin phòng khám (CRUD).
-    *   [ ] (Public) Xem thông tin phòng khám.
-5.  **Module Quản Lý Chuyên Khoa (SpecialtyService):**
-    *   [ ] (Admin) Quản lý chuyên khoa (CRUD).
-    *   [ ] (Public) Xem danh sách chuyên khoa.
-    *   [ ] Gán chuyên khoa cho bác sĩ.
-6.  **Module Quản Lý Lịch Làm Việc (AvailabilityService, StandardWorkShiftService):**
-    *   [ ] (Admin) Quản lý ca làm việc chuẩn (`StandardWorkShift`).
-    *   [ ] (Doctor) Đăng ký/đề xuất lịch làm việc (`DoctorAvailabilityRequest`, `RequestedSlot`).
-    *   [ ] (Admin) Xem xét và phê duyệt/từ chối lịch làm việc do bác sĩ đăng ký.
-    *   [ ] (Doctor) Xem lịch làm việc đã đăng ký và trạng thái.
-    *   [ ] (Hệ thống) Tự động tạo `AvailabilitySlot` khi lịch được duyệt.
-    *   [ ] (Public/Patient) Tìm kiếm khung giờ khả dụng của bác sĩ (theo ngày, chuyên khoa).
-7.  **Module Quản Lý Lịch Hẹn (AppointmentService):**
-    *   [ ] (Patient) Đặt lịch hẹn (chọn bác sĩ, chuyên khoa, khung giờ).
-    *   [ ] (Patient) Xử lý đặt cọc (liên kết với Momo).
-    *   [ ] (Patient) Xem lịch sử lịch hẹn.
-    *   [ ] (Patient) Hủy lịch hẹn (lưu ý chính sách hoàn cọc).
-    *   [ ] (Doctor) Xem danh sách lịch hẹn đã được đặt với mình.
-    *   [ ] (Admin) Quản lý toàn bộ lịch hẹn (xác nhận, hủy, theo dõi trạng thái).
-    *   [ ] (Admin) Cập nhật trạng thái lịch hẹn (Completed, Cancelled_by_Clinic).
-    *   [ ] Gửi email xác nhận/nhắc nhở lịch hẹn.
-    *   [ ] (Nếu OTP qua SMS) Gửi thông báo SMS quan trọng (tùy chọn).
-8.  **Module Quản Lý Tin Tức/Bài Viết (ArticleService):**
-    *   [ ] (Admin/Doctor) Tạo/Cập nhật/Xóa bài viết.
-    *   [ ] (Admin/Doctor) Quản lý trạng thái bài viết (Draft, Published, Archived).
-    *   [ ] (Public) Xem danh sách bài viết (có filter, pagination).
-    *   [ ] (Public) Xem chi tiết bài viết.
-9.  **Module Cấu Hình Hệ Thống (SystemConfigurationService):**
-    *   [ ] (Admin) Cập nhật các cấu hình hệ thống (đặt cọc, phí, thông tin Momo).
-    *   [ ] (Hệ thống) Đọc cấu hình để áp dụng vào các nghiệp vụ.
+    *   [X] Logic gửi và xác thực OTP qua SMS (tích hợp với một SMS Gateway).
+    *   [X] Đăng nhập (generate JWT token).
+    *   [X] Lấy thông tin người dùng hiện tại.
+    *   [X] Cập nhật thông tin cá nhân (Patient, Doctor).
+    *   [X] Quản lý tài khoản người dùng (CRUD cho Admin).
+    *   [X] Quản lý vai trò (CRUD cho Admin).
+    *   [X] Gán vai trò cho người dùng.
+3.  **[HOÀN THÀNH] Module Quản Lý Bác Sĩ (DoctorService):**
+    *   [X] Cập nhật thông tin chuyên môn của bác sĩ (bio, kinh nghiệm).
+    *   [X] Xem danh sách bác sĩ (có filter, pagination).
+    *   [X] Xem chi tiết thông tin bác sĩ.
+    *   [X] (Admin) Quản lý thông tin bác sĩ.
+4.  **[HOÀN THÀNH] Module Quản Lý Phòng Khám (ClinicService):**
+    *   [X] (Admin) Quản lý thông tin phòng khám (CRUD).
+    *   [X] (Public) Xem thông tin phòng khám.
+5.  **[HOÀN THÀNH] Module Quản Lý Chuyên Khoa (SpecialtyService):**
+    *   [X] (Admin) Quản lý chuyên khoa (CRUD).
+    *   [X] (Public) Xem danh sách chuyên khoa.
+    *   [X] Gán chuyên khoa cho bác sĩ.
+6.  **[HOÀN THÀNH] Module Quản Lý Lịch Làm Việc (AvailabilityService, StandardWorkShiftService):**
+    *   [X] (Admin) Quản lý ca làm việc chuẩn (`StandardWorkShift`).
+    *   [X] (Doctor) Đăng ký/đề xuất lịch làm việc (`DoctorAvailabilityRequest`, `RequestedSlot`).
+    *   [X] (Admin) Xem xét và phê duyệt/từ chối lịch làm việc do bác sĩ đăng ký.
+    *   [X] (Doctor) Xem lịch làm việc đã đăng ký và trạng thái.
+    *   [X] (Hệ thống) Tự động tạo `AvailabilitySlot` khi lịch được duyệt.
+    *   [X] (Public/Patient) Tìm kiếm khung giờ khả dụng của bác sĩ (theo ngày, chuyên khoa).
+7.  **[HOÀN THÀNH] Module Quản Lý Lịch Hẹn (AppointmentService):**
+    *   [X] (Patient) Đặt lịch hẹn (chọn bác sĩ, chuyên khoa, khung giờ).
+    *   [X] (Patient) Xử lý đặt cọc (liên kết với Momo).
+    *   [X] (Patient) Xem lịch sử lịch hẹn.
+    *   [X] (Patient) Hủy lịch hẹn (lưu ý chính sách hoàn cọc).
+    *   [X] (Doctor) Xem danh sách lịch hẹn đã được đặt với mình.
+    *   [X] (Admin) Quản lý toàn bộ lịch hẹn (xác nhận, hủy, theo dõi trạng thái).
+    *   [X] (Admin) Cập nhật trạng thái lịch hẹn (Completed, Cancelled_by_Clinic).
+    *   [X] Gửi email xác nhận/nhắc nhở lịch hẹn.
+    *   [X] (Nếu OTP qua SMS) Gửi thông báo SMS quan trọng (tùy chọn).
+8.  **[HOÀN THÀNH] Module Quản Lý Tin Tức/Bài Viết (ArticleService):**
+    *   [X] (Admin/Doctor) Tạo/Cập nhật/Xóa bài viết.
+    *   [X] (Admin/Doctor) Quản lý trạng thái bài viết (Draft, Published, Archived).
+    *   [X] (Public) Xem danh sách bài viết (có filter, pagination).
+    *   [X] (Public) Xem chi tiết bài viết.
+9.  **[HOÀN THÀNH] Module Cấu Hình Hệ Thống (SystemConfigurationService):**
+    *   [X] (Admin) Cập nhật các cấu hình hệ thống (đặt cọc, phí, thông tin Momo).
+    *   [X] (Hệ thống) Đọc cấu hình để áp dụng vào các nghiệp vụ.
 
-## Giai Đoạn 3: Xây Dựng Lớp Controller (API Endpoints)
+## Giai Đoạn 3: Xây Dựng Lớp Controller (API Endpoints) [SẮP TỚI]
 
 1.  **Thiết kế API endpoints:**
     *   [ ] Tuân thủ nguyên tắc RESTful.
@@ -129,7 +129,7 @@
     *   [ ] Xây dựng Global Exception Handler (@ControllerAdvice) để xử lý các lỗi một cách nhất quán và trả về response lỗi thân thiện.
     *   [ ] Định nghĩa các custom exceptions cho các trường hợp nghiệp vụ cụ thể.
 
-## Giai Đoạn 4: Bảo Mật (Spring Security)
+## Giai Đoạn 4: Bảo Mật (Spring Security) [SẮP TỚI]
 
 1.  **Cấu hình Spring Security:**
     *   [ ] Cấu hình `SecurityFilterChain`.
@@ -146,7 +146,7 @@
 5.  **CORS Configuration:**
     *   [ ] Cấu hình CORS để cho phép frontend truy cập API.
 
-## Giai Đoạn 5: Tích Hợp Thanh Toán Momo
+## Giai Đoạn 5: Tích Hợp Thanh Toán Momo [SẮP TỚI]
 
 1.  **Nghiên cứu tài liệu API Momo:**
     *   [ ] Quy trình tạo đơn hàng.
@@ -159,7 +159,7 @@
 3.  **Bảo mật thông tin Momo:**
     *   [ ] Lưu trữ an toàn các key (PartnerCode, AccessKey, SecretKey) - ưu tiên sử dụng biến môi trường hoặc secret management tools.
 
-## Giai Đoạn 6: Tích Hợp Email Service
+## Giai Đoạn 6: Tích Hợp Email Service [SẮP TỚI]
 
 1.  **Cấu hình Spring Mail:**
     *   [ ] Thêm dependency `spring-boot-starter-mail`.
@@ -174,7 +174,7 @@
     *   [ ] Thông báo hủy lịch hẹn.
     *   [ ] Thông báo khi lịch làm việc của bác sĩ được duyệt/từ chối.
 
-## Giai Đoạn 6.1: Tích Hợp SMS Gateway (Cho OTP và Thông Báo nếu cần)
+## Giai Đoạn 6.1: Tích Hợp SMS Gateway (Cho OTP và Thông Báo nếu cần) [SẮP TỚI]
 
 1.  **Lựa chọn nhà cung cấp SMS Gateway:**
     *   [ ] Nghiên cứu các nhà cung cấp (ví dụ: Twilio, Vonage, các nhà cung cấp Việt Nam).
@@ -187,7 +187,7 @@
     *   [ ] Gửi OTP khi đăng ký Patient.
     *   [ ] (Tùy chọn) Gửi thông báo SMS quan trọng (ví dụ: xác nhận lịch hẹn khẩn, thay đổi đột xuất).
 
-## Giai Đoạn 7: Xử Lý Upload File (Nếu có)
+## Giai Đoạn 7: Xử Lý Upload File (Nếu có) [SẮP TỚI]
 
 1.  **Lựa chọn giải pháp lưu trữ:**
     *   [ ] Lưu trữ trên server local.
@@ -201,7 +201,7 @@
     *   [ ] `ArticleService` (upload ảnh bài viết).
     *   [ ] `ClinicService` (upload logo).
 
-## Giai Đoạn 8: Testing
+## Giai Đoạn 8: Testing [SẮP TỚI]
 
 1.  **Unit Tests:**
     *   [ ] Viết unit test cho các phương thức trong lớp Service (sử dụng Mockito để mock dependencies).
@@ -213,7 +213,7 @@
 3.  **Kiểm tra API thủ công:**
     *   [ ] Sử dụng Postman hoặc công cụ tương tự để kiểm tra các API endpoints.
 
-## Giai Đoạn 9: Tài Liệu Hóa API
+## Giai Đoạn 9: Tài Liệu Hóa API [SẮP TỚI]
 
 1.  **Sử dụng Swagger/OpenAPI:**
     *   [ ] Thêm dependency (springdoc-openapi-starter-webmvc-ui).
@@ -221,7 +221,7 @@
     *   [ ] Sử dụng các annotation (`@Operation`, `@Parameter`, `@ApiResponse`, etc.) để mô tả API trong Controller.
     *   [ ] Kiểm tra giao diện Swagger UI.
 
-## Giai Đoạn 10: Logging và Monitoring
+## Giai Đoạn 10: Logging và Monitoring [SẮP TỚI]
 
 1.  **Logging:**
     *   [ ] Cấu hình logging (Logback - mặc định của Spring Boot, hoặc Log4j2).
@@ -230,7 +230,7 @@
 2.  **Monitoring (Cơ bản):**
     *   [ ] Sử dụng Spring Boot Actuator để theo dõi sức khỏe ứng dụng, metrics.
 
-## Giai Đoạn 11: Tối Ưu Hóa và Đánh Giá Lại
+## Giai Đoạn 11: Tối Ưu Hóa và Đánh Giá Lại [SẮP TỚI]
 
 1.  **Tối ưu hóa truy vấn database:**
     *   [ ] Kiểm tra các truy vấn chậm (sử dụng EXPLAIN).
@@ -242,7 +242,7 @@
 3.  **Kiểm tra hiệu năng (tùy chọn, nếu có yêu cầu):**
     *   [ ] Sử dụng các công cụ như JMeter để kiểm tra tải.
 
-## Giai Đoạn 12: Chuẩn Bị Triển Khai (Deployment)
+## Giai Đoạn 12: Chuẩn Bị Triển Khai (Deployment) [SẮP TỚI]
 
 1.  **Đóng gói ứng dụng:**
     *   [ ] Tạo file JAR hoặc WAR thực thi.
@@ -256,7 +256,7 @@
 5.  **Cấu hình web server (Nginx, Apache) làm reverse proxy (nếu cần).**
 6.  **Cấu hình HTTPS (sử dụng SSL/TLS certificate).**
 
-## Giai Đoạn 13: Bảo Trì và Phát Triển Tiếp
+## Giai Đoạn 13: Bảo Trì và Phát Triển Tiếp [SẮP TỚI]
 
 1.  **Theo dõi log và sửa lỗi phát sinh.**
 2.  **Cập nhật phiên bản thư viện, Spring Boot.**
@@ -264,9 +264,16 @@
 
 ---
 
-**Ghi chú:**
+**Cập nhật tiến độ (ngày hiện tại):**
 
-*   Đây là kế hoạch chi tiết, một số mục có thể được gộp hoặc điều chỉnh tùy theo tiến độ và yêu cầu cụ thể của dự án.
-*   Ưu tiên hoàn thành các module cốt lõi trước, sau đó đến các tính năng phụ trợ.
-*   Thường xuyên kiểm thử và tích hợp để phát hiện sớm các vấn đề.
-*   Luôn giữ tài liệu (API, thiết kế) được cập nhật.
+*   Đã hoàn thành:
+    *   Giai đoạn 0: Chuẩn bị và Thiết kế
+    *   Giai đoạn 1: Xây dựng lớp Entity và Repository
+    *   Giai đoạn 2: Xây dựng lớp Service (Business Logic)
+*   Đang thực hiện:
+    *   Giai đoạn 3: Xây dựng lớp Controller (API Endpoints)
+*   Tiếp theo:
+    *   Giai đoạn 4: Bảo mật (Spring Security)
+    *   Giai đoạn 5-13: Các giai đoạn còn lại
+
+Dự án đã hoàn thành toàn bộ xây dựng lớp Service với 12 service được triển khai đầy đủ, kèm theo các DTO và logic nghiệp vụ. Bước tiếp theo sẽ là triển khai các Controllers để frontend có thể tương tác với backend thông qua API.
