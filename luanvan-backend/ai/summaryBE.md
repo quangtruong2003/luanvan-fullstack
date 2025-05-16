@@ -59,17 +59,13 @@ Hệ thống sử dụng các thực thể JPA để ánh xạ với cơ sở d�
     *   `id` (PK), `doctor` (FK to `Doctor`), `specialty` (FK to `Specialty`), `isPrimary`.
 7.  **`StandardWorkShift`**: Các ca làm việc chuẩn của phòng khám.
     *   `shiftId` (PK), `shiftName`, `dayOfWeek`, `startTime`, `endTime`, `clinic` (FK to `Clinic`), `isDefault`.
-8.  **`DoctorAvailabilityRequest`**: Yêu cầu đăng ký lịch làm việc từ bác sĩ.
-    *   `requestId` (PK), `doctor` (FK to `Doctor`), `weekStartDate`, `submissionTimestamp`, `status` (Pending, Approved, etc.), `reviewer` (FK to `User`), `reviewTimestamp`, `reviewNotes`.
-9.  **`RequestedSlot`**: Các khung giờ cụ thể trong một `DoctorAvailabilityRequest`.
-    *   `requestedSlotId` (PK), `request` (FK to `DoctorAvailabilityRequest`), `date`, `startTime`, `endTime`.
-10. **`AvailabilitySlot`**: Các khung giờ làm việc đã được duyệt và sẵn sàng cho bệnh nhân đặt.
-    *   `slotId` (PK), `doctor` (FK to `Doctor`), `date`, `startTime`, `endTime`, `status` (Available, Booked, etc.), `originalRequest` (FK to `DoctorAvailabilityRequest`), `clinic` (FK to `Clinic`).
-11. **`Appointment`**: Thông tin chi tiết về một lịch hẹn.
+8.  **`AvailabilitySlot`**: Các khung giờ làm việc có sẵn cho bệnh nhân đặt lịch.
+    *   `slotId` (PK), `doctor` (FK to `Doctor`), `date`, `startTime`, `endTime`, `status` (Available, Booked, etc.), `clinic` (FK to `Clinic`).
+9. **`Appointment`**: Thông tin chi tiết về một lịch hẹn.
     *   `appointmentId` (PK), `patient` (FK to `User`), `doctor` (FK to `User`), `slot` (FK to `AvailabilitySlot`), `specialty` (FK to `Specialty`), `clinic` (FK to `Clinic`), `appointmentDateTime`, `reasonForVisit`, `status` (PendingPayment, Confirmed, etc.), `bookingTimestamp`, `depositAmount`, `isDepositPaid`, `paymentStatusMomo`, `paymentTransactionId`, `cancellationTimestamp`, `cancellationReason`, `isDepositNonRefundable`.
-12. **`Article`**: Các bài viết, tin tức.
+10. **`Article`**: Các bài viết, tin tức.
     *   `articleId` (PK), `title`, `content`, `author` (FK to `User`), `publishedDate`, `lastModifiedDate`, `imageURL`, `category`, `status` (Draft, Published, etc.).
-13. **`SystemConfiguration`**: Các cấu hình toàn cục cho hệ thống.
+11. **`SystemConfiguration`**: Các cấu hình toàn cục cho hệ thống.
     *   `configId` (PK), `enableDeposit`, `defaultDepositAmount`, `momoPartnerCode`, `momoAccessKey`, `momoSecretKey`, `momoApiEndpoint`, `paymentRetryTimeoutMinutes`, `patientCancellationTimeLimitHours`, `nonRefundableDepositPolicyText`.
 
 ## Repositories (Data Access Layer)
@@ -83,8 +79,6 @@ Hệ thống sử dụng các thực thể JPA để ánh xạ với cơ sở d�
 *   **`SpecialtyRepository`**: `findByNameContainingIgnoreCase`, `findByClinicClinicId`.
 *   **`DoctorSpecialtyRepository`**: `findByDoctorDoctorId`, `findBySpecialtySpecialtyId`, `deleteByDoctorDoctorIdAndSpecialtySpecialtyId`.
 *   **`StandardWorkShiftRepository`**: `findByDayOfWeek`, `findByClinicClinicId`, `findByIsDefaultTrue`.
-*   **`DoctorAvailabilityRequestRepository`**: `findByDoctorDoctorId` (List và Pageable), `findByStatus`, `findByReviewerUserId`.
-*   **`RequestedSlotRepository`**: `findByRequestRequestId`, `findByDate`.
 *   **`AvailabilitySlotRepository`**: `findByDoctorDoctorIdAndDate`, `findOverlappingSlots`, `findAvailableSlotsBySpecialtyAndDate`.
 *   **`AppointmentRepository`**: `findByPatientUserId` (List và Pageable), `findByDoctorUserId` (List và Pageable), `findByStatus`, `findBySlotSlotId`, `findUpcomingAppointmentsForReminder`.
 *   **`ArticleRepository`**: `findByStatus` (List và Pageable), `findByAuthorUserId` (List và Pageable), `findByTitleContainingIgnoreCase` (Pageable).
@@ -103,11 +97,15 @@ Hệ thống sử dụng các thực thể JPA để ánh xạ với cơ sở d�
   - ClinicService: Quản lý phòng khám
   - SpecialtyService: Quản lý chuyên khoa
   - StandardWorkShiftService: Quản lý ca làm việc chuẩn
-  - DoctorAvailabilityRequestService: Quản lý yêu cầu đăng ký lịch làm việc
   - AvailabilitySlotService: Quản lý khung giờ khả dụng
   - AppointmentService: Quản lý lịch hẹn
   - ArticleService: Quản lý bài viết, tin tức
   - SystemConfigurationService: Quản lý cấu hình hệ thống
+
+## Điều Chỉnh So Với Thiết Kế Ban Đầu
+
+- Đã loại bỏ tính năng "bác sĩ đăng ký/đề xuất lịch làm việc của mình"
+- Lịch làm việc của bác sĩ giờ đây được quản trị viên tạo trực tiếp thông qua AvailabilitySlotService
 
 ## Hướng Phát Triển
 

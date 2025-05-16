@@ -31,7 +31,7 @@
 ## Giai Đoạn 1: Xây Dựng Lớp Entity và Repository
 
 1.  **[HOÀN THÀNH] Triển khai Entities:**
-    *   [X] Tạo các class Java cho mỗi entity đã thiết kế (`User`, `Role`, `Doctor`, `Clinic`, `Specialty`, `DoctorSpecialty`, `StandardWorkShift`, `DoctorAvailabilityRequest`, `RequestedSlot`, `AvailabilitySlot`, `Appointment`, `Article`, `SystemConfiguration`).
+    *   [X] Tạo các class Java cho mỗi entity đã thiết kế (`User`, `Role`, `Doctor`, `Clinic`, `Specialty`, `DoctorSpecialty`, `StandardWorkShift`, `AvailabilitySlot`, `Appointment`, `Article`, `SystemConfiguration`).
     *   [X] Sử dụng các annotation JPA (@Entity, @Table, @Id, @GeneratedValue, @Column, @ManyToOne, @OneToMany, @ManyToMany, @OneToOne, @JoinColumn, @Enumerated, etc.).
     *   [X] Sử dụng Lombok (@Data, @NoArgsConstructor, @AllArgsConstructor).
 2.  **[HOÀN THÀNH] Triển khai Repositories:**
@@ -43,8 +43,6 @@
         *   [X] `SpecialtyRepository`
         *   [X] `DoctorSpecialtyRepository`
         *   [X] `StandardWorkShiftRepository`
-        *   [X] `DoctorAvailabilityRequestRepository`
-        *   [X] `RequestedSlotRepository`
         *   [X] `AvailabilitySlotRepository`
         *   [X] `AppointmentRepository`
         *   [X] `ArticleRepository`
@@ -80,10 +78,8 @@
     *   [X] Gán chuyên khoa cho bác sĩ.
 6.  **[HOÀN THÀNH] Module Quản Lý Lịch Làm Việc (AvailabilityService, StandardWorkShiftService):**
     *   [X] (Admin) Quản lý ca làm việc chuẩn (`StandardWorkShift`).
-    *   [X] (Doctor) Đăng ký/đề xuất lịch làm việc (`DoctorAvailabilityRequest`, `RequestedSlot`).
-    *   [X] (Admin) Xem xét và phê duyệt/từ chối lịch làm việc do bác sĩ đăng ký.
-    *   [X] (Doctor) Xem lịch làm việc đã đăng ký và trạng thái.
-    *   [X] (Hệ thống) Tự động tạo `AvailabilitySlot` khi lịch được duyệt.
+    *   [X] (Admin) Tạo khung giờ khả dụng trực tiếp cho bác sĩ.
+    *   [X] (Doctor) Xem lịch làm việc của mình.
     *   [X] (Public/Patient) Tìm kiếm khung giờ khả dụng của bác sĩ (theo ngày, chuyên khoa).
 7.  **[HOÀN THÀNH] Module Quản Lý Lịch Hẹn (AppointmentService):**
     *   [X] (Patient) Đặt lịch hẹn (chọn bác sĩ, chuyên khoa, khung giờ).
@@ -116,7 +112,7 @@
     *   [ ] `DoctorController`
     *   [ ] `ClinicController`
     *   [ ] `SpecialtyController`
-    *   [ ] `AvailabilityController` (bao gồm `StandardWorkShift`, `DoctorAvailabilityRequest`, `AvailabilitySlot`)
+    *   [ ] `AvailabilityController` (bao gồm `StandardWorkShift`, `AvailabilitySlot`)
     *   [ ] `AppointmentController`
     *   [ ] `ArticleController`
     *   [ ] `SystemConfigurationController`
@@ -172,7 +168,6 @@
     *   [ ] Xác nhận đặt lịch hẹn.
     *   [ ] Nhắc nhở lịch hẹn (có thể cần một cron job/scheduled task).
     *   [ ] Thông báo hủy lịch hẹn.
-    *   [ ] Thông báo khi lịch làm việc của bác sĩ được duyệt/từ chối.
 
 ## Giai Đoạn 6.1: Tích Hợp SMS Gateway (Cho OTP và Thông Báo nếu cần) [SẮP TỚI]
 
@@ -276,4 +271,4 @@
     *   Giai đoạn 4: Bảo mật (Spring Security)
     *   Giai đoạn 5-13: Các giai đoạn còn lại
 
-Dự án đã hoàn thành toàn bộ xây dựng lớp Service với 12 service được triển khai đầy đủ, kèm theo các DTO và logic nghiệp vụ. Bước tiếp theo sẽ là triển khai các Controllers để frontend có thể tương tác với backend thông qua API.
+Dự án đã hoàn thành toàn bộ xây dựng lớp Service với các service được triển khai đầy đủ, kèm theo các DTO và logic nghiệp vụ. Bước tiếp theo sẽ là triển khai các Controllers để frontend có thể tương tác với backend thông qua API.

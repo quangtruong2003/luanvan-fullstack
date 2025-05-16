@@ -66,13 +66,6 @@ public interface AvailabilitySlotService {
     List<AvailabilitySlot> getSlotsByClinic(Long clinicId);
     
     /**
-     * Lấy danh sách khung giờ theo yêu cầu đăng ký ban đầu
-     * @param requestId ID của yêu cầu đăng ký lịch
-     * @return Danh sách khung giờ đã được tạo từ yêu cầu
-     */
-    List<AvailabilitySlot> getSlotsByOriginalRequest(Long requestId);
-    
-    /**
      * Tạo mới một khung giờ khả dụng
      * @param slotDTO Thông tin khung giờ
      * @return Khung giờ đã được tạo
@@ -85,6 +78,15 @@ public interface AvailabilitySlotService {
      * @return Danh sách khung giờ đã được tạo
      */
     List<AvailabilitySlot> createMultipleSlots(List<AvailabilitySlotDTO> slotDTOs);
+    
+    /**
+     * Tạo nhiều khung giờ khả dụng cho một bác sĩ và phòng khám cụ thể
+     * @param doctorId ID của bác sĩ
+     * @param clinicId ID của phòng khám (có thể null)
+     * @param slots Danh sách thông tin khung giờ cần tạo
+     * @return Danh sách khung giờ đã được tạo
+     */
+    List<AvailabilitySlot> createBulkSlots(Long doctorId, Long clinicId, List<AvailabilitySlotDTO> slots);
     
     /**
      * Cập nhật thông tin khung giờ
@@ -118,11 +120,4 @@ public interface AvailabilitySlotService {
      * @return true nếu xóa thành công
      */
     boolean deleteSlot(Long slotId);
-    
-    /**
-     * Tạo tự động các khung giờ khả dụng từ yêu cầu đã được phê duyệt
-     * @param requestId ID của yêu cầu đăng ký lịch đã được phê duyệt
-     * @return Danh sách khung giờ đã được tạo
-     */
-    List<AvailabilitySlot> createSlotsFromApprovedRequest(Long requestId);
 } 

@@ -16,6 +16,5 @@ public class AvailabilitySlotDTO {
     private LocalTime startTime;
     private LocalTime endTime;
     private String status;
-    private Long originalRequestId;
     private Long clinicId;
 } 

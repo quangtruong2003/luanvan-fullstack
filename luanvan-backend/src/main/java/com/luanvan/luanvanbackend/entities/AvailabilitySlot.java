@@ -29,10 +29,6 @@ public class AvailabilitySlot {
     private SlotStatus status;
     
     @ManyToOne
-    @JoinColumn(name = "original_request_id")
-    private DoctorAvailabilityRequest originalRequest;
-    
-    @ManyToOne
     @JoinColumn(name = "clinic_id")
     private Clinic clinic;
     

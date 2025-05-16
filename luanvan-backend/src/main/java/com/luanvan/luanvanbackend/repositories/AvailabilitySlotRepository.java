@@ -24,8 +24,6 @@ public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySl
     
     List<AvailabilitySlot> findByClinicClinicId(Long clinicId);
     
-    List<AvailabilitySlot> findByOriginalRequestRequestId(Long requestId);
-    
     @Query("SELECT a FROM AvailabilitySlot a " +
            "WHERE a.doctor.doctorId = :doctorId AND a.date = :date " +
            "AND ((a.startTime <= :endTime AND a.endTime >= :startTime))")

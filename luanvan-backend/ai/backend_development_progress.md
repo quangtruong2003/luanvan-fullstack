@@ -9,15 +9,19 @@
 5. **ClinicService**: Quản lý phòng khám, thêm/sửa/xóa, cập nhật logo
 6. **SpecialtyService**: Quản lý chuyên khoa, liên kết với phòng khám
 7. **StandardWorkShiftService**: Quản lý ca làm việc chuẩn
-8. **DoctorAvailabilityRequestService**: Quản lý yêu cầu đăng ký lịch làm việc của bác sĩ
-9. **AvailabilitySlotService**: Quản lý khung giờ khả dụng
-10. **AppointmentService**: Quản lý lịch hẹn, đặt lịch, thanh toán, hủy lịch
-11. **ArticleService**: Quản lý bài viết, tin tức
-12. **SystemConfigurationService**: Quản lý cấu hình hệ thống
+8. **AvailabilitySlotService**: Quản lý khung giờ khả dụng, tạo/sửa/xóa khung giờ
+9. **AppointmentService**: Quản lý lịch hẹn, đặt lịch, thanh toán, hủy lịch
+10. **ArticleService**: Quản lý bài viết, tin tức
+11. **SystemConfigurationService**: Quản lý cấu hình hệ thống
 
 ## Các Service Còn Cần Triển Khai
 
 Đã hoàn thành tất cả các service cần thiết theo kế hoạch phát triển.
+
+## Các Tính Năng Đã Được Điều Chỉnh
+
+1. Đã loại bỏ tính năng "bác sĩ đăng ký/đề xuất lịch làm việc của mình"
+2. Lịch làm việc của bác sĩ giờ đây được quản trị viên tạo trực tiếp thông qua AvailabilitySlotService
 
 ## Tiếp Theo
 
