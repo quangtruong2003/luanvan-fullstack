@@ -104,7 +104,7 @@
 
 1.  **Thiết kế API endpoints:**
     *   [ ] Tuân thủ nguyên tắc RESTful.
-    *   [ ] Xác định rõ các HTTP methods (GET, POST, PUT, DELETE).
+    *   [X] Xác định rõ các HTTP methods (GET, POST, PUT, DELETE).
     *   [ ] Versioning API (nếu cần).
 2.  **Triển khai Controllers cho từng module:**
     *   [ ] `AuthController`

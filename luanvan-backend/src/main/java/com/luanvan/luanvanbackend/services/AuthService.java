@@ -4,6 +4,14 @@ import com.luanvan.luanvanbackend.dto.AuthResponseDTO;
 import com.luanvan.luanvanbackend.dto.LoginRequestDTO;
 import com.luanvan.luanvanbackend.dto.PatientRegistrationDTO;
 import com.luanvan.luanvanbackend.entities.User;
+import com.luanvan.luanvanbackend.request.LoginRequest;
+import com.luanvan.luanvanbackend.request.RegisterRequest;
+import com.luanvan.luanvanbackend.request.ResendOTPRequest;
+import com.luanvan.luanvanbackend.request.VerifyOTPRequest;
+import com.luanvan.luanvanbackend.response.LoginResponse;
+import com.luanvan.luanvanbackend.response.RegisterResponse;
+import com.luanvan.luanvanbackend.response.ResendOTPResponse;
+import com.luanvan.luanvanbackend.response.VerifyOTPResponse;
 
 public interface AuthService {
     
@@ -13,6 +21,34 @@ public interface AuthService {
      * @return User đã được tạo
      */
     User registerPatient(PatientRegistrationDTO registrationDTO);
+    
+    /**
+     * Đăng ký tài khoản với số điện thoại và OTP
+     * @param request Thông tin đăng ký
+     * @return Kết quả đăng ký và sessionId
+     */
+    RegisterResponse register(RegisterRequest request);
+    
+    /**
+     * Xác thực OTP
+     * @param request Thông tin xác thực OTP
+     * @return Kết quả xác thực và JWT token
+     */
+    VerifyOTPResponse verifyOTP(VerifyOTPRequest request);
+    
+    /**
+     * Gửi lại OTP
+     * @param request Thông tin gửi lại OTP
+     * @return Kết quả gửi lại OTP
+     */
+    ResendOTPResponse resendOTP(ResendOTPRequest request);
+    
+    /**
+     * Đăng nhập với số điện thoại và mật khẩu
+     * @param request Thông tin đăng nhập
+     * @return Kết quả đăng nhập và JWT token
+     */
+    LoginResponse login(LoginRequest request);
     
     /**
      * Gửi mã OTP tới số điện thoại
