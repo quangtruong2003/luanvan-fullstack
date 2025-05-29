@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Link } from "react-router-dom"
 import { SignedIn, SignedOut, UserButton, SignInButton, SignUpButton, useUser } from "@clerk/clerk-react"
 import { useAuth } from "../context/AuthContext"
+import { Calendar, User, Stethoscope, Home, LayoutDashboard, LogOut } from "lucide-react"
 
 const Menubar = () => {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -13,17 +14,18 @@ const Menubar = () => {
   // Hiển thị menu khác nhau tùy theo vai trò người dùng
   const renderMenuLinks = () => {
     if (currentUser) {
-      // Nếu đã đăng nhập bằng tài khoản thông thường (admin hoặc bác sĩ)
       if (isAdmin()) {
         return (
           <>
-            <Link to="/admin/dashboard" className="text-gray-700 hover:text-blue-500 font-medium transition-colors">
+            <Link to="/admin/dashboard" className="flex items-center gap-2 text-gray-700 hover:text-blue-600 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-blue-50">
+              <LayoutDashboard className="w-5 h-5" />
               Dashboard
             </Link>
             <button 
               onClick={() => { logout(); window.location.href = '/login'; }} 
-              className="text-gray-700 hover:text-red-500 font-medium transition-colors"
+              className="flex items-center gap-2 text-gray-700 hover:text-red-600 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-red-50"
             >
+              <LogOut className="w-5 h-5" />
               Đăng xuất
             </button>
           </>
@@ -31,13 +33,15 @@ const Menubar = () => {
       } else if (isDoctor()) {
         return (
           <>
-            <Link to="/doctor/dashboard" className="text-gray-700 hover:text-blue-500 font-medium transition-colors">
+            <Link to="/doctor/dashboard" className="flex items-center gap-2 text-gray-700 hover:text-blue-600 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-blue-50">
+              <LayoutDashboard className="w-5 h-5" />
               Dashboard
             </Link>
             <button 
               onClick={() => { logout(); window.location.href = '/login'; }} 
-              className="text-gray-700 hover:text-red-500 font-medium transition-colors"
+              className="flex items-center gap-2 text-gray-700 hover:text-red-600 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-red-50"
             >
+              <LogOut className="w-5 h-5" />
               Đăng xuất
             </button>
           </>
@@ -45,262 +49,268 @@ const Menubar = () => {
       }
     }
 
-    // Nếu chưa đăng nhập hoặc đăng nhập bằng Clerk (bệnh nhân)
+    // Menu cho bệnh nhân hoặc chưa đăng nhập
     return (
       <>
-        <Link to="/" className="text-gray-700 hover:text-blue-500 font-medium transition-colors">
+        <Link to="/" className="flex items-center gap-2 text-gray-700 hover:text-blue-600 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-blue-50">
+          <Home className="w-5 h-5" />
           Trang chủ
         </Link>
-        <Link to="/book-appointment" className="text-gray-700 hover:text-blue-500 font-medium transition-colors">
+        <Link to="/book-appointment" className="flex items-center gap-2 text-gray-700 hover:text-blue-600 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-blue-50">
+          <Calendar className="w-5 h-5" />
           Đặt lịch hẹn
         </Link>
-        <Link to="/my-appointments" className="text-gray-700 hover:text-blue-500 font-medium transition-colors">
+        <Link to="/my-appointments" className="flex items-center gap-2 text-gray-700 hover:text-blue-600 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-blue-50">
+          <Stethoscope className="w-5 h-5" />
           Lịch hẹn của tôi
-        </Link>
-        <Link to="/dashboard" className="text-gray-700 hover:text-blue-500 font-medium transition-colors">
-          Dashboard
         </Link>
       </>
     )
   }
 
-  // Hiển thị nút đăng nhập tùy theo loại người dùng
+  // Hiển thị nút đăng nhập/đăng ký
   const renderAuthButtons = () => {
-    // Nếu đã đăng nhập bằng tài khoản thông thường
     if (currentUser) {
       return (
-        <div className="flex items-center gap-2 sm:gap-3">
-          <p className="text-gray-600">
-            Xin chào, {currentUser.fullName}
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 bg-blue-100 px-4 py-2 rounded-full">
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
+              {currentUser.fullName.charAt(0)}
+            </div>
+            <p className="text-gray-700 font-medium">
+              Xin chào, <span className="text-blue-600">{currentUser.fullName.split(' ').pop()}</span>
+            </p>
+          </div>
+          <button 
+            onClick={() => { logout(); window.location.href = '/login'; }} 
+            className="text-gray-500 hover:text-red-600 transition-colors"
+            title="Đăng xuất"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
       )
     }
 
-    // Người dùng chưa đăng nhập hoặc đăng nhập bằng Clerk
     return (
       <>
         <SignedOut>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-4">
             <SignInButton mode="modal">
-              <button className="text-gray-700 hover:text-blue-500 font-medium">
+              <button className="text-gray-700 hover:text-blue-600 font-medium px-4 py-2 transition-colors">
                 Đăng nhập
               </button>
             </SignInButton>
             <SignUpButton mode="modal">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-full transition-all">
+              <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-full transition-all shadow-md hover:shadow-lg">
                 Đăng ký
               </button>
             </SignUpButton>
           </div>
         </SignedOut>
         <SignedIn>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button className="flex items-center gap-2 bg-blue-100 px-4 sm:px-5 py-1.5 sm:py-2.5 rounded-full hover:scale-105 transition-all duration-500 cursor-pointer">
-              <img src="/placeholder.svg?height=24&width=24" alt="credit" height={24} width={24} />
-              <p className="text-xs sm:text-sm font-medium text-gray-600">Credits: 0</p>
-            </button>
-            <p className="text-gray-600 max-sm:hidden">
-              Xin chào, {user?.firstName || user?.fullName || 'Người dùng'}
-            </p>
-            <UserButton />
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 bg-blue-100 px-4 py-2 rounded-full">
+              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
+                {user?.firstName?.charAt(0) || 'U'}
+              </div>
+              <p className="text-gray-700 font-medium">
+                Xin chào, <span className="text-blue-600">{user?.firstName || 'Người dùng'}</span>
+              </p>
+            </div>
+            <UserButton afterSignOutUrl="/" />
           </div>
         </SignedIn>
       </>
     )
   }
 
-  // Mobile menu items
-  const renderMobileMenuLinks = () => {
-    if (currentUser) {
-      // Nếu đã đăng nhập bằng tài khoản thông thường (admin hoặc bác sĩ)
-      if (isAdmin()) {
-        return (
-          <>
-            <Link
-              to="/admin/dashboard"
-              className="text-gray-700 hover:text-blue-500 font-medium py-2"
-              onClick={() => setMenuOpen(false)}
-            >
-              Dashboard
-            </Link>
-            <button
-              onClick={() => { logout(); window.location.href = '/login'; }}
-              className="text-red-600 hover:text-red-800 font-medium py-2 text-left w-full"
-            >
-              Đăng xuất
-            </button>
-          </>
-        )
-      } else if (isDoctor()) {
-        return (
-          <>
-            <Link
-              to="/doctor/dashboard"
-              className="text-gray-700 hover:text-blue-500 font-medium py-2"
-              onClick={() => setMenuOpen(false)}
-            >
-              Dashboard
-            </Link>
-            <button
-              onClick={() => { logout(); window.location.href = '/login'; }}
-              className="text-red-600 hover:text-red-800 font-medium py-2 text-left w-full"
-            >
-              Đăng xuất
-            </button>
-          </>
-        )
-      }
-    }
-
-    // Bệnh nhân hoặc chưa đăng nhập
+  // Mobile menu
+  const renderMobileMenu = () => {
     return (
-      <>
-        <Link
-          to="/"
-          className="text-gray-700 hover:text-blue-500 font-medium py-2"
-          onClick={() => setMenuOpen(false)}
-        >
-          Trang chủ
-        </Link>
-        <Link
-          to="/book-appointment"
-          className="text-gray-700 hover:text-blue-500 font-medium py-2"
-          onClick={() => setMenuOpen(false)}
-        >
-          Đặt lịch hẹn
-        </Link>
-        <Link
-          to="/my-appointments"
-          className="text-gray-700 hover:text-blue-500 font-medium py-2"
-          onClick={() => setMenuOpen(false)}
-        >
-          Lịch hẹn của tôi
-        </Link>
-        <Link
-          to="/dashboard"
-          className="text-gray-700 hover:text-blue-500 font-medium py-2"
-          onClick={() => setMenuOpen(false)}
-        >
-          Dashboard
-        </Link>
-      </>
-    )
-  }
-
-  const renderMobileAuthButtons = () => {
-    // Nếu đã đăng nhập bằng tài khoản thông thường
-    if (currentUser) {
-      return (
-        <>
-          <hr className="my-2" />
-          <p className="text-gray-600 text-sm py-1">
-            Xin chào, {currentUser.fullName}
-          </p>
-        </>
-      )
-    }
-
-    // Chưa đăng nhập hoặc đăng nhập bằng Clerk
-    return (
-      <>
-        <SignedOut>
-          <hr className="my-2" />
-          <div className="flex flex-col gap-2">
-            <SignInButton mode="modal">
-              <button className="text-gray-700 hover:text-blue-500 font-medium py-2 text-left w-full">
-                Đăng nhập
+      <div className={`fixed inset-0 bg-black bg-opacity-50 z-40 ${menuOpen ? 'block' : 'hidden'}`}>
+        <div className="absolute top-0 right-0 w-80 h-full bg-white shadow-xl transform transition-transform duration-300 ease-in-out">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center">
+                <img
+                  src="/logo.svg"
+                  alt="Logo"
+                  className="h-8 w-8"
+                />
+                <span className="ml-2 text-xl font-bold text-blue-700">Medical.Care</span>
+              </div>
+              <button 
+                onClick={() => setMenuOpen(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
-            </SignInButton>
-            <SignUpButton mode="modal">
-              <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-full text-center">
-                Đăng ký
-              </button>
-            </SignUpButton>
+            </div>
+
+            <div className="space-y-4">
+              {currentUser ? (
+                isAdmin() ? (
+                  <>
+                    <Link
+                      to="/admin/dashboard"
+                      className="flex items-center gap-3 text-gray-700 hover:text-blue-600 font-medium py-3 px-4 rounded-lg hover:bg-blue-50"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <LayoutDashboard className="w-5 h-5" />
+                      Dashboard
+                    </Link>
+                  </>
+                ) : isDoctor() ? (
+                  <>
+                    <Link
+                      to="/doctor/dashboard"
+                      className="flex items-center gap-3 text-gray-700 hover:text-blue-600 font-medium py-3 px-4 rounded-lg hover:bg-blue-50"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <LayoutDashboard className="w-5 h-5" />
+                      Dashboard
+                    </Link>
+                  </>
+                ) : null
+              ) : (
+                <>
+                  <Link
+                    to="/"
+                    className="flex items-center gap-3 text-gray-700 hover:text-blue-600 font-medium py-3 px-4 rounded-lg hover:bg-blue-50"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <Home className="w-5 h-5" />
+                    Trang chủ
+                  </Link>
+                  <Link
+                    to="/book-appointment"
+                    className="flex items-center gap-3 text-gray-700 hover:text-blue-600 font-medium py-3 px-4 rounded-lg hover:bg-blue-50"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <Calendar className="w-5 h-5" />
+                    Đặt lịch hẹn
+                  </Link>
+                  <Link
+                    to="/my-appointments"
+                    className="flex items-center gap-3 text-gray-700 hover:text-blue-600 font-medium py-3 px-4 rounded-lg hover:bg-blue-50"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <Stethoscope className="w-5 h-5" />
+                    Lịch hẹn của tôi
+                  </Link>
+                </>
+              )}
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              {currentUser ? (
+                <>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
+                      {currentUser.fullName.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{currentUser.fullName}</p>
+                      <p className="text-sm text-gray-500">{currentUser.email}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { logout(); window.location.href = '/login'; }}
+                    className="flex items-center gap-3 w-full text-red-600 hover:text-red-700 font-medium py-3 px-4 rounded-lg hover:bg-red-50"
+                  >
+                    <LogOut className="w-5 h-5" />
+                    Đăng xuất
+                  </button>
+                </>
+              ) : (
+                <>
+                  <SignedOut>
+                    <div className="flex flex-col gap-3">
+                      <SignInButton mode="modal">
+                        <button 
+                          className="w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition-colors"
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          Đăng nhập
+                        </button>
+                      </SignInButton>
+                      <SignUpButton mode="modal">
+                        <button 
+                          className="w-full text-center border border-blue-600 text-blue-600 hover:bg-blue-50 font-medium py-2.5 rounded-lg transition-colors"
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          Đăng ký
+                        </button>
+                      </SignUpButton>
+                    </div>
+                  </SignedOut>
+                  <SignedIn>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
+                        {user?.firstName?.charAt(0) || 'U'}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{user?.fullName || user?.firstName || 'Người dùng'}</p>
+                        <p className="text-sm text-gray-500">{user?.primaryEmailAddress?.emailAddress || ''}</p>
+                      </div>
+                    </div>
+                    <UserButton afterSignOutUrl="/" />
+                  </SignedIn>
+                </>
+              )}
+            </div>
           </div>
-        </SignedOut>
-        <SignedIn>
-          <hr className="my-2" />
-          <div className="flex items-center gap-2 py-2">
-            <button className="flex items-center gap-2 bg-blue-100 px-3 py-1.5 rounded-full">
-              <img src="/placeholder.svg?height=20&width=20" alt="credit" height={20} width={20} />
-              <p className="text-xs font-medium text-gray-600">Credits: 0</p>
-            </button>
-          </div>
-          <p className="text-gray-600 text-sm py-1">
-            Xin chào, {user?.firstName || user?.fullName || 'Người dùng'}
-          </p>
-          <UserButton />
-        </SignedIn>
-      </>
+        </div>
+      </div>
     )
   }
 
   return (
-    <nav className="bg-white shadow">
+    <header className="bg-white shadow-sm sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
-          <div className="flex">
-            <div className="shrink-0 flex items-center">
-              <Link to="/">
-                <img
-                  src="/placeholder.svg?height=32&width=32"
-                  alt="Logo"
-                  className="h-8 w-8 object-contain cursor-pointer"
-                />
-              </Link>
-              <Link to="/" className="ml-2">
-                <span className="text-2xl font-semibold text-blue-700 cursor-pointer">
-                  Medical.<span className="text-gray-400 cursor-pointer">Care</span>
-                </span>
-              </Link>
-            </div>
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <div className="flex items-center">
+            <Link to="/" className="flex items-center">
+              <img
+                src="/logo.svg"
+                alt="Logo"
+                className="h-8 w-8"
+              />
+              <span className="ml-2 text-xl font-bold text-blue-700">Medical.Care</span>
+            </Link>
           </div>
-          <div className="hidden md:flex items-center space-x-6">
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center space-x-2">
             {renderMenuLinks()}
+          </nav>
+
+          {/* Auth Section */}
+          <div className="hidden md:flex items-center">
             {renderAuthButtons()}
           </div>
-          <div className="-mr-2 flex items-center md:hidden">
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden">
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              type="button"
-              className="bg-white inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              aria-controls="mobile-menu"
-              aria-expanded="false"
+              onClick={() => setMenuOpen(true)}
+              className="text-gray-500 hover:text-gray-700 focus:outline-none"
             >
-              <span className="sr-only">Open main menu</span>
-              <svg
-                className={`${menuOpen ? "hidden" : "block"} h-6 w-6`}
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              <svg
-                className={`${menuOpen ? "block" : "hidden"} h-6 w-6`}
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
           </div>
         </div>
       </div>
 
-      {menuOpen && (
-        <div className="absolute top-16 right-8 bg-white shadow-lg rounded-md flex flex-col space-y-2 p-4 w-48 z-50">
-          {renderMobileMenuLinks()}
-          {renderMobileAuthButtons()}
-        </div>
-      )}
-    </nav>
+      {/* Mobile Menu */}
+      {renderMobileMenu()}
+    </header>
   )
 }
 
