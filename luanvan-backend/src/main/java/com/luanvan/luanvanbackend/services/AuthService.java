@@ -5,13 +5,11 @@ import com.luanvan.luanvanbackend.dto.LoginRequestDTO;
 import com.luanvan.luanvanbackend.dto.PatientRegistrationDTO;
 import com.luanvan.luanvanbackend.entities.User;
 import com.luanvan.luanvanbackend.request.LoginRequest;
-import com.luanvan.luanvanbackend.request.RegisterRequest;
-import com.luanvan.luanvanbackend.request.ResendOTPRequest;
-import com.luanvan.luanvanbackend.request.VerifyOTPRequest;
+import com.luanvan.luanvanbackend.request.ClerkUserSyncRequest;
+import com.luanvan.luanvanbackend.request.UserCreateRequest;
 import com.luanvan.luanvanbackend.response.LoginResponse;
-import com.luanvan.luanvanbackend.response.RegisterResponse;
-import com.luanvan.luanvanbackend.response.ResendOTPResponse;
-import com.luanvan.luanvanbackend.response.VerifyOTPResponse;
+import com.luanvan.luanvanbackend.response.ClerkUserSyncResponse;
+import com.luanvan.luanvanbackend.response.UserCreateResponse;
 
 public interface AuthService {
     
@@ -23,47 +21,32 @@ public interface AuthService {
     User registerPatient(PatientRegistrationDTO registrationDTO);
     
     /**
-     * Đăng ký tài khoản với số điện thoại và OTP
-     * @param request Thông tin đăng ký
-     * @return Kết quả đăng ký và sessionId
-     */
-    RegisterResponse register(RegisterRequest request);
-    
-    /**
-     * Xác thực OTP
-     * @param request Thông tin xác thực OTP
-     * @return Kết quả xác thực và JWT token
-     */
-    VerifyOTPResponse verifyOTP(VerifyOTPRequest request);
-    
-    /**
-     * Gửi lại OTP
-     * @param request Thông tin gửi lại OTP
-     * @return Kết quả gửi lại OTP
-     */
-    ResendOTPResponse resendOTP(ResendOTPRequest request);
-    
-    /**
-     * Đăng nhập với số điện thoại và mật khẩu
+     * Đăng nhập với tên đăng nhập và mật khẩu
      * @param request Thông tin đăng nhập
      * @return Kết quả đăng nhập và JWT token
      */
     LoginResponse login(LoginRequest request);
     
     /**
-     * Gửi mã OTP tới số điện thoại
-     * @param phoneNumber Số điện thoại cần gửi OTP
-     * @return true nếu gửi thành công
+     * Đồng bộ thông tin user từ Clerk
+     * @param request Thông tin user từ Clerk
+     * @return Kết quả đồng bộ
      */
-    boolean sendOTP(String phoneNumber);
+    ClerkUserSyncResponse syncClerkUser(ClerkUserSyncRequest request);
     
     /**
-     * Xác thực mã OTP
-     * @param phoneNumber Số điện thoại đã nhận OTP
-     * @param otpCode Mã OTP nhập vào
-     * @return true nếu OTP hợp lệ
+     * Tạo tài khoản admin hoặc doctor mới
+     * @param request Thông tin tài khoản cần tạo
+     * @return Kết quả tạo tài khoản
      */
-    boolean verifyOTP(String phoneNumber, String otpCode);
+    UserCreateResponse createUser(UserCreateRequest request);
+    
+    /**
+     * Tạo tài khoản admin đầu tiên mà không yêu cầu xác thực
+     * @param request Thông tin tài khoản admin cần tạo
+     * @return Kết quả tạo tài khoản
+     */
+    UserCreateResponse createFirstAdmin(UserCreateRequest request);
     
     /**
      * Đăng nhập người dùng

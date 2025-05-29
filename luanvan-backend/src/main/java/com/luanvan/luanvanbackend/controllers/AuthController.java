@@ -1,17 +1,16 @@
 package com.luanvan.luanvanbackend.controllers;
 
 import com.luanvan.luanvanbackend.request.LoginRequest;
-import com.luanvan.luanvanbackend.request.RegisterRequest;
-import com.luanvan.luanvanbackend.request.ResendOTPRequest;
-import com.luanvan.luanvanbackend.request.VerifyOTPRequest;
+import com.luanvan.luanvanbackend.request.ClerkUserSyncRequest;
+import com.luanvan.luanvanbackend.request.UserCreateRequest;
 import com.luanvan.luanvanbackend.response.LoginResponse;
-import com.luanvan.luanvanbackend.response.RegisterResponse;
-import com.luanvan.luanvanbackend.response.ResendOTPResponse;
-import com.luanvan.luanvanbackend.response.VerifyOTPResponse;
+import com.luanvan.luanvanbackend.response.ClerkUserSyncResponse;
+import com.luanvan.luanvanbackend.response.UserCreateResponse;
 import com.luanvan.luanvanbackend.services.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,27 +23,42 @@ public class AuthController {
     
     private final AuthService authService;
     
-    @PostMapping("/register")
-    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
-        RegisterResponse response = authService.register(request);
-        return ResponseEntity.ok(response);
-    }
-    
-    @PostMapping("/verify-otp")
-    public ResponseEntity<VerifyOTPResponse> verifyOTP(@Valid @RequestBody VerifyOTPRequest request) {
-        VerifyOTPResponse response = authService.verifyOTP(request);
-        return ResponseEntity.ok(response);
-    }
-    
-    @PostMapping("/resend-otp")
-    public ResponseEntity<ResendOTPResponse> resendOTP(@Valid @RequestBody ResendOTPRequest request) {
-        ResendOTPResponse response = authService.resendOTP(request);
-        return ResponseEntity.ok(response);
-    }
-    
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
+        return ResponseEntity.ok(response);
+    }
+    
+    @PostMapping("/clerk-sync")
+    public ResponseEntity<ClerkUserSyncResponse> syncClerkUser(@Valid @RequestBody ClerkUserSyncRequest request) {
+        ClerkUserSyncResponse response = authService.syncClerkUser(request);
+        return ResponseEntity.ok(response);
+    }
+    
+    @PostMapping("/create-user")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserCreateResponse> createUser(@Valid @RequestBody UserCreateRequest request) {
+        UserCreateResponse response = authService.createUser(request);
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Endpoint đặc biệt để tạo tài khoản admin đầu tiên
+     * Chỉ nên sử dụng khi hệ thống chưa có tài khoản admin nào
+     */
+    @PostMapping("/create-first-admin")
+    public ResponseEntity<UserCreateResponse> createFirstAdmin(@Valid @RequestBody UserCreateRequest request) {
+        // Kiểm tra role phải là ADMIN
+        if (!"ADMIN".equalsIgnoreCase(request.getRole())) {
+            return ResponseEntity.badRequest().body(
+                UserCreateResponse.builder()
+                    .success(false)
+                    .message("Endpoint này chỉ được sử dụng để tạo tài khoản ADMIN")
+                    .build()
+            );
+        }
+        
+        UserCreateResponse response = authService.createFirstAdmin(request);
         return ResponseEntity.ok(response);
     }
 } 

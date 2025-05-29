@@ -23,11 +23,15 @@ public class User {
     @Column(unique = true)
     private String phoneNumber;
     
+    @Column(unique = true)
+    private String clerkUserId; // Clerk user ID for integration
+    
     private String passwordHash;
     private String fullName;
     private LocalDate dateOfBirth;
     private String gender;
     private String address;
+    private String imageUrl; // Profile image URL from Clerk
     private LocalDateTime registrationDate;
     private boolean isActive;
     

@@ -9,8 +9,11 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class VerifyOTPResponse {
+public class UserCreateResponse {
     private boolean success;
     private String message;
-    private String token; // JWT token nếu xác thực thành công
+    private Long userId;
+    private String fullName;
+    private String email;
+    private String role;
 } 

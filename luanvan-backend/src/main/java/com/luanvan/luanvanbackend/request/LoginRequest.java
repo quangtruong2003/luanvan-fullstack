@@ -10,8 +10,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoginRequest {
-    @NotBlank(message = "Số điện thoại không được để trống")
-    @Pattern(regexp = "^(0|\\+84)[3|5|7|8|9][0-9]{8}$", message = "Số điện thoại không hợp lệ")
+    @NotBlank(message = "Tên đăng nhập không được để trống")
+    @Pattern(regexp = "^(admin|doctor|(0|\\+84)[3|5|7|8|9][0-9]{8})$", message = "Tên đăng nhập không hợp lệ")
     private String phoneNumber;
     
     @NotBlank(message = "Mật khẩu không được để trống")

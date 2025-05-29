@@ -13,7 +13,8 @@ Dự án được tổ chức theo mô hình monorepo, chứa cả backend và f
 - **Framework**: Spring Boot
 - **Ngôn ngữ**: Java
 - **Quản lý dự án**: Maven
-- **Cơ sở dữ liệu**: Chưa được xác định trong mã nguồn hiện tại (có thể là JPA/Hibernate với một RDBMS)
+- **Cơ sở dữ liệu**: MySQL với JPA/Hibernate
+- **Bảo mật**: Spring Security với JWT
 - **Thư viện bổ sung**: Lombok (giảm boilerplate code)
 
 ### Cấu Trúc Backend
@@ -22,23 +23,59 @@ luanvan-backend/
 ├── src/main/java/com/luanvan/luanvanbackend/
 │   ├── LuanvanBackendApplication.java (class chính của ứng dụng)
 │   ├── config/ (cấu hình ứng dụng)
+│   │   └── SecurityConfig.java (cấu hình bảo mật)
 │   ├── controllers/ (REST API endpoints)
+│   │   └── AuthController.java (xử lý xác thực)
 │   ├── dto/ (data transfer objects)
 │   ├── entities/ (JPA entities)
-│   │   └── Doctor.java (entity cho đối tượng bác sĩ)
-│   ├── reponsitories/ (data access layer)
+│   │   ├── Doctor.java (entity cho đối tượng bác sĩ)
+│   │   ├── User.java (entity cho người dùng)
+│   │   └── Role.java (entity cho vai trò người dùng)
+│   ├── repositories/ (data access layer)
+│   │   ├── UserRepository.java
+│   │   └── RoleRepository.java
 │   ├── request/ (request models)
+│   │   ├── LoginRequest.java
+│   │   └── UserCreateRequest.java
 │   ├── response/ (response models)
+│   │   ├── LoginResponse.java
+│   │   └── UserCreateResponse.java
+│   ├── security/ (bảo mật)
+│   │   ├── CustomUserDetailsService.java
+│   │   └── JwtAuthenticationFilter.java
 │   └── services/ (business logic)
+│       ├── AuthService.java
 │       └── impl/ (implementation của service interfaces)
+│           └── AuthServiceImpl.java
 └── src/main/resources/
-    └── application.properties (cấu hình ứng dụng)
+    ├── application.properties (cấu hình ứng dụng)
+    └── import.sql (dữ liệu khởi tạo cho roles và users)
 ```
 
 ### Entities Hiện Có
 1. **Doctor**
    - Thuộc tính: id, name, specialty, phoneNumber, email, address
    - Sử dụng JPA annotations và Lombok
+
+2. **User**
+   - Thuộc tính: userId, phoneNumber, passwordHash, email, fullName, role, isActive, registrationDate
+   - Liên kết với Role thông qua ManyToOne
+
+3. **Role**
+   - Thuộc tính: roleId, roleName
+   - Được sử dụng trong hệ thống phân quyền
+
+### Xác Thực và Phân Quyền
+- **Spring Security**: Cung cấp khung bảo mật
+- **JWT (JSON Web Tokens)**: Sử dụng cho xác thực không trạng thái
+- **BCryptPasswordEncoder**: Mã hóa mật khẩu an toàn
+- **Role-based Authorization**: Phân quyền dựa trên vai trò (ADMIN, DOCTOR, PATIENT, STAFF)
+
+### API Endpoints
+1. **POST /api/auth/login**: Đăng nhập người dùng và trả về JWT token
+2. **POST /api/auth/create-user**: Tạo tài khoản mới (yêu cầu quyền ADMIN)
+3. **POST /api/auth/create-first-admin**: API đặc biệt để tạo tài khoản admin đầu tiên
+4. **POST /api/auth/clerk-sync**: Đồng bộ thông tin người dùng từ Clerk
 
 ## Frontend (React)
 
@@ -47,6 +84,7 @@ luanvan-backend/
 - **Routing**: React Router
 - **Quản lý phụ thuộc**: npm/yarn
 - **Kiểu dự án**: Single Page Application (SPA)
+- **Xác thực**: Clerk (cho bệnh nhân) và JWT (cho admin/doctor)
 
 ### Cấu Trúc Frontend
 ```
@@ -79,6 +117,8 @@ luanvan-frontend/
 
 ## Tình Trạng Hiện Tại
 - Backend đã có cấu trúc cơ bản của ứng dụng Spring Boot
+- Đã thiết lập xác thực JWT cho admin và doctor
+- Đã tích hợp Clerk cho xác thực bệnh nhân
 - Frontend đã thiết lập routing và một số trang cơ bản
 - Đã thiết lập cơ chế xác thực đơn giản với token lưu trong localStorage
 
@@ -99,6 +139,25 @@ luanvan-frontend/
 - Đã thiết lập monorepo trên GitHub
 - Nhánh chính: `master`
 - Convention commit message: `[Backend/Frontend/Full-stack] Mô tả thay đổi`
+
+## Cách Tạo Tài Khoản Admin Đầu Tiên
+Khi triển khai hệ thống lần đầu, sử dụng API đặc biệt để tạo tài khoản admin:
+
+1. **API Endpoint**: `POST /api/auth/create-first-admin`
+2. **Headers**: `Content-Type: application/json`
+3. **Request Body**:
+```json
+{
+  "phoneNumber": "admin",
+  "password": "yourStrongPassword",
+  "fullName": "Quản trị viên",
+  "email": "admin@example.com",
+  "role": "ADMIN"
+}
+```
+4. **Lưu ý bảo mật**: API này chỉ hoạt động khi chưa có tài khoản admin nào trong hệ thống. Sau khi tạo admin đầu tiên, API này sẽ từ chối các yêu cầu tiếp theo.
+
+5. **Khi triển khai hệ thống chính thức**: Nên vô hiệu hóa API này sau khi đã tạo admin đầu tiên bằng cách xóa hoặc comment out đoạn code tương ứng trong `AuthController.java`.
 
 ## Lưu Ý
 - Tài liệu này sẽ được cập nhật liên tục khi dự án phát triển

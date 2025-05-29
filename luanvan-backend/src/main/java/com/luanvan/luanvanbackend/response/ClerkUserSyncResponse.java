@@ -6,11 +6,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ResendOTPResponse {
+@Builder
+public class ClerkUserSyncResponse {
     private boolean success;
     private String message;
-    private String sessionId; // Có thể là sessionId mới
+    private Long userId;
+    private String fullName;
+    private String email;
+    private boolean isNewUser;
 } 

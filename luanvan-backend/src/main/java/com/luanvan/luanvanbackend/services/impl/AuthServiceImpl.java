@@ -4,26 +4,21 @@ import com.luanvan.luanvanbackend.dto.AuthResponseDTO;
 import com.luanvan.luanvanbackend.dto.LoginRequestDTO;
 import com.luanvan.luanvanbackend.dto.PatientRegistrationDTO;
 import com.luanvan.luanvanbackend.dto.UserInfoDTO;
-import com.luanvan.luanvanbackend.entities.OTP;
 import com.luanvan.luanvanbackend.entities.Role;
 import com.luanvan.luanvanbackend.entities.User;
-import com.luanvan.luanvanbackend.repositories.OTPRepository;
 import com.luanvan.luanvanbackend.repositories.RoleRepository;
 import com.luanvan.luanvanbackend.repositories.UserRepository;
 import com.luanvan.luanvanbackend.request.LoginRequest;
-import com.luanvan.luanvanbackend.request.RegisterRequest;
-import com.luanvan.luanvanbackend.request.ResendOTPRequest;
-import com.luanvan.luanvanbackend.request.VerifyOTPRequest;
+import com.luanvan.luanvanbackend.request.ClerkUserSyncRequest;
+import com.luanvan.luanvanbackend.request.UserCreateRequest;
 import com.luanvan.luanvanbackend.response.LoginResponse;
-import com.luanvan.luanvanbackend.response.RegisterResponse;
-import com.luanvan.luanvanbackend.response.ResendOTPResponse;
-import com.luanvan.luanvanbackend.response.VerifyOTPResponse;
+import com.luanvan.luanvanbackend.response.ClerkUserSyncResponse;
+import com.luanvan.luanvanbackend.response.UserCreateResponse;
 import com.luanvan.luanvanbackend.security.JwtUtils;
 import com.luanvan.luanvanbackend.services.AuthService;
-import com.luanvan.luanvanbackend.services.OTPService;
-import com.luanvan.luanvanbackend.services.SMSService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -41,150 +36,12 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
-    private final OTPRepository otpRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
-    private final OTPService otpService;
-    private final SMSService smsService;
     private final AuthenticationManager authenticationManager;
+    
+    private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
 
-    @Override
-    public RegisterResponse register(RegisterRequest request) {
-        // Kiểm tra số điện thoại đã tồn tại chưa
-        if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
-            return RegisterResponse.builder()
-                    .success(false)
-                    .message("Số điện thoại đã được đăng ký")
-                    .build();
-        }
-        
-        // Kiểm tra mật khẩu và xác nhận mật khẩu có khớp nhau
-        if (!request.getPassword().equals(request.getConfirmPassword())) {
-            return RegisterResponse.builder()
-                    .success(false)
-                    .message("Mật khẩu và xác nhận mật khẩu không khớp")
-                    .build();
-        }
-        
-        // Tạo sessionId cho quá trình xác thực OTP
-        String sessionId = otpService.generateSessionId();
-        
-        // Tạo mã OTP và lưu vào cơ sở dữ liệu
-        String otp = otpService.generateOTP();
-        otpService.saveOTP(request.getPhoneNumber(), otp, sessionId);
-        
-        // Lưu thông tin user (chưa xác thực) vào database
-        User newUser = new User();
-        newUser.setPhoneNumber(request.getPhoneNumber());
-        newUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        newUser.setActive(false); // Chưa kích hoạt cho đến khi xác thực OTP
-        newUser.setRegistrationDate(LocalDateTime.now());
-        
-        // Gán vai trò "PATIENT"
-        Role patientRole = roleRepository.findByRoleName("PATIENT")
-                .orElseThrow(() -> new RuntimeException("Vai trò PATIENT không tồn tại"));
-        newUser.setRole(patientRole);
-        
-        userRepository.save(newUser);
-        
-        // Gửi OTP qua SMS
-        smsService.sendOTP(request.getPhoneNumber(), otp);
-        
-        return RegisterResponse.builder()
-                .success(true)
-                .message("Đăng ký thành công. Vui lòng xác thực OTP để hoàn tất đăng ký.")
-                .sessionId(sessionId)
-                .build();
-    }
-    
-    @Override
-    public VerifyOTPResponse verifyOTP(VerifyOTPRequest request) {
-        // Xác thực OTP
-        boolean isValid = otpService.verifyOTP(request.getSessionId(), request.getOtp());
-        
-        if (!isValid) {
-            return VerifyOTPResponse.builder()
-                    .success(false)
-                    .message("Mã OTP không hợp lệ hoặc đã hết hạn")
-                    .build();
-        }
-        
-        // Lấy thông tin OTP đã được xác thực
-        Optional<OTP> otpOptional = otpRepository.findBySessionId(request.getSessionId());
-        if (otpOptional.isEmpty()) {
-            return VerifyOTPResponse.builder()
-                    .success(false)
-                    .message("Phiên xác thực không hợp lệ")
-                    .build();
-        }
-        
-        OTP otpEntity = otpOptional.get();
-        String phoneNumber = otpEntity.getPhoneNumber();
-        
-        // Tìm và kích hoạt tài khoản người dùng
-        Optional<User> userOptional = userRepository.findByPhoneNumber(phoneNumber);
-        if (userOptional.isEmpty()) {
-            return VerifyOTPResponse.builder()
-                    .success(false)
-                    .message("Không tìm thấy tài khoản")
-                    .build();
-        }
-        
-        User user = userOptional.get();
-        user.setActive(true); // Kích hoạt tài khoản
-        userRepository.save(user);
-        
-        // Tạo JWT token
-        UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
-                .username(user.getPhoneNumber())
-                .password(user.getPasswordHash())
-                .authorities("ROLE_" + user.getRole().getRoleName())
-                .build();
-        
-        String token = jwtUtils.generateToken(userDetails);
-        
-        return VerifyOTPResponse.builder()
-                .success(true)
-                .message("Xác thực OTP thành công")
-                .token(token)
-                .build();
-    }
-    
-    @Override
-    public ResendOTPResponse resendOTP(ResendOTPRequest request) {
-        // Kiểm tra tài khoản có tồn tại không
-        if (!userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
-            return ResendOTPResponse.builder()
-                    .success(false)
-                    .message("Số điện thoại không tồn tại trong hệ thống")
-                    .build();
-        }
-        
-        // Kiểm tra sessionId
-        Optional<OTP> existingOTP = otpRepository.findByPhoneNumberAndSessionId(
-                request.getPhoneNumber(), request.getSessionId());
-        
-        if (existingOTP.isEmpty()) {
-            return ResendOTPResponse.builder()
-                    .success(false)
-                    .message("Phiên xác thực không hợp lệ")
-                    .build();
-        }
-        
-        // Tạo mã OTP mới
-        String newOTP = otpService.generateOTP();
-        otpService.saveOTP(request.getPhoneNumber(), newOTP, request.getSessionId());
-        
-        // Gửi OTP mới qua SMS
-        smsService.sendOTP(request.getPhoneNumber(), newOTP);
-        
-        return ResendOTPResponse.builder()
-                .success(true)
-                .message("Đã gửi lại mã OTP mới")
-                .sessionId(request.getSessionId())
-                .build();
-    }
-    
     @Override
     public LoginResponse login(LoginRequest request) {
         try {
@@ -214,7 +71,7 @@ public class AuthServiceImpl implements AuthService {
             if (!user.isActive()) {
                 return LoginResponse.builder()
                         .success(false)
-                        .message("Tài khoản chưa được kích hoạt. Vui lòng xác thực OTP trước.")
+                        .message("Tài khoản chưa được kích hoạt")
                         .build();
             }
             
@@ -285,20 +142,6 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public boolean sendOTP(String phoneNumber) {
-        // TODO: Tích hợp với SMS Gateway để gửi OTP
-        // Giả lập thành công
-        return true;
-    }
-
-    @Override
-    public boolean verifyOTP(String phoneNumber, String otpCode) {
-        // TODO: Kiểm tra OTP từ hệ thống lưu trữ tạm thời
-        // Giả lập thành công
-        return true;
-    }
-
-    @Override
     public AuthResponseDTO login(LoginRequestDTO loginRequest) {
         // TODO: Xác thực người dùng và tạo JWT token
         // Hiện tại chỉ là stub - cần triển khai khi có Spring Security & JWT
@@ -312,5 +155,231 @@ public class AuthServiceImpl implements AuthService {
         String phoneNumber = authentication.getName();
         return userRepository.findByPhoneNumber(phoneNumber)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
+    }
+    
+    @Override
+    public UserCreateResponse createUser(UserCreateRequest request) {
+        logger.info("Tạo tài khoản mới với vai trò: {}", request.getRole());
+        
+        try {
+            // Kiểm tra tên đăng nhập đã tồn tại chưa
+            if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
+                return UserCreateResponse.builder()
+                        .success(false)
+                        .message("Tên đăng nhập/Số điện thoại đã được sử dụng")
+                        .build();
+            }
+            
+            // Kiểm tra email đã tồn tại chưa
+            if (request.getEmail() != null && !request.getEmail().isEmpty() 
+                    && userRepository.existsByEmail(request.getEmail())) {
+                return UserCreateResponse.builder()
+                        .success(false)
+                        .message("Email đã được sử dụng")
+                        .build();
+            }
+            
+            // Kiểm tra role hợp lệ (ADMIN hoặc DOCTOR)
+            String roleName = request.getRole().toUpperCase();
+            if (!roleName.equals("ADMIN") && !roleName.equals("DOCTOR")) {
+                return UserCreateResponse.builder()
+                        .success(false)
+                        .message("Vai trò không hợp lệ. Chỉ chấp nhận ADMIN hoặc DOCTOR")
+                        .build();
+            }
+            
+            // Tìm role từ database
+            Role role = roleRepository.findByRoleName(roleName)
+                    .orElseThrow(() -> new RuntimeException("Vai trò " + roleName + " không tồn tại"));
+            
+            // Tạo user mới
+            User newUser = new User();
+            newUser.setPhoneNumber(request.getPhoneNumber());
+            newUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            newUser.setFullName(request.getFullName());
+            newUser.setEmail(request.getEmail());
+            newUser.setRole(role);
+            newUser.setActive(true);
+            newUser.setRegistrationDate(LocalDateTime.now());
+            
+            // Lưu user mới vào database
+            User savedUser = userRepository.save(newUser);
+            
+            return UserCreateResponse.builder()
+                    .success(true)
+                    .message("Tạo tài khoản " + roleName + " thành công")
+                    .userId(savedUser.getUserId())
+                    .fullName(savedUser.getFullName())
+                    .email(savedUser.getEmail())
+                    .role(savedUser.getRole().getRoleName())
+                    .build();
+            
+        } catch (Exception e) {
+            logger.error("Lỗi khi tạo tài khoản mới: {}", e.getMessage(), e);
+            return UserCreateResponse.builder()
+                    .success(false)
+                    .message("Lỗi khi tạo tài khoản: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    @Override
+    public UserCreateResponse createFirstAdmin(UserCreateRequest request) {
+        logger.info("Tạo tài khoản ADMIN đầu tiên: {}", request.getPhoneNumber());
+        
+        try {
+            // Kiểm tra xem đã có tài khoản ADMIN nào chưa
+            Role adminRole = roleRepository.findByRoleName("ADMIN")
+                    .orElseThrow(() -> new RuntimeException("Vai trò ADMIN không tồn tại"));
+            
+            long adminCount = userRepository.countByRole(adminRole);
+            if (adminCount > 0) {
+                return UserCreateResponse.builder()
+                        .success(false)
+                        .message("Đã tồn tại tài khoản ADMIN trong hệ thống. Vui lòng sử dụng tài khoản ADMIN hiện có để tạo tài khoản mới.")
+                        .build();
+            }
+            
+            // Kiểm tra tên đăng nhập đã tồn tại chưa
+            if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
+                return UserCreateResponse.builder()
+                        .success(false)
+                        .message("Tên đăng nhập/Số điện thoại đã được sử dụng")
+                        .build();
+            }
+            
+            // Kiểm tra email đã tồn tại chưa
+            if (request.getEmail() != null && !request.getEmail().isEmpty() 
+                    && userRepository.existsByEmail(request.getEmail())) {
+                return UserCreateResponse.builder()
+                        .success(false)
+                        .message("Email đã được sử dụng")
+                        .build();
+            }
+            
+            // Tạo user mới
+            User newUser = new User();
+            newUser.setPhoneNumber(request.getPhoneNumber());
+            newUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+            newUser.setFullName(request.getFullName());
+            newUser.setEmail(request.getEmail());
+            newUser.setRole(adminRole);
+            newUser.setActive(true);
+            newUser.setRegistrationDate(LocalDateTime.now());
+            
+            // Lưu user mới vào database
+            User savedUser = userRepository.save(newUser);
+            
+            return UserCreateResponse.builder()
+                    .success(true)
+                    .message("Tạo tài khoản ADMIN đầu tiên thành công")
+                    .userId(savedUser.getUserId())
+                    .fullName(savedUser.getFullName())
+                    .email(savedUser.getEmail())
+                    .role(savedUser.getRole().getRoleName())
+                    .build();
+            
+        } catch (Exception e) {
+            logger.error("Lỗi khi tạo tài khoản ADMIN đầu tiên: {}", e.getMessage(), e);
+            return UserCreateResponse.builder()
+                    .success(false)
+                    .message("Lỗi khi tạo tài khoản: " + e.getMessage())
+                    .build();
+        }
+    }
+
+    @Override
+    public ClerkUserSyncResponse syncClerkUser(ClerkUserSyncRequest request) {
+        Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
+        logger.info("Syncing user from Clerk. ClerkUserId: {}, Email: {}", request.getClerkUserId(), request.getEmail());
+        
+        try {
+            // Kiểm tra xem user đã tồn tại chưa dựa trên Clerk ID
+            Optional<User> existingUser = userRepository.findByClerkUserId(request.getClerkUserId());
+            
+            if (existingUser.isPresent()) {
+                // User đã tồn tại, cập nhật thông tin
+                User user = existingUser.get();
+                logger.info("Found existing user with ID: {}, updating information", user.getUserId());
+                
+                user.setEmail(request.getEmail());
+                user.setFullName((request.getFirstName() + " " + request.getLastName()).trim());
+                user.setPhoneNumber(request.getPhoneNumber());
+                user.setImageUrl(request.getImageUrl());
+                
+                User savedUser = userRepository.save(user);
+                logger.info("User updated successfully. UserId: {}", savedUser.getUserId());
+                
+                return ClerkUserSyncResponse.builder()
+                        .success(true)
+                        .message("Cập nhật thông tin người dùng thành công")
+                        .userId(savedUser.getUserId())
+                        .fullName(savedUser.getFullName())
+                        .email(savedUser.getEmail())
+                        .isNewUser(false)
+                        .build();
+            } else {
+                // Kiểm tra xem có user nào với email này không
+                Optional<User> userWithEmail = userRepository.findByEmail(request.getEmail());
+                
+                if (userWithEmail.isPresent()) {
+                    // Đã có user với email này, cập nhật ClerkUserId cho user này
+                    User user = userWithEmail.get();
+                    logger.info("Found existing user with email: {}, updating with ClerkUserId", request.getEmail());
+                    
+                    user.setClerkUserId(request.getClerkUserId());
+                    user.setFullName((request.getFirstName() + " " + request.getLastName()).trim());
+                    user.setPhoneNumber(request.getPhoneNumber());
+                    user.setImageUrl(request.getImageUrl());
+                    
+                    User savedUser = userRepository.save(user);
+                    logger.info("Updated existing user with ClerkUserId. UserId: {}", savedUser.getUserId());
+                    
+                    return ClerkUserSyncResponse.builder()
+                            .success(true)
+                            .message("Liên kết tài khoản hiện có với Clerk thành công")
+                            .userId(savedUser.getUserId())
+                            .fullName(savedUser.getFullName())
+                            .email(savedUser.getEmail())
+                            .isNewUser(false)
+                            .build();
+                } else {
+                    // Tạo user mới
+                    logger.info("No existing user found for ClerkUserId or email, creating new user");
+                    User newUser = new User();
+                    newUser.setClerkUserId(request.getClerkUserId());
+                    newUser.setEmail(request.getEmail());
+                    newUser.setFullName((request.getFirstName() + " " + request.getLastName()).trim());
+                    newUser.setPhoneNumber(request.getPhoneNumber());
+                    newUser.setImageUrl(request.getImageUrl());
+                    newUser.setRegistrationDate(LocalDateTime.now());
+                    newUser.setActive(true);
+                    
+                    // Gán vai trò "PATIENT" mặc định
+                    Role patientRole = roleRepository.findByRoleName("PATIENT")
+                            .orElseThrow(() -> new RuntimeException("Vai trò PATIENT không tồn tại"));
+                    logger.info("Assigning PATIENT role (ID: {}) to new user", patientRole.getRoleId());
+                    newUser.setRole(patientRole);
+                    
+                    User savedUser = userRepository.save(newUser);
+                    logger.info("New user created successfully. UserId: {}", savedUser.getUserId());
+                    
+                    return ClerkUserSyncResponse.builder()
+                            .success(true)
+                            .message("Tạo tài khoản mới thành công")
+                            .userId(savedUser.getUserId())
+                            .fullName(savedUser.getFullName())
+                            .email(savedUser.getEmail())
+                            .isNewUser(true)
+                            .build();
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error syncing user from Clerk: {}", e.getMessage(), e);
+            return ClerkUserSyncResponse.builder()
+                    .success(false)
+                    .message("Đồng bộ thông tin người dùng thất bại: " + e.getMessage())
+                    .build();
+        }
     }
 } 
