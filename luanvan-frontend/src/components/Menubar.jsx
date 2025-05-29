@@ -2,21 +2,11 @@
 
 import { useState } from "react"
 import { Link } from "react-router-dom"
-import { SignedIn, SignedOut, UserButton } from "@clerk/clerk-react"
+import { SignedIn, SignedOut, UserButton, SignInButton, SignUpButton } from "@clerk/clerk-react"
 
 const Menubar = () => {
   const [menuOpen, setMenuOpen] = useState(false)
   const user = { fullName: "User Name" } // Replace with actual user data
-
-  const openLogin = () => {
-    // Implement login modal logic
-    console.log("Open Login Modal")
-  }
-
-  const openRegister = () => {
-    // Implement register modal logic
-    console.log("Open Register Modal")
-  }
 
   return (
     <nav className="bg-white shadow">
@@ -52,15 +42,16 @@ const Menubar = () => {
               Dashboard
             </Link>
             <SignedOut>
-              <button className="text-gray-700 hover:text-blue-500 font-medium" onClick={openLogin}>
-                Đăng nhập
-              </button>
-              <button
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-full transition-all"
-                onClick={openRegister}
-              >
-                Đăng ký
-              </button>
+              <SignInButton mode="modal">
+                <button className="text-gray-700 hover:text-blue-500 font-medium">
+                  Đăng nhập
+                </button>
+              </SignInButton>
+              <SignUpButton mode="modal">
+                <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-full transition-all">
+                  Đăng ký
+                </button>
+              </SignUpButton>
             </SignedOut>
             <SignedIn>
               <div className="flex items-center gap-2 sm:gap-3">
@@ -139,15 +130,16 @@ const Menubar = () => {
           </Link>
           <SignedOut>
             <hr className="my-2" />
-            <button className="text-gray-700 hover:text-blue-500 font-medium py-2 text-left" onClick={openLogin}>
-              Đăng nhập
-            </button>
-            <button
-              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-full text-center"
-              onClick={openRegister}
-            >
-              Đăng ký
-            </button>
+            <SignInButton mode="modal">
+              <button className="text-gray-700 hover:text-blue-500 font-medium py-2 text-left w-full">
+                Đăng nhập
+              </button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-full text-center">
+                Đăng ký
+              </button>
+            </SignUpButton>
           </SignedOut>
           <SignedIn>
             <hr className="my-2" />
