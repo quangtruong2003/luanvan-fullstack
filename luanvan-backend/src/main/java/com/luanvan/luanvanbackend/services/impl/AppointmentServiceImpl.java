@@ -7,12 +7,15 @@ import com.luanvan.luanvanbackend.entities.AvailabilitySlot;
 import com.luanvan.luanvanbackend.entities.Clinic;
 import com.luanvan.luanvanbackend.entities.Specialty;
 import com.luanvan.luanvanbackend.entities.User;
+import com.luanvan.luanvanbackend.exception.MissingContactInfoException;
 import com.luanvan.luanvanbackend.repositories.AppointmentRepository;
 import com.luanvan.luanvanbackend.repositories.AvailabilitySlotRepository;
 import com.luanvan.luanvanbackend.repositories.ClinicRepository;
 import com.luanvan.luanvanbackend.repositories.SpecialtyRepository;
 import com.luanvan.luanvanbackend.repositories.UserRepository;
 import com.luanvan.luanvanbackend.services.AppointmentService;
+import com.luanvan.luanvanbackend.services.EmailService;
+import com.luanvan.luanvanbackend.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -41,6 +44,12 @@ public class AppointmentServiceImpl implements AppointmentService {
     
     @Autowired
     private SpecialtyRepository specialtyRepository;
+    
+    @Autowired
+    private UserService userService;
+    
+    @Autowired
+    private EmailService emailService;
 
     @Override
     public Appointment getAppointmentById(Long appointmentId) {
@@ -146,6 +155,16 @@ public class AppointmentServiceImpl implements AppointmentService {
         Clinic clinic = clinicRepository.findById(appointmentDTO.getClinicId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phòng khám với ID: " + appointmentDTO.getClinicId()));
         
+        // Kiểm tra thông tin liên hệ của bệnh nhân
+        if (!userService.hasRequiredContactInfo(patient.getUserId())) {
+            List<String> missingInfo = userService.getMissingContactInfo(patient.getUserId());
+            throw new MissingContactInfoException("Bệnh nhân thiếu thông tin liên hệ cần thiết: " + String.join(", ", missingInfo));
+        }
+        
+        // Kiểm tra xem đây có phải lần đầu đặt lịch không để gửi email chào mừng
+        List<Appointment> previousAppointments = appointmentRepository.findByPatientUserId(patient.getUserId());
+        boolean isFirstAppointment = previousAppointments.isEmpty();
+        
         // Tạo lịch hẹn mới
         Appointment appointment = new Appointment();
         appointment.setPatient(patient);
@@ -172,7 +191,25 @@ public class AppointmentServiceImpl implements AppointmentService {
         slot.setStatus(AvailabilitySlot.SlotStatus.BOOKED);
         slotRepository.save(slot);
         
-        return appointmentRepository.save(appointment);
+        // Lưu appointment
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+        
+        // Gửi email chào mừng nếu đây là lần đầu đặt lịch
+        try {
+            if (isFirstAppointment) {
+                emailService.sendWelcomeOnFirstAppointmentEmail(patient);
+            }
+            
+            // Gửi email xác nhận đặt lịch nếu đã thanh toán
+            if (savedAppointment.isDepositPaid()) {
+                emailService.sendAppointmentConfirmationEmail(savedAppointment);
+            }
+        } catch (Exception e) {
+            // Log lỗi nhưng không ảnh hưởng đến việc tạo lịch hẹn
+            System.err.println("Lỗi khi gửi email: " + e.getMessage());
+        }
+        
+        return savedAppointment;
     }
 
     @Override

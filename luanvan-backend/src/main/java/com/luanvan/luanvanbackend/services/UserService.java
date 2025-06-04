@@ -1,5 +1,6 @@
 package com.luanvan.luanvanbackend.services;
 
+import com.luanvan.luanvanbackend.dto.ContactInfoUpdateDTO;
 import com.luanvan.luanvanbackend.dto.UserUpdateDTO;
 import com.luanvan.luanvanbackend.entities.User;
 import org.springframework.data.domain.Page;
@@ -44,6 +45,28 @@ public interface UserService {
      * @return Thông tin người dùng sau khi cập nhật
      */
     User updateUser(Long userId, UserUpdateDTO userUpdateDTO);
+    
+    /**
+     * Cập nhật thông tin liên hệ của người dùng
+     * @param userId ID của người dùng
+     * @param contactInfo Thông tin liên hệ mới
+     * @return Thông tin người dùng sau khi cập nhật
+     */
+    User updateContactInfo(Long userId, ContactInfoUpdateDTO contactInfo);
+    
+    /**
+     * Kiểm tra người dùng có đủ thông tin liên hệ để đặt lịch không
+     * @param userId ID của người dùng
+     * @return true nếu có đủ thông tin, false nếu thiếu thông tin
+     */
+    boolean hasRequiredContactInfo(Long userId);
+    
+    /**
+     * Lấy thông tin liên hệ còn thiếu của người dùng
+     * @param userId ID của người dùng
+     * @return Danh sách thông tin còn thiếu
+     */
+    List<String> getMissingContactInfo(Long userId);
     
     /**
      * Vô hiệu hóa tài khoản người dùng

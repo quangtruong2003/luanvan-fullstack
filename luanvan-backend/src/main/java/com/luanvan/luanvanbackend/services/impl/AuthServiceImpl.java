@@ -39,9 +39,9 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
     private final AuthenticationManager authenticationManager;
-    
-    private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
+    
     @Override
     public LoginResponse login(LoginRequest request) {
         try {

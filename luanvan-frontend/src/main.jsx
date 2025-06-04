@@ -18,7 +18,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
       <BrowserRouter>
         <AuthProvider>
-          <App />
+        <App />
         </AuthProvider>
       </BrowserRouter>
     </ClerkProvider>

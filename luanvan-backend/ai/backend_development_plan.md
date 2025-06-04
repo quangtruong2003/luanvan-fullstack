@@ -100,74 +100,104 @@
     *   [X] (Admin) Cập nhật các cấu hình hệ thống (đặt cọc, phí, thông tin Momo).
     *   [X] (Hệ thống) Đọc cấu hình để áp dụng vào các nghiệp vụ.
 
-## Giai Đoạn 3: Xây Dựng Lớp Controller (API Endpoints) [SẮP TỚI]
+## Giai Đoạn 3: Xây Dựng Lớp Controller (API Endpoints) [HOÀN THÀNH]
 
-1.  **Thiết kế API endpoints:**
-    *   [ ] Tuân thủ nguyên tắc RESTful.
+1.  **[HOÀN THÀNH] Thiết kế API endpoints:**
+    *   [X] Tuân thủ nguyên tắc RESTful.
     *   [X] Xác định rõ các HTTP methods (GET, POST, PUT, DELETE).
     *   [ ] Versioning API (nếu cần).
-2.  **Triển khai Controllers cho từng module:**
-    *   [ ] `AuthController`
-    *   [ ] `UserController`
-    *   [ ] `DoctorController`
-    *   [ ] `ClinicController`
-    *   [ ] `SpecialtyController`
-    *   [ ] `AvailabilityController` (bao gồm `StandardWorkShift`, `AvailabilitySlot`)
-    *   [ ] `AppointmentController`
-    *   [ ] `ArticleController`
-    *   [ ] `SystemConfigurationController`
-3.  **Sử dụng DTOs (Data Transfer Objects):**
-    *   [ ] Định nghĩa các DTO cho request và response để tránh expose trực tiếp entities.
+2.  **[HOÀN THÀNH] Triển khai Controllers cho từng module:**
+    *   [X] `AuthController`
+    *   [X] `UserController`
+    *   [X] `DoctorController`
+    *   [X] `ClinicController`
+    *   [X] `SpecialtyController`
+    *   [X] `AvailabilityController` (bao gồm `StandardWorkShift`, `AvailabilitySlot`)
+    *   [X] `AppointmentController`
+    *   [X] `ArticleController`
+    *   [X] `SystemConfigurationController`
+    *   [X] `RoleController`
+3.  **[HOÀN THÀNH] Sử dụng DTOs (Data Transfer Objects):**
+    *   [X] Định nghĩa các DTO cho request và response để tránh expose trực tiếp entities.
     *   [ ] Triển khai mapper (MapStruct/ModelMapper) để chuyển đổi giữa Entity và DTO.
-4.  **Validation:**
-    *   [ ] Áp dụng validation cho request DTOs (sử dụng Bean Validation API - @Valid, @NotNull, @Size, etc.).
-5.  **Error Handling:**
-    *   [ ] Xây dựng Global Exception Handler (@ControllerAdvice) để xử lý các lỗi một cách nhất quán và trả về response lỗi thân thiện.
-    *   [ ] Định nghĩa các custom exceptions cho các trường hợp nghiệp vụ cụ thể.
+4.  **[HOÀN THÀNH] Validation:**
+    *   [X] Áp dụng validation cho request DTOs (sử dụng Bean Validation API - @Valid, @NotNull, @Size, etc.).
+5.  **[HOÀN THÀNH] Error Handling:**
+    *   [X] Xây dựng Global Exception Handler (@ControllerAdvice) để xử lý các lỗi một cách nhất quán và trả về response lỗi thân thiện.
+    *   [X] Định nghĩa các custom exceptions cho các trường hợp nghiệp vụ cụ thể.
 
-## Giai Đoạn 4: Bảo Mật (Spring Security) [SẮP TỚI]
+## Giai Đoạn 4: Bảo Mật (Spring Security) [HOÀN THÀNH]
 
-1.  **Cấu hình Spring Security:**
-    *   [ ] Cấu hình `SecurityFilterChain`.
-    *   [ ] Vô hiệu hóa các cơ chế bảo mật mặc định không cần thiết (ví dụ: form login nếu dùng JWT).
-2.  **Triển khai xác thực bằng JWT:**
-    *   [ ] Tạo `JwtTokenProvider` để generate và validate token.
-    *   [ ] Tạo `JwtAuthenticationFilter` để xử lý token trong mỗi request.
-    *   [ ] Cấu hình `UserDetailsService` để tải thông tin người dùng.
-    *   [ ] Cấu hình `AuthenticationManager`.
-3.  **Phân quyền dựa trên vai trò:**
-    *   [ ] Sử dụng `@PreAuthorize` hoặc cấu hình trong `SecurityFilterChain` để bảo vệ các endpoints theo vai trò (`hasRole('ADMIN')`, `hasAnyRole('DOCTOR', 'PATIENT')`).
-4.  **Xử lý mật khẩu:**
-    *   [ ] Sử dụng `PasswordEncoder` (ví dụ: `BCryptPasswordEncoder`) để mã hóa mật khẩu người dùng.
-5.  **CORS Configuration:**
-    *   [ ] Cấu hình CORS để cho phép frontend truy cập API.
+1.  **[HOÀN THÀNH] Cấu hình Spring Security:**
+    *   [X] Cấu hình `SecurityFilterChain`.
+    *   [X] Vô hiệu hóa các cơ chế bảo mật mặc định không cần thiết (ví dụ: form login nếu dùng JWT).
+2.  **[HOÀN THÀNH] Triển khai xác thực bằng JWT:**
+    *   [X] Tạo `JwtTokenProvider` để generate và validate token.
+    *   [X] Tạo `JwtAuthenticationFilter` để xử lý token trong mỗi request.
+    *   [X] Cấu hình `UserDetailsService` để tải thông tin người dùng.
+    *   [X] Cấu hình `AuthenticationManager`.
+3.  **[HOÀN THÀNH] Phân quyền dựa trên vai trò:**
+    *   [X] Sử dụng `@PreAuthorize` hoặc cấu hình trong `SecurityFilterChain` để bảo vệ các endpoints theo vai trò (`hasRole('ADMIN')`, `hasAnyRole('DOCTOR', 'PATIENT')`).
+4.  **[HOÀN THÀNH] Xử lý mật khẩu:**
+    *   [X] Sử dụng `PasswordEncoder` (ví dụ: `BCryptPasswordEncoder`) để mã hóa mật khẩu người dùng.
+5.  **[HOÀN THÀNH] CORS Configuration:**
+    *   [X] Cấu hình CORS để cho phép frontend truy cập API.
 
-## Giai Đoạn 5: Tích Hợp Thanh Toán Momo [SẮP TỚI]
+## Giai Đoạn 5: Tích Hợp Thanh Toán Momo & VNPay [HOÀN THÀNH]
 
-1.  **Nghiên cứu tài liệu API Momo:**
-    *   [ ] Quy trình tạo đơn hàng.
-    *   [ ] Quy trình xác nhận thanh toán (IPN - Instant Payment Notification).
-    *   [ ] Xử lý các trường hợp thành công, thất bại, hủy.
-2.  **Triển khai Service tích hợp Momo:**
-    *   [ ] Tạo request thanh toán đến Momo.
-    *   [ ] Xử lý callback/IPN từ Momo để cập nhật trạng thái thanh toán của `Appointment`.
-    *   [ ] Lưu trữ thông tin giao dịch Momo.
-3.  **Bảo mật thông tin Momo:**
-    *   [ ] Lưu trữ an toàn các key (PartnerCode, AccessKey, SecretKey) - ưu tiên sử dụng biến môi trường hoặc secret management tools.
+1.  **[HOÀN THÀNH] Nghiên cứu tài liệu API:**
+    *   [X] Quy trình tạo đơn hàng Momo và VNPay.
+    *   [X] Quy trình xác nhận thanh toán (IPN - Instant Payment Notification).
+    *   [X] Xử lý các trường hợp thành công, thất bại, hủy.
+    *   [X] Deep link support cho mobile apps.
+2.  **[HOÀN THÀNH] Triển khai cơ sở hạ tầng Payment:**
+    *   [X] Tạo Payment entity với đầy đủ fields.
+    *   [X] Tạo PaymentRepository với các query methods phức tạp.
+    *   [X] Tạo DTOs: PaymentRequestDTO, PaymentResponseDTO, PaymentCallbackDTO.
+    *   [X] Tạo PaymentUtils với utility methods.
+    *   [X] Cấu hình PaymentConfig cho Momo và VNPay.
+3.  **[HOÀN THÀNH] Triển khai PaymentService:**
+    *   [X] PaymentServiceImpl với logic cho cả Momo và VNPay.
+    *   [X] Tạo request thanh toán đến payment gateways.
+    *   [X] Xử lý callback/IPN từ payment gateways.
+    *   [X] Query payment status và verify signatures.
+    *   [X] Deep link generation cho mobile apps.
+4.  **[HOÀN THÀNH] Triển khai PaymentController:**
+    *   [X] API endpoints cho tạo thanh toán.
+    *   [X] Callback handlers cho IPN từ payment gateways.
+    *   [X] Return URL handlers cho redirect sau thanh toán.
+    *   [X] Query status endpoints.
+    *   [X] Auto-select payment gateway dựa trên device type.
+5.  **[HOÀN THÀNH] Tính năng nâng cao:**
+    *   [X] PaymentSchedulerService cho xử lý payment hết hạn.
+    *   [X] Retry logic cho failed payments.
+    *   [X] Payment statistics và monitoring.
+    *   [X] HTML success/failure pages cho return URLs.
+6.  **[HOÀN THÀNH] Bảo mật và cấu hình:**
+    *   [X] Signature verification cho tất cả callbacks.
+    *   [X] IP detection và device type detection.
+    *   [X] Security config cho payment callbacks.
+    *   [X] Cấu hình sandbox cho development.
+    *   [X] RestTemplate và ObjectMapper configuration.
 
-## Giai Đoạn 6: Tích Hợp Email Service [SẮP TỚI]
+## Giai Đoạn 6: Tích Hợp Email Service [HOÀN THÀNH]
 
-1.  **Cấu hình Spring Mail:**
-    *   [ ] Thêm dependency `spring-boot-starter-mail`.
-    *   [ ] Cấu hình thông tin SMTP server trong `application.properties/yml`.
-2.  **Triển khai EmailService:**
-    *   [ ] Hàm gửi email cơ bản.
-    *   [ ] Sử dụng template engine (Thymeleaf, FreeMarker) để tạo nội dung email HTML (tùy chọn).
-3.  **Tích hợp gửi email vào các nghiệp vụ:**
-    *   [ ] Xác nhận đăng ký tài khoản.
-    *   [ ] Xác nhận đặt lịch hẹn.
-    *   [ ] Nhắc nhở lịch hẹn (có thể cần một cron job/scheduled task).
-    *   [ ] Thông báo hủy lịch hẹn.
+1.  **[HOÀN THÀNH] Cấu hình Spring Mail:**
+    *   [X] Thêm dependency `spring-boot-starter-mail`.
+    *   [X] Cấu hình thông tin SMTP server trong `application.properties/yml`.
+2.  **[HOÀN THÀNH] Triển khai EmailService:**
+    *   [X] Hàm gửi email cơ bản.
+    *   [X] Sử dụng template engine (Thymeleaf, FreeMarker) để tạo nội dung email HTML (tùy chọn).
+3.  **[HOÀN THÀNH] Tích hợp gửi email vào các nghiệp vụ:**
+    *   [X] Email chào mừng khi đặt lịch lần đầu tiên (thay thế xác nhận đăng ký).
+    *   [X] Xác nhận đặt lịch hẹn.
+    *   [X] Nhắc nhở lịch hẹn (có thể cần một cron job/scheduled task).
+    *   [X] Thông báo hủy lịch hẹn.
+4.  **[HOÀN THÀNH] Cập nhật cho Clerk Authentication:**
+    *   [X] Loại bỏ email đăng ký tài khoản (do Clerk quản lý).
+    *   [X] Thêm kiểm tra thông tin liên hệ trước khi đặt lịch.
+    *   [X] API cập nhật thông tin liên hệ cho người dùng.
+    *   [X] Exception handling cho thiếu thông tin liên hệ.
 
 ## Giai Đoạn 6.1: Tích Hợp SMS Gateway (Cho OTP và Thông Báo nếu cần) [SẮP TỚI]
 
@@ -208,13 +238,13 @@
 3.  **Kiểm tra API thủ công:**
     *   [ ] Sử dụng Postman hoặc công cụ tương tự để kiểm tra các API endpoints.
 
-## Giai Đoạn 9: Tài Liệu Hóa API [SẮP TỚI]
+## Giai Đoạn 9: Tài Liệu Hóa API [HOÀN THÀNH]
 
 1.  **Sử dụng Swagger/OpenAPI:**
-    *   [ ] Thêm dependency (springdoc-openapi-starter-webmvc-ui).
-    *   [ ] Cấu hình cơ bản.
-    *   [ ] Sử dụng các annotation (`@Operation`, `@Parameter`, `@ApiResponse`, etc.) để mô tả API trong Controller.
-    *   [ ] Kiểm tra giao diện Swagger UI.
+    *   [X] Thêm dependency (springdoc-openapi-starter-webmvc-ui).
+    *   [X] Cấu hình cơ bản.
+    *   [X] Sử dụng các annotation (`@Operation`, `@Parameter`, `@ApiResponse`, etc.) để mô tả API trong Controller.
+    *   [X] Kiểm tra giao diện Swagger UI.
 
 ## Giai Đoạn 10: Logging và Monitoring [SẮP TỚI]
 
@@ -265,10 +295,15 @@
     *   Giai đoạn 0: Chuẩn bị và Thiết kế
     *   Giai đoạn 1: Xây dựng lớp Entity và Repository
     *   Giai đoạn 2: Xây dựng lớp Service (Business Logic)
-*   Đang thực hiện:
     *   Giai đoạn 3: Xây dựng lớp Controller (API Endpoints)
-*   Tiếp theo:
     *   Giai đoạn 4: Bảo mật (Spring Security)
-    *   Giai đoạn 5-13: Các giai đoạn còn lại
+    *   Giai đoạn 5: Tích Hợp Thanh Toán Momo & VNPay
+    *   Giai đoạn 6: Tích hợp Email Service
+    *   Giai đoạn 9: Tài liệu hóa API (Swagger/OpenAPI)
+*   Tiếp theo:
+    *   Giai đoạn 6.1: Tích Hợp SMS Gateway
+    *   Giai đoạn 7: Xử lý Upload File
+    *   Giai đoạn 8: Testing
+    *   Giai đoạn 10-13: Các giai đoạn còn lại
 
-Dự án đã hoàn thành toàn bộ xây dựng lớp Service với các service được triển khai đầy đủ, kèm theo các DTO và logic nghiệp vụ. Bước tiếp theo sẽ là triển khai các Controllers để frontend có thể tương tác với backend thông qua API.
+Dự án đã hoàn thành toàn bộ lớp Controller với đầy đủ 10 controllers để xử lý tất cả các API endpoints cần thiết cho hệ thống. Các controllers được thiết kế tuân thủ nguyên tắc RESTful, có phân quyền phù hợp và xử lý lỗi thống nhất. Bước tiếp theo sẽ là cấu hình bảo mật với Spring Security và JWT.
