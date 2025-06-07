@@ -49,5 +49,46 @@ SELECT '0123456789', '$2a$10$N9qo8uLOickgx2ZMRZoMye7iKjqrGxW4QZJMDA9C5E/2LV9ZF2.
        (SELECT role_id FROM roles WHERE role_name = 'PATIENT'), true, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE phone_number = '0123456789');
 
+-- 7. Tạo Doctor Profiles (liên kết với User records) - Loại bỏ profilepictureurl
+INSERT IGNORE INTO doctors (user_id, bio, years_of_experience) 
+SELECT u.user_id, 'Bác sĩ chuyên khoa Tim mạch với 15 năm kinh nghiệm. Tốt nghiệp Đại học Y Hà Nội.', 15
+FROM users u 
+WHERE u.phone_number = 'doctor001' AND u.role_id = (SELECT role_id FROM roles WHERE role_name = 'DOCTOR');
+
+INSERT IGNORE INTO doctors (user_id, bio, years_of_experience)
+SELECT u.user_id, 'Bác sĩ Nhi khoa với 12 năm kinh nghiệm. Chuyên điều trị các bệnh lý phức tạp ở trẻ em.', 12
+FROM users u
+WHERE u.phone_number = 'doctor1' AND u.role_id = (SELECT role_id FROM roles WHERE role_name = 'DOCTOR');
+
+INSERT IGNORE INTO doctors (user_id, bio, years_of_experience)
+SELECT u.user_id, 'Bác sĩ Tim mạch can thiệp với 10 năm kinh nghiệm. Chuyên gia về siêu âm tim và thông tim.', 10
+FROM users u
+WHERE u.phone_number = 'bs_tim_mach' AND u.role_id = (SELECT role_id FROM roles WHERE role_name = 'DOCTOR');
+
+-- 8. Gán Chuyên khoa cho Doctors (table: doctor_specialty, columns: doctor_id, specialty_id)
+-- doctor001 -> Tim mạch (primary)
+INSERT IGNORE INTO doctor_specialty (doctor_id, specialty_id, is_primary)
+SELECT d.user_id, s.specialty_id, true
+FROM doctors d, specialties s, users u
+WHERE d.user_id = u.user_id 
+AND u.phone_number = 'doctor001'
+AND s.name = 'Tim mạch';
+
+-- doctor1 -> Nhi khoa (primary)  
+INSERT IGNORE INTO doctor_specialty (doctor_id, specialty_id, is_primary)
+SELECT d.user_id, s.specialty_id, true
+FROM doctors d, specialties s, users u
+WHERE d.user_id = u.user_id 
+AND u.phone_number = 'doctor1'
+AND s.name = 'Nhi khoa';
+
+-- bs_tim_mach -> Tim mạch (primary)
+INSERT IGNORE INTO doctor_specialty (doctor_id, specialty_id, is_primary)
+SELECT d.user_id, s.specialty_id, true
+FROM doctors d, specialties s, users u
+WHERE d.user_id = u.user_id 
+AND u.phone_number = 'bs_tim_mach'
+AND s.name = 'Tim mạch';
+
 -- Note: Password mặc định là "123456" (đã hash BCrypt) 
 -- Chỉ dùng cho testing, production cần passwords mạnh hơn

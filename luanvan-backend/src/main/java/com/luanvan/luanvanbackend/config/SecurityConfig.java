@@ -53,6 +53,23 @@ public class SecurityConfig {
                         .requestMatchers("/api/payments/vnpay/return").permitAll()
                         // File downloads (public access)
                         .requestMatchers("/api/files/download/**").permitAll()
+                        // Public read-only endpoints for doctors and specialties
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/doctors").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/doctors/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/doctors/user/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/doctors/search").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/doctors/specialty/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/doctors/experience/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/doctors/*/specialties").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/specialties").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/specialties/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/specialties/all").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/specialties/clinic/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/specialties/search").permitAll()
+                        // Public read-only endpoints for clinics
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/clinics").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/clinics/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/clinics/search").permitAll()
                         // Documentation
                         .requestMatchers("/swagger-ui/**").permitAll()
                         .requestMatchers("/swagger-ui.html").permitAll()

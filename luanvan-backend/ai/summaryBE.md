@@ -96,7 +96,7 @@ Hệ thống sử dụng các thực thể JPA để ánh xạ với cơ sở d�
   - AuthService: Đăng ký, đăng nhập, xác thực (tương thích với Clerk)
   - UserService: Quản lý thông tin người dùng, kiểm tra thông tin liên hệ
   - RoleService: Quản lý vai trò người dùng
-  - DoctorService: Quản lý thông tin bác sĩ
+  - DoctorService: Quản lý thông tin bác sĩ (đã sửa lỗi ObjectOptimisticLockingFailureException)
   - ClinicService: Quản lý phòng khám
   - SpecialtyService: Quản lý chuyên khoa
   - StandardWorkShiftService: Quản lý ca làm việc chuẩn
@@ -108,10 +108,34 @@ Hệ thống sử dụng các thực thể JPA để ánh xạ với cơ sở d�
   - PaymentSchedulerService: Xử lý payment hết hạn tự động
   - EmailService: Gửi email chào mừng, xác nhận, nhắc nhở (tương thích Clerk)
 
+## Các Lỗi Quan Trọng Đã Sửa
+
+### 1. ObjectOptimisticLockingFailureException (Doctor Creation)
+- **Vấn đề**: Conflict giữa manual ID assignment và `@MapsId` annotation
+- **Giải pháp**: Loại bỏ manual `setDoctorId()`, để Hibernate tự động map từ User entity
+- **Tác động**: API tạo doctor profile hoạt động ổn định
+
+### 2. Jackson Field Mapping
+- **Vấn đề**: Backend snake_case vs Frontend camelCase
+- **Giải pháp**: Thêm `@JsonProperty` annotations cho tất cả DTOs
+- **Tác động**: Frontend có thể gửi cả camelCase và snake_case
+
+### 3. Database Roles Initialization
+- **Vấn đề**: Missing default roles trong database
+- **Giải pháp**: Auto-create ADMIN, DOCTOR, PATIENT roles khi cần
+- **Tác động**: System initialization hoạt động mượt mà
+
+### 4. Authentication & Authorization
+- **Vấn đề**: Hybrid auth system phức tạp
+- **Giải pháp**: Clerk cho Patients, JWT cho Admin/Doctors
+- **Tác động**: Best UX cho patients, security cao cho admin
+
 ## Điều Chỉnh So Với Thiết Kế Ban Đầu
 
 - Đã loại bỏ tính năng "bác sĩ đăng ký/đề xuất lịch làm việc của mình"
 - Lịch làm việc của bác sĩ giờ đây được quản trị viên tạo trực tiếp thông qua AvailabilitySlotService
+- Chuyển sang hybrid authentication system để tối ưu UX và security
+- Sử dụng `@MapsId` annotation thay vì manual ID management cho OneToOne relationships
 
 ## Hướng Phát Triển
 

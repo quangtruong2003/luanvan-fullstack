@@ -23,4 +23,7 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
     
     // Tìm bác sĩ theo số năm kinh nghiệm tối thiểu
     List<Doctor> findByYearsOfExperienceGreaterThanEqual(Integer yearsOfExperience);
+    
+    // Tìm bác sĩ theo số năm kinh nghiệm tối thiểu với phân trang
+    Page<Doctor> findByYearsOfExperienceGreaterThanEqual(Integer yearsOfExperience, Pageable pageable);
 } 

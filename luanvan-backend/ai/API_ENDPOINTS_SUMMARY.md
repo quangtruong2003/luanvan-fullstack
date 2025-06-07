@@ -185,6 +185,25 @@ Request body (bắt buộc có trường `role`):
 - Sử dụng `FirstAdminCreateRequest` class riêng cho `/create-first-admin`
 - Hỗ trợ cả `camelCase` và `snake_case` từ frontend
 
+## Lỗi Đã Sửa - ObjectOptimisticLockingFailureException  
+
+### Vấn đề
+- `ObjectOptimisticLockingFailureException` khi tạo doctor profile qua API `POST /api/doctors/user/{userId}`
+- Lỗi: "Row was updated or deleted by another transaction (or unsaved-value mapping was incorrect)"
+- Xảy ra trong `DoctorServiceImpl.createDoctor()` method
+
+### Nguyên nhân
+- Entity `Doctor` sử dụng `@MapsId` annotation để map `doctorId` từ `User` entity
+- Code cũ manually set `doctor.setDoctorId(userId)` trước khi set `User`
+- Gây conflict với Hibernate's `@MapsId` behavior
+- Hibernate nghĩ đây là detached entity và cố gắng `merge()` thay vì `persist()`
+
+### Giải pháp  
+- Loại bỏ manual `doctor.setDoctorId(userId)` assignment
+- Để `@MapsId` annotation tự động map ID từ User entity
+- Hibernate sẽ tự động set `doctorId = userId` khi persist Doctor entity
+- Thêm comment giải thích về `@MapsId` behavior trong code
+
 ## Tính Năng Bảo Mật
 
 - **Phân quyền**: Sử dụng `@PreAuthorize` để kiểm soát quyền truy cập

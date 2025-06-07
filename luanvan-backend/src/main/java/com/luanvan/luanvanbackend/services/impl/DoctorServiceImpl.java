@@ -1,6 +1,7 @@
 package com.luanvan.luanvanbackend.services.impl;
 
 import com.luanvan.luanvanbackend.dto.DoctorDTO;
+import com.luanvan.luanvanbackend.dto.DoctorResponseDTO;
 import com.luanvan.luanvanbackend.dto.DoctorUpdateDTO;
 import com.luanvan.luanvanbackend.entities.Doctor;
 import com.luanvan.luanvanbackend.entities.DoctorSpecialty;
@@ -81,17 +82,7 @@ public class DoctorServiceImpl implements DoctorService {
 
     @Override
     public Page<Doctor> getDoctorsByExperience(int yearsOfExperience, Pageable pageable) {
-        // Chưa có phương thức có sẵn trong repository, nên cần bổ sung
-        // Hoặc chúng ta có thể lấy tất cả và lọc sau
-        List<Doctor> doctors = doctorRepository.findByYearsOfExperienceGreaterThanEqual(yearsOfExperience);
-        
-        // Cần bổ sung phương thức phù hợp trong repository để hỗ trợ phân trang
-        // Giả sử đã có phương thức này
-        // return doctorRepository.findByYearsOfExperienceGreaterThanEqual(yearsOfExperience, pageable);
-        
-        // Giải pháp tạm thời: Sử dụng kết quả không phân trang và chuyển đổi thủ công
-        // Đây không phải cách tối ưu và cần được cải thiện
-        return null; // TODO: Cần được thay thế bằng phương thức repository phù hợp
+        return doctorRepository.findByYearsOfExperienceGreaterThanEqual(yearsOfExperience, pageable);
     }
 
     @Override
@@ -108,11 +99,11 @@ public class DoctorServiceImpl implements DoctorService {
         
         // Tạo hồ sơ bác sĩ mới
         Doctor doctor = new Doctor();
-        doctor.setDoctorId(userId); // Sử dụng userId làm doctorId (quan hệ 1-1)
+        // Không cần set doctorId vì @MapsId sẽ tự động lấy từ User entity
         doctor.setUser(user);
         doctor.setBio(doctorDTO.getBio());
         doctor.setYearsOfExperience(doctorDTO.getYearsOfExperience());
-        doctor.setProfilePictureURL(doctorDTO.getProfilePictureURL());
+
         
         Doctor savedDoctor = doctorRepository.save(doctor);
         
@@ -159,12 +150,7 @@ public class DoctorServiceImpl implements DoctorService {
         return doctorRepository.save(doctor);
     }
 
-    @Override
-    public Doctor updateProfilePicture(Long doctorId, String profilePictureURL) {
-        Doctor doctor = getDoctorById(doctorId);
-        doctor.setProfilePictureURL(profilePictureURL);
-        return doctorRepository.save(doctor);
-    }
+
 
     @Override
     @Transactional
@@ -254,5 +240,59 @@ public class DoctorServiceImpl implements DoctorService {
         }
         
         return specialties;
+    }
+    
+    // Helper method để convert Doctor entity sang DoctorResponseDTO
+    private DoctorResponseDTO convertToResponseDTO(Doctor doctor) {
+        DoctorResponseDTO responseDTO = new DoctorResponseDTO();
+        responseDTO.setDoctorId(doctor.getDoctorId());
+        responseDTO.setFullName(doctor.getUser().getFullName());
+        responseDTO.setEmail(doctor.getUser().getEmail());
+        responseDTO.setPhoneNumber(doctor.getUser().getPhoneNumber());
+        responseDTO.setBio(doctor.getBio());
+        responseDTO.setYearsOfExperience(doctor.getYearsOfExperience());
+        
+        // Lấy specialties từ database một cách an toàn
+        List<DoctorSpecialty> doctorSpecialties = doctorSpecialtyRepository.findByDoctorDoctorId(doctor.getDoctorId());
+        List<DoctorResponseDTO.SpecialtyResponseDTO> specialtyDTOs = doctorSpecialties.stream()
+                .map(ds -> new DoctorResponseDTO.SpecialtyResponseDTO(
+                        ds.getSpecialty().getSpecialtyId(),
+                        ds.getSpecialty().getName(),
+                        ds.getSpecialty().getDescription(),
+                        ds.isPrimary()
+                ))
+                .collect(Collectors.toList());
+        
+        responseDTO.setSpecialties(specialtyDTOs);
+        return responseDTO;
+    }
+    
+    @Override
+    public Page<DoctorResponseDTO> getAllDoctorsDTO(Pageable pageable) {
+        Page<Doctor> doctorPage = doctorRepository.findAll(pageable);
+        return doctorPage.map(this::convertToResponseDTO);
+    }
+    
+    @Override
+    public Page<DoctorResponseDTO> getDoctorsByExperienceDTO(int yearsOfExperience, Pageable pageable) {
+        Page<Doctor> doctorPage = doctorRepository.findByYearsOfExperienceGreaterThanEqual(yearsOfExperience, pageable);
+        return doctorPage.map(this::convertToResponseDTO);
+    }
+    
+    @Override
+    public Page<DoctorResponseDTO> getDoctorsBySpecialtyDTO(Long specialtyId, Pageable pageable) {
+        // Kiểm tra specialtyId có tồn tại hay không
+        if (!specialtyRepository.existsById(specialtyId)) {
+            throw new RuntimeException("Không tìm thấy chuyên khoa với ID: " + specialtyId);
+        }
+        
+        Page<Doctor> doctorPage = doctorRepository.findBySpecialtyId(specialtyId, pageable);
+        return doctorPage.map(this::convertToResponseDTO);
+    }
+    
+    @Override
+    public Page<DoctorResponseDTO> searchDoctorsByNameDTO(String name, Pageable pageable) {
+        Page<Doctor> doctors = searchDoctorsByName(name, pageable);
+        return doctors.map(this::convertToResponseDTO);
     }
 } 

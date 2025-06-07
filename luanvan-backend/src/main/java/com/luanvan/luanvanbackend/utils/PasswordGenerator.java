@@ -1,4 +1,4 @@
-package com.luanvan.luanvanbackend.util;
+package com.luanvan.luanvanbackend.utils;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 

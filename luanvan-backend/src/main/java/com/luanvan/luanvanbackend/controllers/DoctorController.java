@@ -1,8 +1,10 @@
 package com.luanvan.luanvanbackend.controllers;
 
 import com.luanvan.luanvanbackend.dto.DoctorDTO;
+import com.luanvan.luanvanbackend.dto.DoctorResponseDTO;
 import com.luanvan.luanvanbackend.dto.DoctorUpdateDTO;
 import com.luanvan.luanvanbackend.entities.Doctor;
+import com.luanvan.luanvanbackend.security.SecurityService;
 import com.luanvan.luanvanbackend.services.DoctorService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,14 +24,15 @@ import java.util.List;
 public class DoctorController {
 
     private final DoctorService doctorService;
+    private final SecurityService securityService;
 
     /**
-     * Lấy danh sách tất cả bác sĩ (có phân trang)
+     * Lấy danh sách tất cả bác sĩ (có phân trang) - Trả về DTO để tránh circular reference
      */
     @GetMapping
-    public ResponseEntity<Page<Doctor>> getAllDoctors(
+    public ResponseEntity<Page<DoctorResponseDTO>> getAllDoctors(
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<Doctor> doctors = doctorService.getAllDoctors(pageable);
+        Page<DoctorResponseDTO> doctors = doctorService.getAllDoctorsDTO(pageable);
         return ResponseEntity.ok(doctors);
     }
 
@@ -52,35 +55,35 @@ public class DoctorController {
     }
 
     /**
-     * Tìm kiếm bác sĩ theo tên
+     * Tìm kiếm bác sĩ theo tên - Trả về DTO để tránh circular reference
      */
     @GetMapping("/search")
-    public ResponseEntity<Page<Doctor>> searchDoctorsByName(
+    public ResponseEntity<Page<DoctorResponseDTO>> searchDoctorsByName(
             @RequestParam String name,
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<Doctor> doctors = doctorService.searchDoctorsByName(name, pageable);
+        Page<DoctorResponseDTO> doctors = doctorService.searchDoctorsByNameDTO(name, pageable);
         return ResponseEntity.ok(doctors);
     }
 
     /**
-     * Lấy danh sách bác sĩ theo chuyên khoa
+     * Lấy danh sách bác sĩ theo chuyên khoa - Trả về DTO để tránh circular reference
      */
     @GetMapping("/specialty/{specialtyId}")
-    public ResponseEntity<Page<Doctor>> getDoctorsBySpecialty(
+    public ResponseEntity<Page<DoctorResponseDTO>> getDoctorsBySpecialty(
             @PathVariable Long specialtyId,
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<Doctor> doctors = doctorService.getDoctorsBySpecialty(specialtyId, pageable);
+        Page<DoctorResponseDTO> doctors = doctorService.getDoctorsBySpecialtyDTO(specialtyId, pageable);
         return ResponseEntity.ok(doctors);
     }
 
     /**
-     * Lấy danh sách bác sĩ theo số năm kinh nghiệm
+     * Lấy danh sách bác sĩ theo số năm kinh nghiệm - Trả về DTO để tránh circular reference
      */
     @GetMapping("/experience/{yearsOfExperience}")
-    public ResponseEntity<Page<Doctor>> getDoctorsByExperience(
+    public ResponseEntity<Page<DoctorResponseDTO>> getDoctorsByExperience(
             @PathVariable int yearsOfExperience,
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<Doctor> doctors = doctorService.getDoctorsByExperience(yearsOfExperience, pageable);
+        Page<DoctorResponseDTO> doctors = doctorService.getDoctorsByExperienceDTO(yearsOfExperience, pageable);
         return ResponseEntity.ok(doctors);
     }
 
@@ -100,7 +103,7 @@ public class DoctorController {
      * Cập nhật thông tin bác sĩ (Admin hoặc chính bác sĩ đó)
      */
     @PutMapping("/{doctorId}")
-    @PreAuthorize("hasRole('ADMIN') or @doctorService.getDoctorById(#doctorId).user.userId == authentication.principal.userId")
+    @PreAuthorize("hasRole('ADMIN') or @securityService.canUpdateDoctor(#doctorId)")
     public ResponseEntity<Doctor> updateDoctor(
             @PathVariable Long doctorId,
             @Valid @RequestBody DoctorUpdateDTO doctorUpdateDTO) {
@@ -108,17 +111,7 @@ public class DoctorController {
         return ResponseEntity.ok(doctor);
     }
 
-    /**
-     * Cập nhật ảnh đại diện của bác sĩ (Admin hoặc chính bác sĩ đó)
-     */
-    @PutMapping("/{doctorId}/profile-picture")
-    @PreAuthorize("hasRole('ADMIN') or @doctorService.getDoctorById(#doctorId).user.userId == authentication.principal.userId")
-    public ResponseEntity<Doctor> updateProfilePicture(
-            @PathVariable Long doctorId,
-            @RequestParam String profilePictureURL) {
-        Doctor doctor = doctorService.updateProfilePicture(doctorId, profilePictureURL);
-        return ResponseEntity.ok(doctor);
-    }
+
 
     /**
      * Gán chuyên khoa cho bác sĩ (chỉ Admin)

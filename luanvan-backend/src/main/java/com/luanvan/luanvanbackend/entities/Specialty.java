@@ -1,9 +1,12 @@
 package com.luanvan.luanvanbackend.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 import java.util.Set;
 
 @Entity
@@ -11,6 +14,8 @@ import java.util.Set;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(exclude = {"doctors", "clinic"})
+@ToString(exclude = {"doctors", "clinic"})
 public class Specialty {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,5 +31,6 @@ public class Specialty {
     private Clinic clinic;
     
     @OneToMany(mappedBy = "specialty")
+    @JsonIgnore
     private Set<DoctorSpecialty> doctors;
 }

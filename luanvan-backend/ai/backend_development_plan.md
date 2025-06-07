@@ -294,3 +294,9 @@
     *   Giai đoạn 10-13: Các giai đoạn còn lại
 
 Dự án đã hoàn thành toàn bộ hệ thống backend cốt lõi với đầy đủ 11 controllers (bao gồm PaymentController) để xử lý tất cả các API endpoints cần thiết cho hệ thống đặt lịch hẹn y tế. Hệ thống thanh toán Momo & VNPay đã được tích hợp hoàn chỉnh với scheduled tasks để xử lý payment hết hạn và deep link support cho mobile apps. Email service đã được cập nhật để tương thích với Clerk authentication.
+
+**Lỗi quan trọng đã sửa:**
+- ✅ **ObjectOptimisticLockingFailureException** trong DoctorServiceImpl: Đã loại bỏ manual ID assignment để tránh conflict với `@MapsId` annotation
+- ✅ **Jackson Field Mapping**: Hỗ trợ cả camelCase và snake_case từ frontend
+- ✅ **Database Roles Initialization**: Auto-create default roles khi cần thiết
+- ✅ **Hybrid Authentication**: Clerk cho Patients, JWT cho Admin/Doctors hoạt động ổn định

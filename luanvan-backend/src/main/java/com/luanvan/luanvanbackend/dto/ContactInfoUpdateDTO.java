@@ -3,6 +3,7 @@ package com.luanvan.luanvanbackend.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,7 +21,9 @@ public class ContactInfoUpdateDTO {
     private String email;
     
     @JsonProperty(value = "fullName", access = JsonProperty.Access.WRITE_ONLY)
+    @Size(min = 2, max = 100, message = "Họ tên phải từ 2-100 ký tự")
     private String fullName;
     
+    @Size(max = 500, message = "Địa chỉ không được vượt quá 500 ký tự")
     private String address;
 } 

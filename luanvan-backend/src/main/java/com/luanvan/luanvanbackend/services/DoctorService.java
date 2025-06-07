@@ -1,6 +1,7 @@
 package com.luanvan.luanvanbackend.services;
 
 import com.luanvan.luanvanbackend.dto.DoctorDTO;
+import com.luanvan.luanvanbackend.dto.DoctorResponseDTO;
 import com.luanvan.luanvanbackend.dto.DoctorUpdateDTO;
 import com.luanvan.luanvanbackend.entities.Doctor;
 import org.springframework.data.domain.Page;
@@ -54,6 +55,22 @@ public interface DoctorService {
     Page<Doctor> searchDoctorsByName(String name, Pageable pageable);
     
     /**
+     * Lấy danh sách bác sĩ theo chuyên khoa dạng DTO
+     * @param specialtyId ID của chuyên khoa
+     * @param pageable Thông tin phân trang
+     * @return Danh sách bác sĩ DTO thuộc chuyên khoa
+     */
+    Page<DoctorResponseDTO> getDoctorsBySpecialtyDTO(Long specialtyId, Pageable pageable);
+    
+    /**
+     * Tìm kiếm bác sĩ theo tên dạng DTO
+     * @param name Tên bác sĩ cần tìm
+     * @param pageable Thông tin phân trang
+     * @return Danh sách bác sĩ DTO phù hợp
+     */
+    Page<DoctorResponseDTO> searchDoctorsByNameDTO(String name, Pageable pageable);
+    
+    /**
      * Lấy danh sách bác sĩ theo số năm kinh nghiệm
      * @param yearsOfExperience Số năm kinh nghiệm tối thiểu
      * @param pageable Thông tin phân trang
@@ -77,13 +94,7 @@ public interface DoctorService {
      */
     Doctor updateDoctor(Long doctorId, DoctorUpdateDTO doctorUpdateDTO);
     
-    /**
-     * Cập nhật ảnh đại diện của bác sĩ
-     * @param doctorId ID của bác sĩ
-     * @param profilePictureURL URL ảnh đại diện
-     * @return Thông tin bác sĩ sau khi cập nhật
-     */
-    Doctor updateProfilePicture(Long doctorId, String profilePictureURL);
+
     
     /**
      * Gán chuyên khoa cho bác sĩ
@@ -108,4 +119,19 @@ public interface DoctorService {
      * @return Danh sách chuyên khoa
      */
     List<Object> getDoctorSpecialties(Long doctorId);
+    
+    /**
+     * Lấy danh sách tất cả bác sĩ dạng DTO (tránh circular reference)
+     * @param pageable Thông tin phân trang
+     * @return Danh sách bác sĩ DTO có phân trang
+     */
+    Page<DoctorResponseDTO> getAllDoctorsDTO(Pageable pageable);
+    
+    /**
+     * Lấy danh sách bác sĩ theo số năm kinh nghiệm dạng DTO
+     * @param yearsOfExperience Số năm kinh nghiệm tối thiểu
+     * @param pageable Thông tin phân trang
+     * @return Danh sách bác sĩ DTO có phân trang
+     */
+    Page<DoctorResponseDTO> getDoctorsByExperienceDTO(int yearsOfExperience, Pageable pageable);
 } 

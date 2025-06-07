@@ -1,0 +1,592 @@
+{
+  "info": {
+    "name": "Doctor & Specialty APIs",
+    "description": "Test collection cho các API liên quan đến Doctors và Specialties",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:9090"
+    },
+    {
+      "key": "ADMIN_TOKEN",
+      "value": ""
+    },
+    {
+      "key": "DOCTOR_TOKEN", 
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phoneNumber\": \"admin\",\n    \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.status === 'OK') {",
+                  "    pm.environment.set('ADMIN_TOKEN', pm.response.json().token);",
+                  "    console.log('Admin token saved:', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Doctor Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phoneNumber\": \"doctor1\",\n    \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/auth/login",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "auth", "login"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.status === 'OK') {",
+                  "    pm.environment.set('DOCTOR_TOKEN', pm.response.json().token);",
+                  "    console.log('Doctor token saved:', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Doctor APIs",
+      "item": [
+        {
+          "name": "Get All Doctors (Paginated)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors?page=0&size=5",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors"],
+              "query": [
+                {"key": "page", "value": "0"},
+                {"key": "size", "value": "5"}
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has pagination info', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('content');",
+                  "    pm.expect(jsonData).to.have.property('totalElements');",
+                  "    pm.expect(jsonData).to.have.property('totalPages');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Doctor by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/2",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "2"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Doctor has required fields', function () {",
+                  "    var doctor = pm.response.json();",
+                  "    pm.expect(doctor).to.have.property('doctorId');",
+                  "    pm.expect(doctor).to.have.property('bio');",
+                  "    pm.expect(doctor).to.have.property('yearsOfExperience');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Doctor by User ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/user/2",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "user", "2"]
+            }
+          }
+        },
+        {
+          "name": "Search Doctors by Name",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/search?name=Nguyễn&page=0&size=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "search"],
+              "query": [
+                {"key": "name", "value": "Nguyễn"},
+                {"key": "page", "value": "0"},
+                {"key": "size", "value": "10"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Doctors by Specialty",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/specialty/1?page=0&size=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "specialty", "1"],
+              "query": [
+                {"key": "page", "value": "0"},
+                {"key": "size", "value": "10"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Doctors by Experience",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/experience/10?page=0&size=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "experience", "10"],
+              "query": [
+                {"key": "page", "value": "0"},
+                {"key": "size", "value": "10"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Doctor Profile (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"bio\": \"Bác sĩ chuyên khoa Nhi với 8 năm kinh nghiệm\",\n    \"yearsOfExperience\": 8,\n    \"profilePictureURL\": \"doctor3_profile.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/user/4",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "user", "4"]
+            }
+          }
+        },
+        {
+          "name": "Update Doctor Profile (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"bio\": \"Bác sĩ Tim mạch cập nhật profile với 16 năm kinh nghiệm\",\n    \"yearsOfExperience\": 16,\n    \"profilePictureURL\": \"updated_profile.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/2",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "2"]
+            }
+          }
+        },
+        {
+          "name": "Assign Specialty to Doctor (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/2/specialties/1?isPrimary=true",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "2", "specialties", "1"],
+              "query": [
+                {"key": "isPrimary", "value": "true"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Doctor Specialties",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/2/specialties",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "2", "specialties"]
+            }
+          }
+        },
+        {
+          "name": "Remove Specialty from Doctor (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/2/specialties/2",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "2", "specialties", "2"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Specialty APIs",
+      "item": [
+        {
+          "name": "Get All Specialties (Paginated)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/specialties?page=0&size=5",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "specialties"],
+              "query": [
+                {"key": "page", "value": "0"},
+                {"key": "size", "value": "5"}
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has specialties', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('content');",
+                  "    pm.expect(jsonData.content).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Specialties (No Pagination)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/specialties/all",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "specialties", "all"]
+            }
+          }
+        },
+        {
+          "name": "Get Specialty by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/specialties/1",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "specialties", "1"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Specialty has required fields', function () {",
+                  "    var specialty = pm.response.json();",
+                  "    pm.expect(specialty).to.have.property('specialtyId');",
+                  "    pm.expect(specialty).to.have.property('name');",
+                  "    pm.expect(specialty).to.have.property('description');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Specialties by Clinic",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/specialties/clinic/1",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "specialties", "clinic", "1"]
+            }
+          }
+        },
+        {
+          "name": "Search Specialties by Name",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/specialties/search?name=Tim&page=0&size=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "specialties", "search"],
+              "query": [
+                {"key": "name", "value": "Tim"},
+                {"key": "page", "value": "0"},
+                {"key": "size", "value": "10"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Specialty (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Da liễu\",\n    \"description\": \"Chẩn đoán và điều trị các bệnh về da\",\n    \"clinicId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/specialties",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "specialties"]
+            }
+          }
+        },
+        {
+          "name": "Update Specialty (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Tim mạch Can thiệp\",\n    \"description\": \"Chuyên khoa Tim mạch với kỹ thuật can thiệp hiện đại\",\n    \"clinicId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/specialties/1",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "specialties", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Specialty (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{ADMIN_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/specialties/3",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "specialties", "3"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Error Cases",
+      "item": [
+        {
+          "name": "Get Non-existent Doctor",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/999",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "999"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is not 200', function () {",
+                  "    pm.response.to.not.have.status(200);",
+                  "});",
+                  "pm.test('Error message present', function () {",
+                  "    var responseText = pm.response.text();",
+                  "    pm.expect(responseText).to.include('tìm thấy');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Non-existent Specialty",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/specialties/999",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "specialties", "999"]
+            }
+          }
+        },
+        {
+          "name": "Create Doctor without Auth",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"bio\": \"Test unauthorized\",\n    \"yearsOfExperience\": 5\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/user/5",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "user", "5"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search without Name Parameter",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/api/doctors/search?page=0&size=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["api", "doctors", "search"],
+              "query": [
+                {"key": "page", "value": "0"},
+                {"key": "size", "value": "10"}
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+} 

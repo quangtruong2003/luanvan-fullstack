@@ -139,6 +139,23 @@
 - ✅ Đảm bảo login response luôn có `token: null, userInfo: null` khi thất bại
 - ✅ Consistent response structure cho cả success và failure cases
 
+### Lỗi ObjectOptimisticLockingFailureException ✅
+**Vấn đề:** `ObjectOptimisticLockingFailureException` khi tạo doctor profile
+**Lỗi gặp phải:**
+- `org.springframework.orm.ObjectOptimisticLockingFailureException: Row was updated or deleted by another transaction (or unsaved-value mapping was incorrect): [com.luanvan.luanvanbackend.entities.Doctor#6]`
+- Lỗi xảy ra trong `DoctorServiceImpl.createDoctor()` method
+
+**Nguyên nhân:**
+- Entity `Doctor` sử dụng `@MapsId` annotation để map `doctorId` từ `User` entity
+- Code cũ manually set `doctor.setDoctorId(userId)` trước khi set `User`, gây conflict với Hibernate
+- Hibernate nghĩ đây là detached entity và cố gắng `merge()` thay vì `persist()`
+
+**Giải pháp đã áp dụng:**
+- ✅ Loại bỏ `doctor.setDoctorId(userId)` trong `createDoctor()` method
+- ✅ Để `@MapsId` annotation tự động map ID từ User entity
+- ✅ Hibernate sẽ tự động set `doctorId = userId` khi persist Doctor entity
+- ✅ Cập nhật comment trong code để giải thích về `@MapsId` behavior
+
 ### Lỗi Documentation & Sample Data ✅
 **Cập nhật:** Documentation và sample data cho Clerk authentication
 **Thay đổi:**
