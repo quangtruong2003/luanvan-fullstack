@@ -1,5 +1,6 @@
 package com.luanvan.luanvanbackend.config;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.luanvan.luanvanbackend.exception.MissingContactInfoException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -95,6 +96,7 @@ public class GlobalExceptionHandler {
     }
 
     public static class ErrorResponse {
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS")
         private LocalDateTime timestamp;
         private int status;
         private String error;

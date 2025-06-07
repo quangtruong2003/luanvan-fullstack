@@ -2,15 +2,15 @@
 
 ## Tổng Quan
 
-Hệ thống backend đã triển khai đầy đủ **10 controllers** với **hơn 100 API endpoints** để hỗ trợ đầy đủ các chức năng của hệ thống đặt lịch hẹn y tế.
+Hệ thống backend đã triển khai đầy đủ **11 controllers** với **hơn 120 API endpoints** để hỗ trợ đầy đủ các chức năng của hệ thống đặt lịch hẹn y tế, bao gồm cả tích hợp thanh toán Momo & VNPay.
 
 ## Danh Sách Controllers và Endpoints
 
 ### 1. AuthController (`/api/auth`)
 - `POST /login` - Đăng nhập
 - `POST /clerk-sync` - Đồng bộ người dùng với Clerk
-- `POST /create-user` - Tạo người dùng mới (Admin)
-- `POST /create-first-admin` - Tạo admin đầu tiên
+- `POST /create-user` - Tạo người dùng mới (Admin) - Yêu cầu role trong request
+- `POST /create-first-admin` - Tạo admin đầu tiên - Không cần role trong request (tự động ADMIN)
 
 ### 2. UserController (`/api/users`)
 - `GET /me` - Lấy thông tin người dùng hiện tại
@@ -21,6 +21,8 @@ Hệ thống backend đã triển khai đầy đủ **10 controllers** với **h
 - `PUT /{userId}/deactivate` - Vô hiệu hóa tài khoản (Admin)
 - `PUT /{userId}/activate` - Kích hoạt tài khoản (Admin)
 - `PUT /{userId}/role/{roleId}` - Thay đổi vai trò người dùng (Admin)
+- `PUT /contact-info` - Cập nhật thông tin liên hệ (Patient)
+- `GET /contact-info/check` - Kiểm tra thông tin liên hệ (Patient)
 
 ### 3. DoctorController (`/api/doctors`)
 - `GET /` - Lấy danh sách bác sĩ (có phân trang)
@@ -132,6 +134,57 @@ Hệ thống backend đã triển khai đầy đủ **10 controllers** với **h
 - `PUT /{roleId}` - Cập nhật tên vai trò (Admin)
 - `DELETE /{roleId}` - Xóa vai trò (Admin)
 
+### 11. PaymentController (`/api/payments`)
+- `POST /create` - Tạo thanh toán mới (Patient)
+- `GET /{paymentId}/status` - Kiểm tra trạng thái thanh toán
+- `POST /momo/callback` - Xử lý callback từ Momo
+- `POST /vnpay/callback` - Xử lý callback từ VNPay  
+- `GET /momo/return` - Xử lý return URL từ Momo
+- `GET /vnpay/return` - Xử lý return URL từ VNPay
+- `POST /{paymentId}/retry` - Thử lại thanh toán thất bại
+- `GET /appointment/{appointmentId}` - Lấy thanh toán theo lịch hẹn
+- `GET /statistics` - Thống kê thanh toán (Admin)
+- `POST /{paymentId}/expire` - Đánh dấu thanh toán hết hạn (System)
+
+## Định Dạng Request Đặc Biệt
+
+### POST /api/auth/create-first-admin
+Request body (không cần trường `role` - tự động được set thành ADMIN):
+```json
+{
+  "phoneNumber": "admin",
+  "password": "admin123", 
+  "fullName": "System Administrator",
+  "email": "admin@example.com"
+}
+```
+
+**Lưu ý:** Endpoint này sẽ tự động tạo các default roles (ADMIN, DOCTOR, PATIENT) nếu chưa tồn tại trong database.
+
+### POST /api/auth/create-user  
+Request body (bắt buộc có trường `role`):
+```json
+{
+  "phoneNumber": "doctor123",
+  "password": "password123",
+  "fullName": "Dr. Example",
+  "email": "doctor@example.com",
+  "role": "DOCTOR"
+}
+```
+
+## Lỗi Đã Sửa - Jackson Field Mapping
+
+### Vấn đề
+- Backend sử dụng `PropertyNamingStrategies.SNAKE_CASE`
+- Frontend gửi request với `camelCase` fields
+- Jackson không nhận diện được fields như `fullName`, `phoneNumber`
+
+### Giải pháp
+- Thêm `@JsonProperty` annotations cho tất cả camelCase fields
+- Sử dụng `FirstAdminCreateRequest` class riêng cho `/create-first-admin`
+- Hỗ trợ cả `camelCase` và `snake_case` từ frontend
+
 ## Tính Năng Bảo Mật
 
 - **Phân quyền**: Sử dụng `@PreAuthorize` để kiểm soát quyền truy cập
@@ -148,6 +201,11 @@ Hệ thống backend đã triển khai đầy đủ **10 controllers** với **h
 
 ## Trạng Thái Triển Khai
 
-✅ **Hoàn thành**: Giai đoạn 3 - Xây dựng lớp Controller (API Endpoints)
+✅ **Hoàn thành**: 
+- Giai đoạn 3 - Xây dựng lớp Controller (API Endpoints)
+- Giai đoạn 4 - Bảo mật (Spring Security)  
+- Giai đoạn 5 - Tích hợp Thanh toán Momo & VNPay
+- Giai đoạn 6 - Tích hợp Email Service
+- Giai đoạn 9 - Tài liệu hóa API (Swagger/OpenAPI)
 
-**Tiếp theo**: Giai đoạn 4 - Bảo mật (Spring Security) 
+**Tiếp theo**: Giai đoạn 7 - Xử lý Upload File

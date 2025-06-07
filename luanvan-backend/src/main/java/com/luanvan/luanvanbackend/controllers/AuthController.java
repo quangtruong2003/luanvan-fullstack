@@ -3,6 +3,7 @@ package com.luanvan.luanvanbackend.controllers;
 import com.luanvan.luanvanbackend.request.LoginRequest;
 import com.luanvan.luanvanbackend.request.ClerkUserSyncRequest;
 import com.luanvan.luanvanbackend.request.UserCreateRequest;
+import com.luanvan.luanvanbackend.request.FirstAdminCreateRequest;
 import com.luanvan.luanvanbackend.response.LoginResponse;
 import com.luanvan.luanvanbackend.response.ClerkUserSyncResponse;
 import com.luanvan.luanvanbackend.response.UserCreateResponse;
@@ -47,18 +48,16 @@ public class AuthController {
      * Chỉ nên sử dụng khi hệ thống chưa có tài khoản admin nào
      */
     @PostMapping("/create-first-admin")
-    public ResponseEntity<UserCreateResponse> createFirstAdmin(@Valid @RequestBody UserCreateRequest request) {
-        // Kiểm tra role phải là ADMIN
-        if (!"ADMIN".equalsIgnoreCase(request.getRole())) {
-            return ResponseEntity.badRequest().body(
-                UserCreateResponse.builder()
-                    .success(false)
-                    .message("Endpoint này chỉ được sử dụng để tạo tài khoản ADMIN")
-                    .build()
-            );
-        }
+    public ResponseEntity<UserCreateResponse> createFirstAdmin(@Valid @RequestBody FirstAdminCreateRequest request) {
+        // Convert FirstAdminCreateRequest sang UserCreateRequest với role ADMIN
+        UserCreateRequest userCreateRequest = new UserCreateRequest();
+        userCreateRequest.setPhoneNumber(request.getPhoneNumber());
+        userCreateRequest.setPassword(request.getPassword());
+        userCreateRequest.setFullName(request.getFullName());
+        userCreateRequest.setEmail(request.getEmail());
+        userCreateRequest.setRole("ADMIN");
         
-        UserCreateResponse response = authService.createFirstAdmin(request);
+        UserCreateResponse response = authService.createFirstAdmin(userCreateRequest);
         return ResponseEntity.ok(response);
     }
 } 

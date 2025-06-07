@@ -62,6 +62,8 @@ public class AuthServiceImpl implements AuthService {
                 return LoginResponse.builder()
                         .success(false)
                         .message("Không tìm thấy tài khoản")
+                        .token(null)
+                        .userInfo(null)
                         .build();
             }
             
@@ -72,6 +74,8 @@ public class AuthServiceImpl implements AuthService {
                 return LoginResponse.builder()
                         .success(false)
                         .message("Tài khoản chưa được kích hoạt")
+                        .token(null)
+                        .userInfo(null)
                         .build();
             }
             
@@ -101,9 +105,12 @@ public class AuthServiceImpl implements AuthService {
                     .build();
             
         } catch (Exception e) {
+            logger.error("Login failed: {}", e.getMessage(), e);
             return LoginResponse.builder()
                     .success(false)
                     .message("Đăng nhập thất bại: " + e.getMessage())
+                    .token(null)
+                    .userInfo(null)
                     .build();
         }
     }
@@ -162,6 +169,9 @@ public class AuthServiceImpl implements AuthService {
         logger.info("Tạo tài khoản mới với vai trò: {}", request.getRole());
         
         try {
+            // Tự động tạo default roles nếu chưa tồn tại
+            createDefaultRolesIfNotExist();
+            
             // Kiểm tra tên đăng nhập đã tồn tại chưa
             if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
                 return UserCreateResponse.builder()
@@ -228,6 +238,9 @@ public class AuthServiceImpl implements AuthService {
         logger.info("Tạo tài khoản ADMIN đầu tiên: {}", request.getPhoneNumber());
         
         try {
+            // Tự động tạo default roles nếu chưa tồn tại
+            createDefaultRolesIfNotExist();
+            
             // Kiểm tra xem đã có tài khoản ADMIN nào chưa
             Role adminRole = roleRepository.findByRoleName("ADMIN")
                     .orElseThrow(() -> new RuntimeException("Vai trò ADMIN không tồn tại"));
@@ -287,6 +300,22 @@ public class AuthServiceImpl implements AuthService {
                     .build();
         }
     }
+    
+    /**
+     * Tạo các roles mặc định nếu chúng chưa tồn tại
+     */
+    private void createDefaultRolesIfNotExist() {
+        String[] defaultRoles = {"ADMIN", "DOCTOR", "PATIENT"};
+        
+        for (String roleName : defaultRoles) {
+            if (!roleRepository.findByRoleName(roleName).isPresent()) {
+                Role role = new Role();
+                role.setRoleName(roleName);
+                roleRepository.save(role);
+                logger.info("Đã tạo role mặc định: {}", roleName);
+            }
+        }
+    }
 
     @Override
     public ClerkUserSyncResponse syncClerkUser(ClerkUserSyncRequest request) {
@@ -294,6 +323,9 @@ public class AuthServiceImpl implements AuthService {
         logger.info("Syncing user from Clerk. ClerkUserId: {}, Email: {}", request.getClerkUserId(), request.getEmail());
         
         try {
+            // Tự động tạo default roles nếu chưa tồn tại
+            createDefaultRolesIfNotExist();
+            
             // Kiểm tra xem user đã tồn tại chưa dựa trên Clerk ID
             Optional<User> existingUser = userRepository.findByClerkUserId(request.getClerkUserId());
             

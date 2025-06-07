@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserCreateRequest {
+public class FirstAdminCreateRequest {
     @NotBlank(message = "Tên đăng nhập không được để trống")
     @JsonProperty(value = "phoneNumber", access = JsonProperty.Access.WRITE_ONLY)
     private String phoneNumber; // Có thể là tên đăng nhập hoặc số điện thoại
@@ -24,7 +24,6 @@ public class UserCreateRequest {
     
     @Email(message = "Email không hợp lệ")
     private String email;
-
-    @NotBlank(message = "Vai trò không được để trống")
-    private String role; // ADMIN hoặc DOCTOR
+    
+    // Role sẽ được tự động set thành "ADMIN"
 } 

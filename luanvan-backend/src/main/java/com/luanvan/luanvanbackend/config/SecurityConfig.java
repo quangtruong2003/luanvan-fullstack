@@ -40,13 +40,28 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(authz -> authz
+                        // Error handling
+                        .requestMatchers("/error").permitAll()
+                        // Authentication endpoints
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Public endpoints
                         .requestMatchers("/api/public/**").permitAll()
-                        .requestMatchers("/api/payments/**/notify").permitAll()
-                        .requestMatchers("/api/payments/**/return").permitAll()
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/swagger-ui.html", "/swagger-resources/**", "/webjars/**").permitAll()
+                        // Payment callbacks (must be accessible without auth)
+                        .requestMatchers("/api/payments/momo/callback").permitAll()
+                        .requestMatchers("/api/payments/vnpay/callback").permitAll()
+                        .requestMatchers("/api/payments/momo/return").permitAll()
+                        .requestMatchers("/api/payments/vnpay/return").permitAll()
+                        // File downloads (public access)
+                        .requestMatchers("/api/files/download/**").permitAll()
+                        // Documentation
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-resources/**").permitAll()
+                        .requestMatchers("/webjars/**").permitAll()
+                        // Actuator (monitoring)
                         .requestMatchers("/actuator/**").permitAll()
+                        // All other requests require authentication
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

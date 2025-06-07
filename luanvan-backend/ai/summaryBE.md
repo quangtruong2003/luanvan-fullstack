@@ -67,6 +67,8 @@ Hệ thống sử dụng các thực thể JPA để ánh xạ với cơ sở d�
     *   `articleId` (PK), `title`, `content`, `author` (FK to `User`), `publishedDate`, `lastModifiedDate`, `imageURL`, `category`, `status` (Draft, Published, etc.).
 11. **`SystemConfiguration`**: Các cấu hình toàn cục cho hệ thống.
     *   `configId` (PK), `enableDeposit`, `defaultDepositAmount`, `momoPartnerCode`, `momoAccessKey`, `momoSecretKey`, `momoApiEndpoint`, `paymentRetryTimeoutMinutes`, `patientCancellationTimeLimitHours`, `nonRefundableDepositPolicyText`.
+12. **`Payment`**: Thông tin thanh toán chi tiết.
+    *   `paymentId` (PK), `appointment` (FK to `Appointment`), `amount`, `paymentMethod` (MOMO/VNPAY), `paymentGateway`, `status`, `gatewayTransactionId`, `gatewayOrderId`, `payUrl`, `deeplink`, `qrCodeUrl`, `createdAt`, `updatedAt`, `expiredAt`, `paidAt`, `gatewayResponseCode`, `gatewayResponseMessage`, `signature`, `retryCount`, `lastRetryAt`.
 
 ## Repositories (Data Access Layer)
 
@@ -83,24 +85,28 @@ Hệ thống sử dụng các thực thể JPA để ánh xạ với cơ sở d�
 *   **`AppointmentRepository`**: `findByPatientUserId` (List và Pageable), `findByDoctorUserId` (List và Pageable), `findByStatus`, `findBySlotSlotId`, `findUpcomingAppointmentsForReminder`.
 *   **`ArticleRepository`**: `findByStatus` (List và Pageable), `findByAuthorUserId` (List và Pageable), `findByTitleContainingIgnoreCase` (Pageable).
 *   **`SystemConfigurationRepository`**: `findFirstByOrderByConfigIdAsc`.
+*   **`PaymentRepository`**: `findByAppointmentAppointmentId`, `findByStatus`, `findByPaymentMethod`, `findExpiredPayments`, `findByGatewayTransactionId`, `findFailedPaymentsForRetry`.
 
 ## Tính Năng Hiện Tại
 
-- Cấu trúc REST API cơ bản
-- Xác thực và phân quyền với Spring Security
-- Quản lý thực thể Doctor
+- Cấu trúc REST API hoàn chỉnh với 11 controllers
+- Xác thực và phân quyền với Spring Security và JWT
+- Quản lý thực thể đầy đủ (User, Doctor, Clinic, Specialty, Appointment, etc.)
 - Đã hoàn thành triển khai các service nghiệp vụ (Business Logic):
-  - AuthService: Đăng ký, đăng nhập, xác thực OTP
-  - UserService: Quản lý thông tin người dùng
+  - AuthService: Đăng ký, đăng nhập, xác thực (tương thích với Clerk)
+  - UserService: Quản lý thông tin người dùng, kiểm tra thông tin liên hệ
   - RoleService: Quản lý vai trò người dùng
   - DoctorService: Quản lý thông tin bác sĩ
   - ClinicService: Quản lý phòng khám
   - SpecialtyService: Quản lý chuyên khoa
   - StandardWorkShiftService: Quản lý ca làm việc chuẩn
   - AvailabilitySlotService: Quản lý khung giờ khả dụng
-  - AppointmentService: Quản lý lịch hẹn
+  - AppointmentService: Quản lý lịch hẹn với kiểm tra thông tin liên hệ
   - ArticleService: Quản lý bài viết, tin tức
   - SystemConfigurationService: Quản lý cấu hình hệ thống
+  - PaymentService: Tích hợp thanh toán Momo & VNPay hoàn chỉnh
+  - PaymentSchedulerService: Xử lý payment hết hạn tự động
+  - EmailService: Gửi email chào mừng, xác nhận, nhắc nhở (tương thích Clerk)
 
 ## Điều Chỉnh So Với Thiết Kế Ban Đầu
 
@@ -109,16 +115,16 @@ Hệ thống sử dụng các thực thể JPA để ánh xạ với cơ sở d�
 
 ## Hướng Phát Triển
 
-- Triển khai các Controllers (API Endpoints)
-- Cấu hình bảo mật với Spring Security và JWT
-- Tích hợp thanh toán Momo
-- Tích hợp Email Service 
-- Xử lý Upload File
-- Testing
-- Tài liệu hóa API
-- Logging và Monitoring
-- Tối ưu hóa và đánh giá lại
-- Chuẩn bị triển khai
+- ✅ Triển khai các Controllers (API Endpoints) - HOÀN THÀNH
+- ✅ Cấu hình bảo mật với Spring Security và JWT - HOÀN THÀNH
+- ✅ Tích hợp thanh toán Momo & VNPay - HOÀN THÀNH
+- ✅ Tích hợp Email Service - HOÀN THÀNH
+- ✅ Tài liệu hóa API (Swagger/OpenAPI) - HOÀN THÀNH
+- 🔄 Xử lý Upload File - ĐANG PHÁT TRIỂN
+- 🔄 Testing - ĐANG PHÁT TRIỂN
+- 🔄 Logging và Monitoring - ĐANG PHÁT TRIỂN
+- 🔄 Tối ưu hóa và đánh giá lại - ĐANG PHÁT TRIỂN
+- 🔄 Chuẩn bị triển khai - ĐANG PHÁT TRIỂN
 
 ## Thông Tin Triển Khai
 

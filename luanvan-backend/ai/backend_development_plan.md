@@ -18,15 +18,15 @@
     *   [X] Cài đặt MySQL Server.
     *   [X] Tạo project Spring Boot.
     *   [X] Cấu hình `application.properties` hoặc `application.yml` (kết nối database, server port, v.v.).
-4.  **Lựa chọn công nghệ và thư viện phụ trợ:**
+4.  **[HOÀN THÀNH] Lựa chọn công nghệ và thư viện phụ trợ:**
     *   [X] Spring Boot (Core, Web, Data JPA, Security).
     *   [X] Lombok.
     *   [X] MySQL Connector.
-    *   [ ] MapStruct (hoặc ModelMapper) cho DTO mapping.
-    *   [ ] Swagger/OpenAPI cho tài liệu API.
-    *   [ ] JWT cho xác thực.
-    *   [ ] Thư viện xử lý thanh toán Momo (nếu có SDK chính thức hoặc qua API).
-    *   [ ] Thư viện gửi email (Spring Mail).
+    *   [X] MapStruct (hoặc ModelMapper) cho DTO mapping.
+    *   [X] Swagger/OpenAPI cho tài liệu API.
+    *   [X] JWT cho xác thực.
+    *   [X] Thư viện xử lý thanh toán Momo & VNPay (qua API).
+    *   [X] Thư viện gửi email (Spring Mail).
 
 ## Giai Đoạn 1: Xây Dựng Lớp Entity và Repository
 
@@ -117,9 +117,10 @@
     *   [X] `ArticleController`
     *   [X] `SystemConfigurationController`
     *   [X] `RoleController`
+    *   [X] `PaymentController`
 3.  **[HOÀN THÀNH] Sử dụng DTOs (Data Transfer Objects):**
     *   [X] Định nghĩa các DTO cho request và response để tránh expose trực tiếp entities.
-    *   [ ] Triển khai mapper (MapStruct/ModelMapper) để chuyển đổi giữa Entity và DTO.
+    *   [X] Triển khai mapper (MapStruct/ModelMapper) để chuyển đổi giữa Entity và DTO.
 4.  **[HOÀN THÀNH] Validation:**
     *   [X] Áp dụng validation cho request DTOs (sử dụng Bean Validation API - @Valid, @NotNull, @Size, etc.).
 5.  **[HOÀN THÀNH] Error Handling:**
@@ -198,20 +199,7 @@
     *   [X] Thêm kiểm tra thông tin liên hệ trước khi đặt lịch.
     *   [X] API cập nhật thông tin liên hệ cho người dùng.
     *   [X] Exception handling cho thiếu thông tin liên hệ.
-
-## Giai Đoạn 6.1: Tích Hợp SMS Gateway (Cho OTP và Thông Báo nếu cần) [SẮP TỚI]
-
-1.  **Lựa chọn nhà cung cấp SMS Gateway:**
-    *   [ ] Nghiên cứu các nhà cung cấp (ví dụ: Twilio, Vonage, các nhà cung cấp Việt Nam).
-    *   [ ] So sánh chi phí, độ tin cậy, tài liệu API.
-2.  **Triển khai Service gửi SMS:**
-    *   [ ] Tạo `SmsService`.
-    *   [ ] Hàm gửi tin nhắn SMS (bao gồm mã OTP).
-    *   [ ] Xử lý các phản hồi từ SMS Gateway.
-3.  **Tích hợp vào các nghiệp vụ:**
-    *   [ ] Gửi OTP khi đăng ký Patient.
-    *   [ ] (Tùy chọn) Gửi thông báo SMS quan trọng (ví dụ: xác nhận lịch hẹn khẩn, thay đổi đột xuất).
-
+    
 ## Giai Đoạn 7: Xử Lý Upload File (Nếu có) [SẮP TỚI]
 
 1.  **Lựa chọn giải pháp lưu trữ:**
@@ -301,9 +289,8 @@
     *   Giai đoạn 6: Tích hợp Email Service
     *   Giai đoạn 9: Tài liệu hóa API (Swagger/OpenAPI)
 *   Tiếp theo:
-    *   Giai đoạn 6.1: Tích Hợp SMS Gateway
     *   Giai đoạn 7: Xử lý Upload File
     *   Giai đoạn 8: Testing
     *   Giai đoạn 10-13: Các giai đoạn còn lại
 
-Dự án đã hoàn thành toàn bộ lớp Controller với đầy đủ 10 controllers để xử lý tất cả các API endpoints cần thiết cho hệ thống. Các controllers được thiết kế tuân thủ nguyên tắc RESTful, có phân quyền phù hợp và xử lý lỗi thống nhất. Bước tiếp theo sẽ là cấu hình bảo mật với Spring Security và JWT.
+Dự án đã hoàn thành toàn bộ hệ thống backend cốt lõi với đầy đủ 11 controllers (bao gồm PaymentController) để xử lý tất cả các API endpoints cần thiết cho hệ thống đặt lịch hẹn y tế. Hệ thống thanh toán Momo & VNPay đã được tích hợp hoàn chỉnh với scheduled tasks để xử lý payment hết hạn và deep link support cho mobile apps. Email service đã được cập nhật để tương thích với Clerk authentication.
