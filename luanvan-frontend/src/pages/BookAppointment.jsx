@@ -1,9 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Stethoscope, Search, UserCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { doctorService } from '../services/api/index';
 
 const BookAppointment = () => {
   const [activeTab, setActiveTab] = useState('specialty');
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      if (activeTab === 'doctor') {
+        try {
+          setLoading(true);
+          setError(null);
+          const response = await doctorService.getAllDoctors();
+          setDoctors(response.doctors);
+        } catch (err) {
+          setError('Không thể tải danh sách bác sĩ');
+          console.error('Error fetching doctors:', err);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchDoctors();
+  }, [activeTab]);
 
   const bookingOptions = [
     {
@@ -20,7 +44,6 @@ const BookAppointment = () => {
       icon: Stethoscope,
       color: 'green'
     },
-   
     {
       id: 'search',
       title: 'Tra cứu thông tin',
@@ -37,33 +60,6 @@ const BookAppointment = () => {
     { id: 4, name: 'Da liễu', image: '/specialties/dermatology.jpg', count: '20 bác sĩ' },
     { id: 5, name: 'Tai mũi họng', image: '/specialties/ent.jpg', count: '25 bác sĩ' },
     { id: 6, name: 'Cơ xương khớp', image: '/specialties/orthopedics.jpg', count: '30 bác sĩ' },
-  ];
-
-  const doctors = [
-    {
-      id: 1,
-      name: 'TS.BS Nguyễn Văn A',
-      specialty: 'Tim mạch',
-      image: '/doctors/doctor1.jpg',
-      rating: 4.9,
-      experience: '15 năm'
-    },
-    {
-      id: 2,
-      name: 'PGS.TS Trần Thị B',
-      specialty: 'Thần kinh',
-      image: '/doctors/doctor2.jpg',
-      rating: 4.8,
-      experience: '20 năm'
-    },
-    {
-      id: 3,
-      name: 'BS.CKI Lê Văn C',
-      specialty: 'Nhi khoa',
-      image: '/doctors/doctor3.jpg',
-      rating: 4.7,
-      experience: '12 năm'
-    },
   ];
 
   const renderContent = () => {
@@ -92,26 +88,67 @@ const BookAppointment = () => {
         );
 
       case 'doctor':
+        if (loading) {
+          return (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+          );
+        }
+
+        if (error) {
+          return (
+            <div className="text-center py-12">
+              <p className="text-red-500">{error}</p>
+              <button 
+                onClick={() => setActiveTab('doctor')} 
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Thử lại
+              </button>
+            </div>
+          );
+        }
+
+        if (!doctors || doctors.length === 0) {
+          return (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Không có bác sĩ nào</p>
+            </div>
+          );
+        }
+
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {doctors.map((doctor) => (
               <Link
-                key={doctor.id}
-                to={`/book-appointment/doctor/${doctor.id}`}
+                key={doctor.userId}
+                to={`/book-appointment/doctor/${doctor.userId}`}
                 className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow overflow-hidden"
               >
-                <img
-                  src={doctor.image}
-                  alt={doctor.name}
-                  className="w-full h-48 object-cover"
-                />
+                <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+                  {doctor.imageUrl ? (
+                    <img
+                      src={doctor.imageUrl}
+                      alt={doctor.fullName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <UserCircle className="w-24 h-24 text-gray-400" />
+                  )}
+                </div>
                 <div className="p-4">
-                  <h3 className="font-semibold text-lg text-gray-800">{doctor.name}</h3>
-                  <p className="text-sm text-gray-500">{doctor.specialty}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="text-yellow-400">★</span>
-                    <span className="text-sm text-gray-600">{doctor.rating}</span>
-                    <span className="text-sm text-gray-400">• {doctor.experience}</span>
+                  <h3 className="font-semibold text-lg text-gray-800">{doctor.fullName}</h3>
+                  <p className="text-sm text-gray-500">{doctor.role?.roleName || 'Bác sĩ'}</p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">SĐT:</span> {doctor.phoneNumber}
+                    </p>
+                    {doctor.email && (
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Email:</span> {doctor.email}
+                      </p>
+                    )}
                   </div>
                 </div>
               </Link>

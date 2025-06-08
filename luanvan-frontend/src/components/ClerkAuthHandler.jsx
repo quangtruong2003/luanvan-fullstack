@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useUser } from '@clerk/clerk-react'
-import ApiService from '../services/api'
+import { authService } from '../services/api'
 
 const ClerkAuthHandler = () => {
   const { isSignedIn, user, isLoaded } = useUser()
@@ -31,7 +31,7 @@ const ClerkAuthHandler = () => {
         console.log('Syncing user with backend:', userData)
         
         // Gọi API để đồng bộ user
-        const response = await ApiService.syncClerkUser(userData)
+        const response = await authService.syncClerkUser(userData)
         
         if (response.success) {
           console.log('User synced successfully with backend:', response)
