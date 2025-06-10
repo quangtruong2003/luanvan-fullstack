@@ -24,15 +24,10 @@ public class CustomHealthIndicator implements HealthIndicator {
             File uploadDir = new File("uploads");
             boolean uploadDirExists = uploadDir.exists() && uploadDir.isDirectory();
             
-            // Check logs directory
-            File logsDir = new File("logs");
-            boolean logsDirExists = logsDir.exists() && logsDir.isDirectory();
-            
             // Build health status
             Health.Builder builder = Health.up()
                     .withDetail("database", "Connected")
-                    .withDetail("uploadDirectory", uploadDirExists ? "Available" : "Not Found")
-                    .withDetail("logsDirectory", logsDirExists ? "Available" : "Not Found");
+                    .withDetail("uploadDirectory", uploadDirExists ? "Available" : "Not Found");
             
             // Check disk space
             File diskPartition = new File("/");

@@ -2,6 +2,7 @@ package com.luanvan.luanvanbackend.services;
 
 import com.luanvan.luanvanbackend.dto.ClinicDTO;
 import com.luanvan.luanvanbackend.dto.ClinicUpdateDTO;
+import com.luanvan.luanvanbackend.dto.ClinicResponseDTO;
 import com.luanvan.luanvanbackend.entities.Clinic;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,10 +19,24 @@ public interface ClinicService {
     Clinic getClinicById(Long clinicId);
     
     /**
+     * Lấy thông tin phòng khám theo ID dưới dạng DTO
+     * @param clinicId ID của phòng khám
+     * @return Thông tin phòng khám DTO
+     */
+    ClinicResponseDTO getClinicResponseDTOById(Long clinicId);
+    
+    /**
      * Lấy tất cả phòng khám
      * @return Danh sách phòng khám
      */
     List<Clinic> getAllClinics();
+    
+    /**
+     * Lấy danh sách phòng khám có phân trang dưới dạng DTO
+     * @param pageable Thông tin phân trang
+     * @return Danh sách phòng khám có phân trang
+     */
+    Page<ClinicResponseDTO> getAllClinicsDTO(Pageable pageable);
     
     /**
      * Lấy danh sách phòng khám có phân trang
@@ -37,6 +52,14 @@ public interface ClinicService {
      * @return Danh sách phòng khám phù hợp
      */
     Page<Clinic> searchClinicsByName(String name, Pageable pageable);
+    
+    /**
+     * Tìm kiếm phòng khám theo tên dưới dạng DTO
+     * @param name Tên phòng khám cần tìm
+     * @param pageable Thông tin phân trang
+     * @return Danh sách phòng khám DTO phù hợp
+     */
+    Page<ClinicResponseDTO> searchClinicsByNameDTO(String name, Pageable pageable);
     
     /**
      * Tạo phòng khám mới

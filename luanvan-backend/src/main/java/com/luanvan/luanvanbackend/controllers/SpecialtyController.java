@@ -1,6 +1,7 @@
 package com.luanvan.luanvanbackend.controllers;
 
 import com.luanvan.luanvanbackend.dto.SpecialtyDTO;
+import com.luanvan.luanvanbackend.dto.SpecialtyResponseDTO;
 import com.luanvan.luanvanbackend.entities.Specialty;
 import com.luanvan.luanvanbackend.services.SpecialtyService;
 import jakarta.validation.Valid;
@@ -26,9 +27,9 @@ public class SpecialtyController {
      * Lấy danh sách tất cả chuyên khoa (public)
      */
     @GetMapping
-    public ResponseEntity<Page<Specialty>> getAllSpecialties(
+    public ResponseEntity<Page<SpecialtyResponseDTO>> getAllSpecialties(
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<Specialty> specialties = specialtyService.getAllSpecialties(pageable);
+        Page<SpecialtyResponseDTO> specialties = specialtyService.getAllSpecialtiesDTO(pageable);
         return ResponseEntity.ok(specialties);
     }
 

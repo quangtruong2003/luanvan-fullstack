@@ -52,6 +52,11 @@ public class AppointmentServiceImpl implements AppointmentService {
     private EmailService emailService;
 
     @Override
+    public Page<Appointment> getAllAppointments(Pageable pageable) {
+        return appointmentRepository.findAll(pageable);
+    }
+
+    @Override
     public Appointment getAppointmentById(Long appointmentId) {
         return appointmentRepository.findById(appointmentId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch hẹn với ID: " + appointmentId));

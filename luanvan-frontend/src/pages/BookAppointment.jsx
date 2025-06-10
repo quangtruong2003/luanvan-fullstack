@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Stethoscope, Search, UserCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { doctorService } from '../services/api/index';
+import { apiService } from '../services/api';
 
 const BookAppointment = () => {
   const [activeTab, setActiveTab] = useState('specialty');
@@ -15,8 +15,8 @@ const BookAppointment = () => {
         try {
           setLoading(true);
           setError(null);
-          const response = await doctorService.getAllDoctors();
-          setDoctors(response.doctors);
+          const response = await apiService.getDoctors();
+          setDoctors(response.content || response.doctors || []);
         } catch (err) {
           setError('Không thể tải danh sách bác sĩ');
           console.error('Error fetching doctors:', err);

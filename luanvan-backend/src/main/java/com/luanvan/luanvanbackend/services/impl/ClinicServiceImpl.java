@@ -1,6 +1,7 @@
 package com.luanvan.luanvanbackend.services.impl;
 
 import com.luanvan.luanvanbackend.dto.ClinicDTO;
+import com.luanvan.luanvanbackend.dto.ClinicResponseDTO;
 import com.luanvan.luanvanbackend.dto.ClinicUpdateDTO;
 import com.luanvan.luanvanbackend.entities.Clinic;
 import com.luanvan.luanvanbackend.repositories.ClinicRepository;
@@ -30,8 +31,19 @@ public class ClinicServiceImpl implements ClinicService {
     }
 
     @Override
+    public ClinicResponseDTO getClinicResponseDTOById(Long clinicId) {
+        Clinic clinic = getClinicById(clinicId);
+        return convertToResponseDTO(clinic);
+    }
+
+    @Override
     public List<Clinic> getAllClinics() {
         return clinicRepository.findAll();
+    }
+
+    @Override
+    public Page<ClinicResponseDTO> getAllClinicsDTO(Pageable pageable) {
+        return clinicRepository.findAll(pageable).map(this::convertToResponseDTO);
     }
 
     @Override
@@ -42,6 +54,11 @@ public class ClinicServiceImpl implements ClinicService {
     @Override
     public Page<Clinic> searchClinicsByName(String name, Pageable pageable) {
         return clinicRepository.findByNameContainingIgnoreCase(name, pageable);
+    }
+
+    @Override
+    public Page<ClinicResponseDTO> searchClinicsByNameDTO(String name, Pageable pageable) {
+        return clinicRepository.findByNameContainingIgnoreCase(name, pageable).map(this::convertToResponseDTO);
     }
 
     @Override
@@ -152,6 +169,7 @@ public class ClinicServiceImpl implements ClinicService {
     }
 
     @Override
+    @Transactional
     public Clinic updateLogo(Long clinicId, String logoURL) {
         Clinic clinic = getClinicById(clinicId);
         clinic.setLogoURL(logoURL);
@@ -162,13 +180,33 @@ public class ClinicServiceImpl implements ClinicService {
     @Transactional
     public boolean deleteClinic(Long clinicId) {
         Clinic clinic = getClinicById(clinicId);
-        
-        // Kiểm tra xem phòng khám còn liên kết với chuyên khoa không
-        if (!specialtyRepository.findByClinicClinicId(clinicId).isEmpty()) {
-            throw new RuntimeException("Không thể xóa phòng khám vì còn liên kết với các chuyên khoa");
+
+        // Kiểm tra xem phòng khám còn chuyên khoa nào không
+        long specialtyCount = specialtyRepository.countByClinicClinicId(clinicId);
+        if (specialtyCount > 0) {
+            throw new IllegalStateException("Không thể xóa phòng khám vì vẫn còn " + specialtyCount + " chuyên khoa liên kết.");
         }
-        
+
         clinicRepository.delete(clinic);
         return true;
+    }
+
+    private ClinicResponseDTO convertToResponseDTO(Clinic clinic) {
+        return new ClinicResponseDTO(
+                clinic.getClinicId(),
+                clinic.getName(),
+                clinic.getAddress(),
+                clinic.getPhoneNumber(),
+                clinic.getEmail(),
+                clinic.getLogoURL(),
+                clinic.getDescription(),
+                clinic.getWorkingHours(),
+                clinic.getHistory(),
+                clinic.getVision(),
+                clinic.getMission(),
+                clinic.getCoreValues(),
+                clinic.getFacilitiesDescription(),
+                clinic.getEquipmentDescription()
+        );
     }
 } 

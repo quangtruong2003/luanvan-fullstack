@@ -4,6 +4,7 @@ import com.luanvan.luanvanbackend.dto.DoctorDTO;
 import com.luanvan.luanvanbackend.dto.DoctorResponseDTO;
 import com.luanvan.luanvanbackend.dto.DoctorUpdateDTO;
 import com.luanvan.luanvanbackend.entities.Doctor;
+import com.luanvan.luanvanbackend.entities.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -19,11 +20,25 @@ public interface DoctorService {
     Doctor getDoctorById(Long doctorId);
     
     /**
+     * Lấy thông tin bác sĩ theo ID dạng DTO
+     * @param doctorId ID của bác sĩ
+     * @return Thông tin bác sĩ dạng DTO
+     */
+    DoctorResponseDTO getDoctorResponseDTOById(Long doctorId);
+    
+    /**
      * Lấy thông tin bác sĩ theo ID người dùng
      * @param userId ID của người dùng
      * @return Thông tin bác sĩ
      */
     Doctor getDoctorByUserId(Long userId);
+    
+    /**
+     * Lấy thông tin bác sĩ theo ID người dùng dạng DTO
+     * @param userId ID của người dùng
+     * @return Thông tin bác sĩ dạng DTO
+     */
+    DoctorResponseDTO getDoctorResponseDTOByUserId(Long userId);
     
     /**
      * Lấy tất cả bác sĩ trong hệ thống
@@ -80,30 +95,35 @@ public interface DoctorService {
     
     /**
      * Tạo hồ sơ bác sĩ mới
-     * @param userId ID của người dùng
+     * @param user User entity
      * @param doctorDTO Thông tin bác sĩ
      * @return Hồ sơ bác sĩ đã được tạo
      */
-    Doctor createDoctor(Long userId, DoctorDTO doctorDTO);
+    Doctor createDoctor(User user, DoctorDTO doctorDTO);
     
     /**
      * Cập nhật thông tin bác sĩ
      * @param doctorId ID của bác sĩ
-     * @param doctorUpdateDTO Thông tin cập nhật
+     * @param doctorUpdateDTO Dữ liệu cập nhật
      * @return Thông tin bác sĩ sau khi cập nhật
      */
     Doctor updateDoctor(Long doctorId, DoctorUpdateDTO doctorUpdateDTO);
     
-
+    /**
+     * Xóa bác sĩ
+     * @param doctorId ID của bác sĩ cần xóa
+     * @return true nếu xóa thành công, false nếu thất bại
+     */
+    void deleteDoctor(Long doctorId);
     
     /**
      * Gán chuyên khoa cho bác sĩ
      * @param doctorId ID của bác sĩ
      * @param specialtyId ID của chuyên khoa
-     * @param isPrimary Đánh dấu là chuyên khoa chính
-     * @return true nếu gán thành công
+     * @param isPrimary Có phải chuyên khoa chính hay không
+     * @return true nếu gán thành công, false nếu thất bại
      */
-    boolean assignSpecialty(Long doctorId, Long specialtyId, boolean isPrimary);
+    void assignSpecialty(Long doctorId, Long specialtyId, boolean isPrimary);
     
     /**
      * Xóa chuyên khoa khỏi bác sĩ
@@ -111,7 +131,7 @@ public interface DoctorService {
      * @param specialtyId ID của chuyên khoa
      * @return true nếu xóa thành công
      */
-    boolean removeSpecialty(Long doctorId, Long specialtyId);
+    void removeSpecialty(Long doctorId, Long specialtyId);
     
     /**
      * Lấy danh sách chuyên khoa của bác sĩ

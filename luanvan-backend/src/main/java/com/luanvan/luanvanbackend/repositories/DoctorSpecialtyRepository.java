@@ -16,6 +16,8 @@ public interface DoctorSpecialtyRepository extends JpaRepository<DoctorSpecialty
     
     void deleteByDoctorDoctorIdAndSpecialtySpecialtyId(Long doctorId, Long specialtyId);
     
+    long countBySpecialtySpecialtyId(Long specialtyId);
+    
     List<DoctorSpecialty> findByIsPrimaryTrue();
     
     List<DoctorSpecialty> findByDoctorDoctorIdAndIsPrimaryTrue(Long doctorId);

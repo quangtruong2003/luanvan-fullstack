@@ -1,6 +1,7 @@
 package com.luanvan.luanvanbackend.services;
 
 import com.luanvan.luanvanbackend.dto.ContactInfoUpdateDTO;
+import com.luanvan.luanvanbackend.dto.UserResponseDTO;
 import com.luanvan.luanvanbackend.dto.UserUpdateDTO;
 import com.luanvan.luanvanbackend.entities.User;
 import org.springframework.data.domain.Page;
@@ -18,6 +19,13 @@ public interface UserService {
     User getUserById(Long userId);
     
     /**
+     * Lấy thông tin người dùng theo ID dưới dạng DTO
+     * @param userId ID của người dùng
+     * @return Thông tin người dùng DTO
+     */
+    UserResponseDTO getUserResponseDTOById(Long userId);
+    
+    /**
      * Lấy danh sách tất cả người dùng
      * @return Danh sách tất cả người dùng
      */
@@ -31,12 +39,27 @@ public interface UserService {
     Page<User> getAllUsers(Pageable pageable);
     
     /**
+     * Lấy danh sách người dùng có phân trang dưới dạng DTO
+     * @param pageable Thông tin phân trang
+     * @return Danh sách người dùng DTO có phân trang
+     */
+    Page<UserResponseDTO> getAllUsersDTO(Pageable pageable);
+    
+    /**
      * Lấy danh sách người dùng theo vai trò
      * @param roleId ID của vai trò
      * @param pageable Thông tin phân trang
      * @return Danh sách người dùng có vai trò tương ứng
      */
     Page<User> getUsersByRole(Long roleId, Pageable pageable);
+    
+    /**
+     * Lấy danh sách người dùng theo vai trò dưới dạng DTO
+     * @param roleId ID của vai trò
+     * @param pageable Thông tin phân trang
+     * @return Danh sách người dùng DTO có vai trò tương ứng
+     */
+    Page<UserResponseDTO> getUsersByRoleDTO(Long roleId, Pageable pageable);
     
     /**
      * Cập nhật thông tin người dùng

@@ -1,39 +1,45 @@
-# Hướng Dẫn Test API với Postman (Clerk Authentication)
+# Hướng Dẫn Test API với Postman (Hybrid Authentication)
 
 ## 1. Chuẩn Bị
 
 ### 1.1. Import Collection
-1. Tạo một collection mới trong Postman tên là "Luận Văn API - Clerk"
+1. Tạo một collection mới trong Postman tên là "Luận Văn API - Hybrid Auth"
 2. Thêm biến môi trường:
    - `BASE_URL`: http://localhost:9090
    - `CLERK_USER_ID`: (clerk user ID để test)
-   - `ADMIN_PHONE`: admin
+   - `ADMIN_EMAIL`: admin@luanvan.com
    - `ADMIN_PASSWORD`: admin123
+   - `DOCTOR_EMAIL`: doctor001@luanvan.com
+   - `DOCTOR_PASSWORD`: doctor123
 
 ## 2. Authentication Flow
 
 ### 2.1. System Initialization
 
-#### Test Case 1: Tạo Admin Đầu Tiên
+#### Test Case 1: Tạo Admin Đầu Tiên (BẮT BUỘC CHẠY TRƯỚC)
 ```
 POST {{BASE_URL}}/api/auth/create-first-admin
 Content-Type: application/json
 
 {
-    "phoneNumber": "admin",
+    "email": "admin@luanvan.com",
     "password": "admin123",
-    "fullName": "System Administrator",
-    "email": "admin@luanvan.com"
+    "fullName": "System Administrator"
 }
+
+Expected:
+- Status: 200
+- Response: {"success": true, "message": "Tạo tài khoản ADMIN đầu tiên thành công", ...}
+- Note: PHẢI chạy test case này TRƯỚC KHI test các API khác
 ```
 
-#### Test Case 2: Admin Login
+#### Test Case 2: Admin Login (Email-based)
 ```
 POST {{BASE_URL}}/api/auth/login
 Content-Type: application/json
 
 {
-    "phoneNumber": "admin",
+    "email": "admin@luanvan.com",
     "password": "admin123"
 }
 
@@ -41,9 +47,23 @@ Post-test Script:
 pm.environment.set("ADMIN_TOKEN", pm.response.json().token);
 ```
 
-### 2.2. Clerk User Sync
+#### Test Case 3: Doctor Login (Email-based)
+```
+POST {{BASE_URL}}/api/auth/login
+Content-Type: application/json
 
-#### Test Case 3: Sync Patient từ Clerk
+{
+    "email": "doctor001@luanvan.com", 
+    "password": "doctor123"
+}
+
+Post-test Script:
+pm.environment.set("DOCTOR_TOKEN", pm.response.json().token);
+```
+
+### 2.2. Clerk User Sync (Patient)
+
+#### Test Case 4: Sync Patient từ Clerk
 ```
 POST {{BASE_URL}}/api/auth/clerk-sync
 Content-Type: application/json
@@ -57,118 +77,39 @@ Content-Type: application/json
 }
 ```
 
-## 3. Core API Testing
+## 3. Hybrid Authentication System
 
-### 3.1. User Management
-- `GET /api/users/me` - Lấy thông tin user hiện tại
-- `PUT /api/users/contact-info` - Cập nhật thông tin liên hệ
+### **Admin & Doctor:**
+- ✅ Đăng nhập bằng **EMAIL** + password
+- ✅ Traditional JWT authentication
+- ✅ Backend session management
+- ✅ Role-based access control
 
-### 3.2. Clinic & Doctor Management
-- `POST /api/clinics` - Tạo phòng khám (Admin)
-- `POST /api/specialties` - Tạo chuyên khoa (Admin)
-- `POST /api/doctors/user/{userId}` - Tạo doctor profile (Admin)
+### **Patient:**
+- ✅ Đăng nhập bằng **Clerk** (frontend)
+- ✅ Sync với backend qua `/api/auth/clerk-sync`
+- ✅ Hybrid session management
 
-### 3.3. Appointment Booking
-- `POST /api/appointments` - Đặt lịch hẹn (Patient)
-- `POST /api/payments/create` - Tạo thanh toán
+## 4. Sample Accounts
 
-## 4. Key Differences với Traditional Auth
+### Admin Account:
+- **Email**: admin@luanvan.com
+- **Password**: admin123
+- **Role**: ADMIN
 
-**Patient Authentication:**
-- ✅ Sử dụng Clerk cho registration/login
-- ✅ Backend sync thông qua `/api/auth/clerk-sync`
-- ✅ Frontend quản lý Clerk session
+### Doctor Accounts:
+1. **Email**: doctor001@luanvan.com, **Password**: doctor123, **Role**: DOCTOR
+2. **Email**: doctor1@luanvan.com, **Password**: doctor123, **Role**: DOCTOR  
+3. **Email**: bs_tim_mach@luanvan.com, **Password**: doctor123, **Role**: DOCTOR
 
-**Admin/Doctor Authentication:**
-- ✅ Traditional login với JWT
-- ✅ Backend issued tokens
-- ✅ Full backend session management
-
-**Hybrid System Benefits:**
-- Patient UX: Modern Clerk authentication
-- Admin Security: Traditional server-side auth
-- Flexibility: Best of both worlds
+### Patient Account (for traditional login testing):
+- **Phone**: 0123456789
+- **Password**: patient123
+- **Role**: PATIENT
 
 ## 5. Test Cases Chi Tiết
 
-### 5.1. System Initialization
-
-#### Test Case 1: Tạo Admin Đầu Tiên (Chỉ dùng 1 lần)
-```
-POST {{BASE_URL}}/api/auth/create-first-admin
-Content-Type: application/json
-
-{
-    "phoneNumber": "admin",
-    "password": "admin123",
-    "fullName": "System Administrator",
-    "email": "admin@luanvan.com"
-}
-
-Expected: 
-- Status: 200
-- Response: Admin user details với role ADMIN
-```
-
-#### Test Case 2: Đăng Nhập Admin (Để lấy token quản trị)
-```
-POST {{BASE_URL}}/api/auth/login
-Content-Type: application/json
-
-{
-    "phoneNumber": "admin",
-    "password": "admin123"
-}
-
-Expected:
-- Status: 200
-- Response: Login success với admin token
-
-Post-test Script:
-pm.environment.set("ADMIN_TOKEN", pm.response.json().token);
-```
-
-### 5.2. Clerk User Management
-
-#### Test Case 3: Clerk User Sync (Patient)
-```
-POST {{BASE_URL}}/api/auth/clerk-sync
-Content-Type: application/json
-
-{
-    "clerkUserId": "user_2abc123def456",
-    "email": "patient@example.com",
-    "firstName": "Nguyen",
-    "lastName": "Van A",
-    "phoneNumber": "0123456789",
-    "imageUrl": "https://img.clerk.com/user123.jpg"
-}
-
-Expected:
-- Status: 200
-- Response: Synced user details với role PATIENT tự động
-```
-
-#### Test Case 4: Clerk User Sync (Update Existing)
-```
-POST {{BASE_URL}}/api/auth/clerk-sync
-Content-Type: application/json
-
-{
-    "clerkUserId": "user_2abc123def456",
-    "email": "patient.updated@example.com",
-    "firstName": "Nguyen",
-    "lastName": "Van A Updated",
-    "phoneNumber": "0123456780",
-    "imageUrl": "https://img.clerk.com/user123_new.jpg"
-}
-
-Expected:
-- Status: 200
-- Response: Updated user info, isNewUser: false
-```
-
-### 5.3. Admin User Management
+### 5.1. Admin Management
 
 #### Test Case 5: Tạo Doctor User
 ```
@@ -177,10 +118,10 @@ Authorization: Bearer {{ADMIN_TOKEN}}
 Content-Type: application/json
 
 {
-    "phoneNumber": "doctor001",
+    "email": "newdoctor@luanvan.com",
     "password": "doctor123",
-    "fullName": "Dr. Tran Van B",
-    "email": "doctor001@luanvan.com",
+    "fullName": "Dr. New Doctor",
+    "phoneNumber": "0987654999",
     "role": "DOCTOR"
 }
 
@@ -189,214 +130,120 @@ Expected:
 - Response: Created doctor user details
 ```
 
-#### Test Case 6: Lấy Thông Tin User Hiện Tại
+#### Test Case 6: Email Validation Test
 ```
-GET {{BASE_URL}}/api/users/me
-Authorization: Bearer {{ADMIN_TOKEN}}
-
-Expected:
-- Status: 200
-- Response: Current admin user details
-```
-
-### 5.4. Clinic & Specialty Management
-
-#### Test Case 7: Tạo Phòng Khám
-```
-POST {{BASE_URL}}/api/clinics
-Authorization: Bearer {{ADMIN_TOKEN}}
+POST {{BASE_URL}}/api/auth/login
 Content-Type: application/json
 
 {
-    "name": "Phòng Khám Đa Khoa ABC",
-    "address": "123 Nguyễn Văn Linh, Q7, TP.HCM",
-    "phoneNumber": "0281234567",
-    "email": "contact@phongkhamabc.com",
-    "description": "Phòng khám đa khoa hiện đại",
-    "workingHours": "Thứ 2 - Thứ 7: 8:00 - 20:00"
+    "email": "invalid-email",
+    "password": "admin123"
 }
 
 Expected:
-- Status: 201
-- Response: Created clinic details
+- Status: 400
+- Response: Email validation error
 ```
 
-#### Test Case 8: Tạo Chuyên Khoa
+### 5.2. Role-based Login Restrictions
+
+#### Test Case 7: Patient tries Email Login (Should Fail)
 ```
-POST {{BASE_URL}}/api/specialties
-Authorization: Bearer {{ADMIN_TOKEN}}
+POST {{BASE_URL}}/api/auth/login
 Content-Type: application/json
 
 {
-    "name": "Tim mạch",
-    "description": "Chuyên khoa điều trị các bệnh về tim mạch",
-    "clinicId": 1
+    "email": "patient001@example.com", 
+    "password": "patient123"
 }
 
 Expected:
-- Status: 201
-- Response: Created specialty
+- Status: 200 but with error message
+- Response: "Chỉ Admin và Doctor được phép đăng nhập qua email"
 ```
 
-### 5.5. Doctor Profile Management
+### 5.3. Phone Number Validation
 
-#### Test Case 9: Tạo Doctor Profile
+#### Test Case 8: Create User với Invalid Phone
 ```
-POST {{BASE_URL}}/api/doctors/user/2
+POST {{BASE_URL}}/api/auth/create-user
 Authorization: Bearer {{ADMIN_TOKEN}}
 Content-Type: application/json
 
 {
-    "bio": "Bác sĩ chuyên khoa Tim mạch với 10 năm kinh nghiệm",
-    "yearsOfExperience": 10,
-    "profilePictureURL": "doctor1.jpg"
+    "email": "test@luanvan.com",
+    "password": "test123",
+    "fullName": "Test User",
+    "phoneNumber": "123", // Invalid: too short
+    "role": "DOCTOR"
 }
 
 Expected:
-- Status: 201
-- Response: Created doctor profile
+- Status: 400
+- Response: Phone number validation error
 ```
 
-#### Test Case 10: Gán Chuyên Khoa cho Doctor
-```
-POST {{BASE_URL}}/api/doctors/1/specialties/1
-Authorization: Bearer {{ADMIN_TOKEN}}
+### 5.4. Email Requirement for Admin/Doctor
 
-Expected:
-- Status: 200
-- Response: Assigned specialty to doctor
+#### Test Case 9: Create Doctor without Email (Should Fail)
 ```
-
-### 5.6. Availability Management
-
-#### Test Case 11: Tạo Ca Làm Việc
-```
-POST {{BASE_URL}}/api/availability/shifts
+POST {{BASE_URL}}/api/auth/create-user
 Authorization: Bearer {{ADMIN_TOKEN}}
 Content-Type: application/json
 
 {
-    "shiftName": "Ca sáng",
-    "dayOfWeek": "MONDAY",
-    "startTime": "08:00",
-    "endTime": "12:00",
-    "clinicId": 1,
-    "isDefault": true
+    "password": "test123",
+    "fullName": "Test Doctor",
+    "phoneNumber": "0987654888",
+    "role": "DOCTOR"
 }
 
 Expected:
-- Status: 201
-- Response: Created shift
-```
-
-#### Test Case 12: Tạo Khung Giờ Khả Dụng
-```
-POST {{BASE_URL}}/api/availability/slots
-Authorization: Bearer {{ADMIN_TOKEN}}
-Content-Type: application/json
-
-{
-    "doctorId": 1,
-    "date": "2024-12-25",
-    "startTime": "09:00",
-    "endTime": "09:30",
-    "clinicId": 1
-}
-
-Expected:
-- Status: 201
-- Response: Created availability slot
-```
-
-### 5.7. Patient Booking (Via Clerk User)
-
-#### Test Case 13: Cập Nhật Thông Tin Liên Hệ (Patient)
-```
-PUT {{BASE_URL}}/api/users/contact-info
-Authorization: Bearer {{PATIENT_TOKEN}}
-Content-Type: application/json
-
-{
-    "phoneNumber": "0123456789",
-    "email": "patient@example.com",
-    "fullName": "Nguyen Van A"
-}
-
-Expected:
-- Status: 200
-- Response: Updated contact info
-```
-
-#### Test Case 14: Đặt Lịch Hẹn
-```
-POST {{BASE_URL}}/api/appointments
-Authorization: Bearer {{PATIENT_TOKEN}}
-Content-Type: application/json
-
-{
-    "doctorId": 1,
-    "slotId": 1,
-    "specialtyId": 1,
-    "clinicId": 1,
-    "reasonForVisit": "Khám sức khỏe định kỳ"
-}
-
-Expected:
-- Status: 201
-- Response: Created appointment with payment info
-```
-
-### 5.8. Payment Processing
-
-#### Test Case 15: Tạo Thanh Toán
-```
-POST {{BASE_URL}}/api/payments/create
-Authorization: Bearer {{PATIENT_TOKEN}}
-Content-Type: application/json
-
-{
-    "appointmentId": 1,
-    "paymentMethod": "MOMO",
-    "returnUrl": "http://localhost:5173/payment/return",
-    "notifyUrl": "http://localhost:9090/api/payments/momo/notify"
-}
-
-Expected:
-- Status: 200
-- Response: Payment details với payUrl, deeplink, qrCodeUrl
+- Status: 200 but with error message
+- Response: "Email là bắt buộc cho tài khoản DOCTOR"
 ```
 
 ## 6. Error Testing
 
-### 6.1. Clerk Sync Errors
+### 6.1. Authentication Errors
 ```
-// Missing required fields
-POST {{BASE_URL}}/api/auth/clerk-sync
+// Wrong email
+POST {{BASE_URL}}/api/auth/login
 {
-    "clerkUserId": "user_123"
-    // Missing email, firstName, lastName
+    "email": "wrong@email.com",
+    "password": "admin123"
 }
 
-Expected: 400 - Validation errors
+Expected: 401 - Đăng nhập thất bại
+
+// Wrong password
+POST {{BASE_URL}}/api/auth/login
+{
+    "email": "admin@luanvan.com",
+    "password": "wrongpassword"
+}
+
+Expected: 401 - Đăng nhập thất bại
 ```
 
-### 6.2. Authorization Errors
+### 6.2. Validation Errors
 ```
-// Patient trying to access admin endpoint
-POST {{BASE_URL}}/api/auth/create-user
-Authorization: Bearer {{PATIENT_TOKEN}}
+// Missing email
+POST {{BASE_URL}}/api/auth/login
+{
+    "password": "admin123"
+}
 
-Expected: 403 - Forbidden
-```
+Expected: 400 - Email không được để trống
 
-### 6.3. Booking Errors
-```
-// Booking without contact info
-POST {{BASE_URL}}/api/appointments
-Authorization: Bearer {{PATIENT_TOKEN}}
-// Patient chưa cập nhật phoneNumber/email
+// Invalid email format
+POST {{BASE_URL}}/api/auth/login
+{
+    "email": "not-an-email",
+    "password": "admin123"
+}
 
-Expected: 400 - Missing contact information
+Expected: 400 - Email không hợp lệ
 ```
 
 ## 7. Sample Environment Variables
@@ -405,52 +252,57 @@ Expected: 400 - Missing contact information
 {
     "BASE_URL": "http://localhost:9090",
     "ADMIN_TOKEN": "eyJhbGciOiJIUzI1NiJ9...",
+    "DOCTOR_TOKEN": "eyJhbGciOiJIUzI1NiJ9...",
     "PATIENT_TOKEN": "clerk_session_token",
     "CLERK_USER_ID": "user_2abc123def456",
-    "ADMIN_PHONE": "admin",
-    "ADMIN_PASSWORD": "admin123"
+    "ADMIN_EMAIL": "admin@luanvan.com",
+    "ADMIN_PASSWORD": "admin123",
+    "DOCTOR_EMAIL": "doctor001@luanvan.com",
+    "DOCTOR_PASSWORD": "doctor123"
 }
 ```
 
-## 8. Performance & Load Testing
+## 8. Key Changes from Previous Version
 
-### 8.1. Clerk Sync Performance
-- Test concurrent clerk-sync requests
-- Verify no duplicate user creation
-- Check response time < 200ms
+### **OLD (Phone-based login):**
+- Admin: `phoneNumber: "admin"`, `password: "123456"`
+- Doctor: `phoneNumber: "doctor001"`, `password: "123456"`
 
-### 8.2. Booking Load Test
-- Multiple patients booking same slot
-- Verify slot availability locking
-- Check appointment conflict prevention
+### **NEW (Email-based login for Admin/Doctor):**
+- Admin: `email: "admin@luanvan.com"`, `password: "admin123"`
+- Doctor: `email: "doctor001@luanvan.com"`, `password: "doctor123"`
 
-## 9. Integration Testing với Clerk
+### **Patient (Unchanged):**
+- Continues to use Clerk authentication
+- Phone number still used for traditional fallback login
 
-### 9.1. Webhook Testing (Future)
-```
-POST {{BASE_URL}}/api/webhooks/clerk/user-created
-Content-Type: application/json
-Clerk-Webhook-Signature: {{signature}}
+## 9. Benefits of New System
 
-{
-    "type": "user.created",
-    "data": {
-        "id": "user_123",
-        "email_addresses": [...],
-        "first_name": "John",
-        "last_name": "Doe"
-    }
-}
-```
+### 1. **Professional Authentication:**
+- Admin và Doctor sử dụng email (professional standard)
+- Patient sử dụng Clerk (modern UX)
 
-### 9.2. Session Validation
-- Verify Clerk session tokens
-- Check session expiration handling
-- Test session refresh scenarios
+### 2. **Better Validation:**
+- Email format validation
+- Phone number format validation (10-11 digits)
+- Clear error messages in Vietnamese
 
-**Lưu ý:** Hệ thống sử dụng hybrid authentication:
-- **Patients:** Clerk authentication (frontend quản lý session)  
-- **Admin/Doctor:** Traditional JWT authentication (backend issued tokens)
+### 3. **Improved Security:**
+- Email-based authentication cho staff users
+- Role-based login restrictions
+- Hybrid authentication system
+
+### 4. **Better UX:**
+- Clear separation between staff và patient login flows
+- Professional email-based login cho healthcare providers
+- Modern Clerk authentication cho patients
+
+---
+
+**Lưu ý quan trọng:** 
+- **Admin/Doctor**: Phải đăng nhập bằng email
+- **Patient**: Sử dụng Clerk hoặc phone number fallback
+- Phone number giờ đây là optional cho admin/doctor, bắt buộc cho patient
 
 ## 10. Test Report Template
 

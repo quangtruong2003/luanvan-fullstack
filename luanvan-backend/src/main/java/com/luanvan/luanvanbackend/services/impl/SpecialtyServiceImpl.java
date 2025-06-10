@@ -1,6 +1,7 @@
 package com.luanvan.luanvanbackend.services.impl;
 
 import com.luanvan.luanvanbackend.dto.SpecialtyDTO;
+import com.luanvan.luanvanbackend.dto.SpecialtyResponseDTO;
 import com.luanvan.luanvanbackend.entities.Clinic;
 import com.luanvan.luanvanbackend.entities.Specialty;
 import com.luanvan.luanvanbackend.repositories.ClinicRepository;
@@ -10,10 +11,13 @@ import com.luanvan.luanvanbackend.services.SpecialtyService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class SpecialtyServiceImpl implements SpecialtyService {
@@ -105,13 +109,56 @@ public class SpecialtyServiceImpl implements SpecialtyService {
     @Transactional
     public boolean deleteSpecialty(Long specialtyId) {
         Specialty specialty = getSpecialtyById(specialtyId);
-        
-        // Kiểm tra xem chuyên khoa còn liên kết với bác sĩ không
-        if (!doctorSpecialtyRepository.findBySpecialtySpecialtyId(specialtyId).isEmpty()) {
-            throw new RuntimeException("Không thể xóa chuyên khoa vì còn liên kết với các bác sĩ");
+        long doctorCount = doctorSpecialtyRepository.countBySpecialtySpecialtyId(specialtyId);
+        if (doctorCount > 0) {
+            throw new IllegalStateException("Không thể xóa chuyên khoa đang có bác sĩ phụ trách.");
         }
-        
         specialtyRepository.delete(specialty);
         return true;
+    }
+    
+    @Override
+    public Page<SpecialtyResponseDTO> getAllSpecialtiesDTO(Pageable pageable) {
+        Sort.Order sortByDoctorCount = pageable.getSort().getOrderFor("doctorCount");
+
+        if (sortByDoctorCount != null) {
+            // Sắp xếp theo doctorCount, các tiêu chí sắp xếp khác sẽ bị bỏ qua trong trường hợp này
+            Pageable newPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+            Page<Specialty> specialties;
+
+            if (sortByDoctorCount.getDirection() == Sort.Direction.DESC) {
+                specialties = specialtyRepository.findAllSortedByDoctorCountDesc(newPageable);
+            } else {
+                specialties = specialtyRepository.findAllSortedByDoctorCountAsc(newPageable);
+            }
+            return specialties.map(this::convertToResponseDTO);
+        } else {
+            // Sắp xếp mặc định theo các trường của entity
+            Page<Specialty> specialties = specialtyRepository.findAll(pageable);
+            return specialties.map(this::convertToResponseDTO);
+        }
+    }
+
+    private SpecialtyResponseDTO convertToResponseDTO(Specialty specialty) {
+        SpecialtyResponseDTO dto = new SpecialtyResponseDTO();
+        dto.setSpecialtyId(specialty.getSpecialtyId());
+        dto.setName(specialty.getName());
+        dto.setDescription(specialty.getDescription());
+        
+        // Convert clinic
+        if (specialty.getClinic() != null) {
+            SpecialtyResponseDTO.ClinicDTO clinicDTO = new SpecialtyResponseDTO.ClinicDTO();
+            clinicDTO.setClinicId(specialty.getClinic().getClinicId());
+            clinicDTO.setName(specialty.getClinic().getName());
+            clinicDTO.setAddress(specialty.getClinic().getAddress());
+            clinicDTO.setPhoneNumber(specialty.getClinic().getPhoneNumber());
+            clinicDTO.setEmail(specialty.getClinic().getEmail());
+            clinicDTO.setWorkingHours(specialty.getClinic().getWorkingHours());
+            dto.setClinic(clinicDTO);
+        }
+        
+        dto.setDoctorCount(doctorSpecialtyRepository.countBySpecialtySpecialtyId(specialty.getSpecialtyId()));
+        
+        return dto;
     }
 } 

@@ -4,6 +4,7 @@ import com.luanvan.luanvanbackend.dto.DoctorDTO;
 import com.luanvan.luanvanbackend.dto.DoctorResponseDTO;
 import com.luanvan.luanvanbackend.dto.DoctorUpdateDTO;
 import com.luanvan.luanvanbackend.entities.Doctor;
+import com.luanvan.luanvanbackend.entities.User;
 import com.luanvan.luanvanbackend.security.SecurityService;
 import com.luanvan.luanvanbackend.services.DoctorService;
 import jakarta.validation.Valid;
@@ -31,7 +32,7 @@ public class DoctorController {
      */
     @GetMapping
     public ResponseEntity<Page<DoctorResponseDTO>> getAllDoctors(
-            @PageableDefault(size = 10) Pageable pageable) {
+            @PageableDefault(size = 10, sort = "user.fullName") Pageable pageable) {
         Page<DoctorResponseDTO> doctors = doctorService.getAllDoctorsDTO(pageable);
         return ResponseEntity.ok(doctors);
     }
@@ -40,8 +41,8 @@ public class DoctorController {
      * Lấy thông tin chi tiết bác sĩ theo ID
      */
     @GetMapping("/{doctorId}")
-    public ResponseEntity<Doctor> getDoctorById(@PathVariable Long doctorId) {
-        Doctor doctor = doctorService.getDoctorById(doctorId);
+    public ResponseEntity<DoctorResponseDTO> getDoctorById(@PathVariable Long doctorId) {
+        DoctorResponseDTO doctor = doctorService.getDoctorResponseDTOById(doctorId);
         return ResponseEntity.ok(doctor);
     }
 
@@ -49,8 +50,8 @@ public class DoctorController {
      * Lấy thông tin bác sĩ theo ID người dùng
      */
     @GetMapping("/user/{userId}")
-    public ResponseEntity<Doctor> getDoctorByUserId(@PathVariable Long userId) {
-        Doctor doctor = doctorService.getDoctorByUserId(userId);
+    public ResponseEntity<DoctorResponseDTO> getDoctorByUserId(@PathVariable Long userId) {
+        DoctorResponseDTO doctor = doctorService.getDoctorResponseDTOByUserId(userId);
         return ResponseEntity.ok(doctor);
     }
 
@@ -95,7 +96,9 @@ public class DoctorController {
     public ResponseEntity<Doctor> createDoctor(
             @PathVariable Long userId,
             @Valid @RequestBody DoctorDTO doctorDTO) {
-        Doctor doctor = doctorService.createDoctor(userId, doctorDTO);
+        User user = new User();
+        user.setUserId(userId);
+        Doctor doctor = doctorService.createDoctor(user, doctorDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(doctor);
     }
 
@@ -111,7 +114,15 @@ public class DoctorController {
         return ResponseEntity.ok(doctor);
     }
 
-
+    /**
+     * Xóa bác sĩ (chỉ Admin)
+     */
+    @DeleteMapping("/{doctorId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> deleteDoctor(@PathVariable Long doctorId) {
+        doctorService.deleteDoctor(doctorId);
+        return ResponseEntity.ok("Đã xóa bác sĩ thành công");
+    }
 
     /**
      * Gán chuyên khoa cho bác sĩ (chỉ Admin)
@@ -122,12 +133,8 @@ public class DoctorController {
             @PathVariable Long doctorId,
             @PathVariable Long specialtyId,
             @RequestParam(defaultValue = "false") boolean isPrimary) {
-        boolean success = doctorService.assignSpecialty(doctorId, specialtyId, isPrimary);
-        if (success) {
-            return ResponseEntity.ok("Đã gán chuyên khoa thành công");
-        } else {
-            return ResponseEntity.badRequest().body("Không thể gán chuyên khoa");
-        }
+        doctorService.assignSpecialty(doctorId, specialtyId, isPrimary);
+        return ResponseEntity.ok("Đã gán chuyên khoa thành công");
     }
 
     /**
@@ -138,12 +145,8 @@ public class DoctorController {
     public ResponseEntity<String> removeSpecialty(
             @PathVariable Long doctorId,
             @PathVariable Long specialtyId) {
-        boolean success = doctorService.removeSpecialty(doctorId, specialtyId);
-        if (success) {
-            return ResponseEntity.ok("Đã xóa chuyên khoa thành công");
-        } else {
-            return ResponseEntity.badRequest().body("Không thể xóa chuyên khoa");
-        }
+        doctorService.removeSpecialty(doctorId, specialtyId);
+        return ResponseEntity.ok("Đã xóa chuyên khoa thành công");
     }
 
     /**

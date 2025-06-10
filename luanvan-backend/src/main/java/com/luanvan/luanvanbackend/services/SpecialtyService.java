@@ -1,6 +1,7 @@
 package com.luanvan.luanvanbackend.services;
 
 import com.luanvan.luanvanbackend.dto.SpecialtyDTO;
+import com.luanvan.luanvanbackend.dto.SpecialtyResponseDTO;
 import com.luanvan.luanvanbackend.entities.Specialty;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -28,6 +29,13 @@ public interface SpecialtyService {
      * @return Danh sách chuyên khoa có phân trang
      */
     Page<Specialty> getAllSpecialties(Pageable pageable);
+    
+    /**
+     * Lấy danh sách chuyên khoa dạng DTO có phân trang
+     * @param pageable Thông tin phân trang
+     * @return Danh sách chuyên khoa DTO có phân trang
+     */
+    Page<SpecialtyResponseDTO> getAllSpecialtiesDTO(Pageable pageable);
     
     /**
      * Lấy danh sách chuyên khoa theo phòng khám

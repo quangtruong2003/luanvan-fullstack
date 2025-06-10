@@ -10,12 +10,21 @@ import java.util.List;
 @AllArgsConstructor
 public class DoctorResponseDTO {
     private Long doctorId;
-    private String fullName;
-    private String email;
-    private String phoneNumber;
+    private UserDTO user;
     private String bio;
     private Integer yearsOfExperience;
     private List<SpecialtyResponseDTO> specialties;
+    
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class UserDTO {
+        private Long userId;
+        private String fullName;
+        private String email;
+        private String phoneNumber;
+        private String imageUrl;
+    }
     
     @Data
     @NoArgsConstructor

@@ -1,6 +1,7 @@
 package com.luanvan.luanvanbackend.controllers;
 
 import com.luanvan.luanvanbackend.dto.ContactInfoUpdateDTO;
+import com.luanvan.luanvanbackend.dto.UserResponseDTO;
 import com.luanvan.luanvanbackend.dto.UserUpdateDTO;
 import com.luanvan.luanvanbackend.entities.User;
 import com.luanvan.luanvanbackend.exception.MissingContactInfoException;
@@ -43,9 +44,8 @@ public class UserController {
      */
     @GetMapping("/{userId}")
     @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
-    public ResponseEntity<User> getUserById(@PathVariable Long userId) {
-        User user = userService.getUserById(userId);
-        return ResponseEntity.ok(user);
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long userId) {
+        return ResponseEntity.ok(userService.getUserResponseDTOById(userId));
     }
 
     /**
@@ -53,10 +53,9 @@ public class UserController {
      */
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Page<User>> getAllUsers(
+    public ResponseEntity<Page<UserResponseDTO>> getAllUsers(
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<User> users = userService.getAllUsers(pageable);
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(userService.getAllUsersDTO(pageable));
     }
 
     /**
@@ -64,11 +63,10 @@ public class UserController {
      */
     @GetMapping("/role/{roleId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Page<User>> getUsersByRole(
+    public ResponseEntity<Page<UserResponseDTO>> getUsersByRole(
             @PathVariable Long roleId,
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<User> users = userService.getUsersByRole(roleId, pageable);
-        return ResponseEntity.ok(users);
+        return ResponseEntity.ok(userService.getUsersByRoleDTO(roleId, pageable));
     }
 
     /**

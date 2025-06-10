@@ -13,6 +13,13 @@ import java.util.List;
 public interface AppointmentService {
     
     /**
+     * Lấy danh sách tất cả lịch hẹn (có phân trang)
+     * @param pageable Thông tin phân trang
+     * @return Danh sách lịch hẹn có phân trang
+     */
+    Page<Appointment> getAllAppointments(Pageable pageable);
+    
+    /**
      * Lấy thông tin lịch hẹn theo ID
      * @param appointmentId ID của lịch hẹn
      * @return Thông tin lịch hẹn

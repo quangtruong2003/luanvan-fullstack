@@ -1,6 +1,9 @@
 package com.luanvan.luanvanbackend.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -17,11 +20,14 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long userId;
     
-    @Column(unique = true)
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không hợp lệ")
+    @Column(unique = true, nullable = false)
     private String email;
     
+    @Pattern(regexp = "^$|^[0-9]{10,15}$", message = "Số điện thoại phải là 10-15 chữ số hoặc để trống.")
     @Column(unique = true)
-    private String phoneNumber;
+    private String phoneNumber; // Optional cho admin/doctor, bắt buộc cho patient
     
     @Column(unique = true)
     private String clerkUserId; // Clerk user ID for integration

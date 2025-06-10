@@ -8,6 +8,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
@@ -15,9 +17,8 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final UserRepository userRepository;
     
     @Override
-    public UserDetails loadUserByUsername(String phoneNumber) throws UsernameNotFoundException {
-        User user = userRepository.findByPhoneNumber(phoneNumber)
-                .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng với số điện thoại: " + phoneNumber));
+    public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
+        User user = findUser(identifier);
         
         // Kiểm tra tài khoản đã được kích hoạt chưa
         if (!user.isActive()) {
@@ -25,5 +26,21 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
         
         return UserPrincipal.create(user);
+    }
+    
+    private User findUser(String identifier) throws UsernameNotFoundException {
+        // Thử tìm theo email trước (admin/doctor)
+        Optional<User> userByEmail = userRepository.findByEmail(identifier);
+        if (userByEmail.isPresent()) {
+            return userByEmail.get();
+        }
+        
+        // Nếu không tìm thấy, thử tìm theo phone number (patient)
+        Optional<User> userByPhone = userRepository.findByPhoneNumber(identifier);
+        if (userByPhone.isPresent()) {
+            return userByPhone.get();
+        }
+        
+        throw new UsernameNotFoundException("Không tìm thấy người dùng với thông tin: " + identifier);
     }
 }

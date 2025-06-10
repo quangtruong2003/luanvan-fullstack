@@ -34,7 +34,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"phoneNumber\": \"admin\",\n    \"password\": \"123456\"\n}"
+              "raw": "{\n    \"email\": \"admin@luanvan.com\",\n    \"password\": \"admin123\"\n}"
             },
             "url": {
               "raw": "{{BASE_URL}}/api/auth/login",
@@ -68,7 +68,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"phoneNumber\": \"doctor1\",\n    \"password\": \"123456\"\n}"
+              "raw": "{\n    \"email\": \"doctor001@luanvan.com\",\n    \"password\": \"doctor123\"\n}"
             },
             "url": {
               "raw": "{{BASE_URL}}/api/auth/login",

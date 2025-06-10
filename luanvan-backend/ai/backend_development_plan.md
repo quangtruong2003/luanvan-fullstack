@@ -261,7 +261,7 @@
     *   [ ] Tạo file JAR hoặc WAR thực thi.
 2.  **Lựa chọn môi trường triển khai:**
     *   [ ] Server vật lý, VPS, Cloud (AWS, Azure, GCP).
-    *   [ ] Sử dụng Docker (tạo Dockerfile).
+    *   [ ] Sử dụng traditional Java deployment.
 3.  **Cấu hình môi trường production:**
     *   [ ] Database, server port, logging, thông tin Momo, SMTP server.
     *   [ ] Quản lý biến môi trường.

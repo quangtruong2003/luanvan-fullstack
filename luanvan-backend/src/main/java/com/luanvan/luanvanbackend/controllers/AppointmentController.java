@@ -26,6 +26,17 @@ public class AppointmentController {
     private final AppointmentService appointmentService;
 
     /**
+     * Lấy danh sách tất cả lịch hẹn (chỉ Admin)
+     */
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<Appointment>> getAllAppointments(
+            @PageableDefault(size = 10) Pageable pageable) {
+        Page<Appointment> appointments = appointmentService.getAllAppointments(pageable);
+        return ResponseEntity.ok(appointments);
+    }
+
+    /**
      * Lấy thông tin lịch hẹn theo ID (Admin, bác sĩ hoặc bệnh nhân của lịch hẹn đó)
      */
     @GetMapping("/{appointmentId}")

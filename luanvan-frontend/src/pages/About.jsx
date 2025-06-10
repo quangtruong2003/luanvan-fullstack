@@ -1,222 +1,152 @@
 import React from 'react';
-import { Shield, Clock, Users, Heart, CheckCircle, Phone } from 'lucide-react';
+import { Heart, Users, Award, Clock } from 'lucide-react';
 
 const About = () => {
-  const features = [
-    {
-      icon: Shield,
-      title: 'An toàn & Bảo mật',
-      description: 'Thông tin cá nhân và y tế của bạn được bảo vệ theo tiêu chuẩn cao nhất'
-    },
-    {
-      icon: Clock,
-      title: 'Tiết kiệm thời gian',
-      description: 'Đặt lịch khám chỉ trong vài phút, không cần xếp hàng chờ đợi'
-    },
-    {
-      icon: Users,
-      title: 'Đội ngũ chuyên môn',
-      description: 'Đội ngũ bác sĩ giàu kinh nghiệm từ các bệnh viện hàng đầu'
-    }
-  ];
-
-  const stats = [
-    { number: '50+', label: 'Bác sĩ chuyên khoa' },
-    { number: '1000+', label: 'Bệnh nhân tin tưởng' },
-    { number: '6', label: 'Chuyên khoa' },
-    { number: '99%', label: 'Đánh giá hài lòng' }
-  ];
-
   return (
-    <div className="bg-white">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-blue-600 to-blue-400 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
-              Chăm sóc sức khỏe thông minh
-            </h1>
-            <p className="text-xl md:text-2xl text-blue-100 mb-8">
-              Đặt lịch khám trực tuyến - Tiết kiệm thời gian, tối ưu hiệu quả
-            </p>
-            <div className="flex justify-center gap-4">
-              <a
-                href="/book-appointment"
-                className="bg-white text-blue-600 px-8 py-3 rounded-full font-semibold hover:bg-blue-50 transition-colors"
-              >
-                Đặt lịch ngay
-              </a>
-              <a
-                href="#contact"
-                className="border-2 border-white text-white px-8 py-3 rounded-full font-semibold hover:bg-white hover:text-blue-600 transition-colors"
-              >
-                Liên hệ
-              </a>
-            </div>
-          </div>
-        </div>
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-white transform -skew-y-3 origin-bottom-right"></div>
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          Về Chúng Tôi
+        </h1>
+        <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          Hệ thống đặt lịch khám bệnh trực tuyến hiện đại, mang đến dịch vụ chăm sóc sức khỏe 
+          chuyên nghiệp và thuận tiện cho mọi người.
+        </p>
       </div>
 
-      {/* Features Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Tại sao chọn Medical.Care?
-          </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Chúng tôi cam kết mang đến trải nghiệm đặt lịch khám bệnh thuận tiện và hiệu quả nhất cho bạn
+      {/* Mission Section */}
+      <div className="bg-white rounded-lg shadow-md p-8 mb-8">
+        <div className="text-center mb-8">
+          <Heart className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Sứ Mệnh</h2>
+          <p className="text-lg text-gray-600 max-w-4xl mx-auto">
+            Chúng tôi cam kết cung cấp nền tảng kết nối bệnh nhân và bác sĩ một cách dễ dàng, 
+            nhanh chóng và hiệu quả. Mục tiêu của chúng tôi là làm cho việc chăm sóc sức khỏe 
+            trở nên dễ tiếp cận hơn với mọi người.
+          </p>
+        </div>
+      </div>
+
+      {/* Features Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <div className="bg-white rounded-lg shadow-md p-6 text-center">
+          <Users className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Đội Ngũ Chuyên Gia
+          </h3>
+          <p className="text-gray-600">
+            Bác sĩ và chuyên gia y tế có trình độ cao, nhiều năm kinh nghiệm trong lĩnh vực chăm sóc sức khỏe.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow"
-            >
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                <feature.icon className="w-6 h-6 text-blue-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                {feature.title}
-              </h3>
-              <p className="text-gray-600">
-                {feature.description}
-              </p>
-            </div>
-          ))}
+        <div className="bg-white rounded-lg shadow-md p-6 text-center">
+          <Clock className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Tiện Lợi 24/7
+          </h3>
+          <p className="text-gray-600">
+            Đặt lịch khám bất cứ lúc nào, bất cứ nơi đâu. Hệ thống hoạt động 24/7 để phục vụ nhu cầu của bạn.
+          </p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6 text-center">
+          <Award className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Chất Lượng Đảm Bảo
+          </h3>
+          <p className="text-gray-600">
+            Dịch vụ chất lượng cao với quy trình chuẩn y khoa, đảm bảo an toàn và hiệu quả cho bệnh nhân.
+          </p>
         </div>
       </div>
 
       {/* Stats Section */}
-      <div className="bg-blue-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-blue-600 mb-2">
-                  {stat.number}
-                </div>
-                <div className="text-gray-600">{stat.label}</div>
-              </div>
-            ))}
+      <div className="bg-blue-50 rounded-lg p-8 mb-8">
+        <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">
+          Thành Tích Đạt Được
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <div>
+            <div className="text-3xl font-bold text-blue-600 mb-2">1000+</div>
+            <div className="text-gray-600">Bệnh nhân hài lòng</div>
+          </div>
+          <div>
+            <div className="text-3xl font-bold text-blue-600 mb-2">50+</div>
+            <div className="text-gray-600">Bác sĩ chuyên khoa</div>
+          </div>
+          <div>
+            <div className="text-3xl font-bold text-blue-600 mb-2">20+</div>
+            <div className="text-gray-600">Chuyên khoa</div>
+          </div>
+          <div>
+            <div className="text-3xl font-bold text-blue-600 mb-2">24/7</div>
+            <div className="text-gray-600">Hỗ trợ khách hàng</div>
           </div>
         </div>
       </div>
 
-      {/* Process Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
-            Quy trình đặt lịch đơn giản
-          </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Chỉ với 3 bước đơn giản, bạn có thể đặt lịch khám với bác sĩ mong muốn
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="text-center">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl font-bold text-blue-600">1</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Chọn chuyên khoa/bác sĩ</h3>
+      {/* Values Section */}
+      <div className="bg-white rounded-lg shadow-md p-8 mb-8">
+        <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">
+          Giá Trị Cốt Lõi
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              🏥 Chuyên Nghiệp
+            </h3>
             <p className="text-gray-600">
-              Lựa chọn chuyên khoa phù hợp hoặc bác sĩ mà bạn mong muốn
+              Đội ngũ y bác sĩ có trình độ chuyên môn cao, được đào tạo bài bản và có nhiều năm kinh nghiệm.
             </p>
           </div>
-          <div className="text-center">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl font-bold text-blue-600">2</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Chọn thời gian</h3>
+          <div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              🤝 Tận Tâm
+            </h3>
             <p className="text-gray-600">
-              Lựa chọn ngày giờ khám phù hợp với lịch trình của bạn
+              Luôn đặt sức khỏe và sự hài lòng của bệnh nhân lên hàng đầu trong mọi hoạt động.
             </p>
           </div>
-          <div className="text-center">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl font-bold text-blue-600">3</span>
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Xác nhận thông tin</h3>
+          <div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              🔒 Bảo Mật
+            </h3>
             <p className="text-gray-600">
-              Điền thông tin cá nhân và xác nhận đặt lịch
+              Thông tin cá nhân và y tế của bệnh nhân được bảo mật tuyệt đối theo tiêu chuẩn quốc tế.
+            </p>
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">
+              💡 Đổi Mới
+            </h3>
+            <p className="text-gray-600">
+              Ứng dụng công nghệ tiên tiến để mang đến trải nghiệm tốt nhất cho người dùng.
             </p>
           </div>
         </div>
       </div>
 
       {/* Contact Section */}
-      <div id="contact" className="bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">
-                Liên hệ với chúng tôi
-              </h2>
-              <p className="text-lg text-gray-600 mb-8">
-                Nếu bạn có bất kỳ câu hỏi nào, đừng ngần ngại liên hệ với chúng tôi. 
-                Đội ngũ hỗ trợ của Medical.Care luôn sẵn sàng phục vụ bạn.
-              </p>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Phone className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Hotline</p>
-                    <p className="text-blue-600">1900 1234</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Giờ làm việc</p>
-                    <p className="text-gray-600">24/7</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white p-8 rounded-xl shadow-md">
-              <form className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Họ và tên
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tin nhắn
-                  </label>
-                  <textarea
-                    rows="4"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  ></textarea>
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-blue-600 text-white font-medium py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Gửi tin nhắn
-                </button>
-              </form>
-            </div>
+      <div className="bg-gray-50 rounded-lg p-8 text-center">
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">
+          Liên Hệ Với Chúng Tôi
+        </h2>
+        <p className="text-gray-600 mb-6">
+          Bạn có câu hỏi hoặc cần hỗ trợ? Chúng tôi luôn sẵn sàng giúp đỡ bạn.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-2">📧 Email</h4>
+            <p className="text-gray-600">support@luanvan.com</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-2">📞 Hotline</h4>
+            <p className="text-gray-600">1900 1234 56</p>
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-900 mb-2">🕒 Giờ làm việc</h4>
+            <p className="text-gray-600">Thứ 2 - Chủ nhật: 8:00 - 22:00</p>
           </div>
         </div>
       </div>

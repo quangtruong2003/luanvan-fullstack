@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -15,7 +15,7 @@ const Login = () => {
     e.preventDefault();
     
     // Kiểm tra các trường dữ liệu
-    if (!phoneNumber || !password) {
+    if (!email || !password) {
       setError('Vui lòng nhập đầy đủ thông tin');
       return;
     }
@@ -25,7 +25,7 @@ const Login = () => {
       setError('');
       
       // Gọi hàm đăng nhập từ AuthContext
-      const result = await login({ phoneNumber, password });
+      const result = await login({ email, password });
       
       if (result.success) {
         // Đăng nhập thành công, chuyển hướng dựa vào vai trò
@@ -77,10 +77,10 @@ const Login = () => {
           <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
             <h3 className="text-sm font-semibold text-blue-800 mb-1">Tài khoản mẫu:</h3>
             <p className="text-xs text-gray-600 mb-1">
-              <span className="font-medium">Quản trị viên:</span> Tài khoản <b>admin</b>, Mật khẩu <b>admin</b>
+              <span className="font-medium">Quản trị viên:</span> Email <b>admin@luanvan.com</b>, Mật khẩu <b>admin123</b>
             </p>
             <p className="text-xs text-gray-600">
-              <span className="font-medium">Bác sĩ:</span> Tài khoản <b>doctor</b>, Mật khẩu <b>doctor</b>
+              <span className="font-medium">Bác sĩ:</span> Email <b>doctor001@luanvan.com</b>, Mật khẩu <b>doctor123</b>
             </p>
           </div>
           
@@ -92,19 +92,19 @@ const Login = () => {
             )}
             
             <div>
-              <label htmlFor="phoneNumber" className="block text-sm font-medium leading-6 text-gray-900">
-                Tài khoản
+              <label htmlFor="email" className="block text-sm font-medium leading-6 text-gray-900">
+                Email
               </label>
               <div className="mt-2">
                 <input
-                  id="phoneNumber"
-                  name="phoneNumber"
-                  type="text"
+                  id="email"
+                  name="email"
+                  type="email"
                   required
-                  placeholder="Nhập 'admin' hoặc 'doctor'"
+                  placeholder="Nhập email (vd: admin@luanvan.com)"
                   className="block w-full rounded-md border-0 py-2 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
             </div>

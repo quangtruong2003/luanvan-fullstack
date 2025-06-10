@@ -11,9 +11,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class FirstAdminCreateRequest {
-    @NotBlank(message = "Tên đăng nhập không được để trống")
     @JsonProperty(value = "phoneNumber", access = JsonProperty.Access.WRITE_ONLY)
-    private String phoneNumber; // Có thể là tên đăng nhập hoặc số điện thoại
+    private String phoneNumber; // Optional cho admin
     
     @NotBlank(message = "Mật khẩu không được để trống")
     private String password;
@@ -22,6 +21,7 @@ public class FirstAdminCreateRequest {
     @JsonProperty(value = "fullName", access = JsonProperty.Access.WRITE_ONLY)
     private String fullName;
     
+    @NotBlank(message = "Email không được để trống")
     @Email(message = "Email không hợp lệ")
     private String email;
     

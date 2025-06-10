@@ -48,7 +48,7 @@ public class AuthServiceImpl implements AuthService {
             // Xác thực người dùng
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            request.getPhoneNumber(),
+                            request.getEmail(),
                             request.getPassword()
                     )
             );
@@ -57,7 +57,7 @@ public class AuthServiceImpl implements AuthService {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             
             // Lấy thông tin người dùng
-            Optional<User> userOptional = userRepository.findByPhoneNumber(request.getPhoneNumber());
+            Optional<User> userOptional = userRepository.findByEmail(request.getEmail());
             if (userOptional.isEmpty()) {
                 return LoginResponse.builder()
                         .success(false)
@@ -69,6 +69,17 @@ public class AuthServiceImpl implements AuthService {
             
             User user = userOptional.get();
             
+            // Kiểm tra chỉ cho phép admin và doctor đăng nhập qua email
+            String roleName = user.getRole().getRoleName();
+            if (!roleName.equals("ADMIN") && !roleName.equals("DOCTOR")) {
+                return LoginResponse.builder()
+                        .success(false)
+                        .message("Chỉ Admin và Doctor được phép đăng nhập qua email")
+                        .token(null)
+                        .userInfo(null)
+                        .build();
+            }
+            
             // Kiểm tra trạng thái tài khoản đã được kích hoạt chưa
             if (!user.isActive()) {
                 return LoginResponse.builder()
@@ -79,9 +90,9 @@ public class AuthServiceImpl implements AuthService {
                         .build();
             }
             
-            // Tạo JWT token
+            // Tạo JWT token với email làm username
             UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
-                    .username(user.getPhoneNumber())
+                    .username(user.getEmail())
                     .password(user.getPasswordHash())
                     .authorities("ROLE_" + user.getRole().getRoleName())
                     .build();
@@ -159,8 +170,16 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String phoneNumber = authentication.getName();
-        return userRepository.findByPhoneNumber(phoneNumber)
+        String identifier = authentication.getName();
+        
+        // Thử tìm theo email trước (admin/doctor)
+        Optional<User> userByEmail = userRepository.findByEmail(identifier);
+        if (userByEmail.isPresent()) {
+            return userByEmail.get();
+        }
+        
+        // Nếu không tìm thấy, thử tìm theo phone number (patient)
+        return userRepository.findByPhoneNumber(identifier)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng hiện tại"));
     }
     
@@ -172,29 +191,37 @@ public class AuthServiceImpl implements AuthService {
             // Tự động tạo default roles nếu chưa tồn tại
             createDefaultRolesIfNotExist();
             
-            // Kiểm tra tên đăng nhập đã tồn tại chưa
-            if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
-                return UserCreateResponse.builder()
-                        .success(false)
-                        .message("Tên đăng nhập/Số điện thoại đã được sử dụng")
-                        .build();
-            }
-            
-            // Kiểm tra email đã tồn tại chưa
-            if (request.getEmail() != null && !request.getEmail().isEmpty() 
-                    && userRepository.existsByEmail(request.getEmail())) {
-                return UserCreateResponse.builder()
-                        .success(false)
-                        .message("Email đã được sử dụng")
-                        .build();
-            }
-            
             // Kiểm tra role hợp lệ (ADMIN hoặc DOCTOR)
             String roleName = request.getRole().toUpperCase();
             if (!roleName.equals("ADMIN") && !roleName.equals("DOCTOR")) {
                 return UserCreateResponse.builder()
                         .success(false)
                         .message("Vai trò không hợp lệ. Chỉ chấp nhận ADMIN hoặc DOCTOR")
+                        .build();
+            }
+            
+            // Kiểm tra email bắt buộc cho admin và doctor
+            if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+                return UserCreateResponse.builder()
+                        .success(false)
+                        .message("Email là bắt buộc cho tài khoản " + roleName)
+                        .build();
+            }
+            
+            // Kiểm tra email đã tồn tại chưa
+            if (userRepository.existsByEmail(request.getEmail())) {
+                return UserCreateResponse.builder()
+                        .success(false)
+                        .message("Email đã được sử dụng")
+                        .build();
+            }
+            
+            // Kiểm tra số điện thoại nếu có
+            if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty() 
+                    && userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
+                return UserCreateResponse.builder()
+                        .success(false)
+                        .message("Số điện thoại đã được sử dụng")
                         .build();
             }
             
@@ -235,7 +262,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public UserCreateResponse createFirstAdmin(UserCreateRequest request) {
-        logger.info("Tạo tài khoản ADMIN đầu tiên: {}", request.getPhoneNumber());
+        logger.info("Tạo tài khoản ADMIN đầu tiên: {}", request.getEmail());
         
         try {
             // Tự động tạo default roles nếu chưa tồn tại
@@ -253,29 +280,29 @@ public class AuthServiceImpl implements AuthService {
                         .build();
             }
             
-            // Kiểm tra tên đăng nhập đã tồn tại chưa
-            if (userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
-                return UserCreateResponse.builder()
-                        .success(false)
-                        .message("Tên đăng nhập/Số điện thoại đã được sử dụng")
-                        .build();
-            }
-            
-            // Kiểm tra email đã tồn tại chưa
-            if (request.getEmail() != null && !request.getEmail().isEmpty() 
-                    && userRepository.existsByEmail(request.getEmail())) {
+            // Kiểm tra email đã tồn tại chưa (email là bắt buộc cho admin)
+            if (userRepository.existsByEmail(request.getEmail())) {
                 return UserCreateResponse.builder()
                         .success(false)
                         .message("Email đã được sử dụng")
                         .build();
             }
             
+            // Kiểm tra số điện thoại nếu có
+            if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty() 
+                    && userRepository.existsByPhoneNumber(request.getPhoneNumber())) {
+                return UserCreateResponse.builder()
+                        .success(false)
+                        .message("Số điện thoại đã được sử dụng")
+                        .build();
+            }
+            
             // Tạo user mới
             User newUser = new User();
-            newUser.setPhoneNumber(request.getPhoneNumber());
+            newUser.setPhoneNumber(request.getPhoneNumber()); // Optional cho admin
             newUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
             newUser.setFullName(request.getFullName());
-            newUser.setEmail(request.getEmail());
+            newUser.setEmail(request.getEmail()); // Required cho admin
             newUser.setRole(adminRole);
             newUser.setActive(true);
             newUser.setRegistrationDate(LocalDateTime.now());
@@ -333,10 +360,19 @@ public class AuthServiceImpl implements AuthService {
                 // User đã tồn tại, cập nhật thông tin
                 User user = existingUser.get();
                 logger.info("Found existing user with ID: {}, updating information", user.getUserId());
-                
+
+                String sanitizedPhoneNumber = null;
+                if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty()) {
+                    sanitizedPhoneNumber = request.getPhoneNumber().replaceAll("\\D", "");
+                    if (sanitizedPhoneNumber.isEmpty()) {
+                        sanitizedPhoneNumber = null;
+                    }
+                }
+                logger.info("Original phone: {}, Sanitized phone: {}", request.getPhoneNumber(), sanitizedPhoneNumber);
+
                 user.setEmail(request.getEmail());
                 user.setFullName((request.getFirstName() + " " + request.getLastName()).trim());
-                user.setPhoneNumber(request.getPhoneNumber());
+                user.setPhoneNumber(sanitizedPhoneNumber);
                 user.setImageUrl(request.getImageUrl());
                 
                 User savedUser = userRepository.save(user);
@@ -358,10 +394,19 @@ public class AuthServiceImpl implements AuthService {
                     // Đã có user với email này, cập nhật ClerkUserId cho user này
                     User user = userWithEmail.get();
                     logger.info("Found existing user with email: {}, updating with ClerkUserId", request.getEmail());
+
+                    String sanitizedPhoneNumber = null;
+                    if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty()) {
+                        sanitizedPhoneNumber = request.getPhoneNumber().replaceAll("\\D", "");
+                        if (sanitizedPhoneNumber.isEmpty()) {
+                            sanitizedPhoneNumber = null;
+                        }
+                    }
+                    logger.info("Original phone: {}, Sanitized phone: {}", request.getPhoneNumber(), sanitizedPhoneNumber);
                     
                     user.setClerkUserId(request.getClerkUserId());
                     user.setFullName((request.getFirstName() + " " + request.getLastName()).trim());
-                    user.setPhoneNumber(request.getPhoneNumber());
+                    user.setPhoneNumber(sanitizedPhoneNumber);
                     user.setImageUrl(request.getImageUrl());
                     
                     User savedUser = userRepository.save(user);
@@ -379,10 +424,20 @@ public class AuthServiceImpl implements AuthService {
                     // Tạo user mới
                     logger.info("No existing user found for ClerkUserId or email, creating new user");
                     User newUser = new User();
+
+                    String sanitizedPhoneNumber = null;
+                    if (request.getPhoneNumber() != null && !request.getPhoneNumber().trim().isEmpty()) {
+                        sanitizedPhoneNumber = request.getPhoneNumber().replaceAll("\\D", "");
+                        if (sanitizedPhoneNumber.isEmpty()) {
+                            sanitizedPhoneNumber = null;
+                        }
+                    }
+                    logger.info("Original phone: {}, Sanitized phone: {}", request.getPhoneNumber(), sanitizedPhoneNumber);
+
                     newUser.setClerkUserId(request.getClerkUserId());
                     newUser.setEmail(request.getEmail());
                     newUser.setFullName((request.getFirstName() + " " + request.getLastName()).trim());
-                    newUser.setPhoneNumber(request.getPhoneNumber());
+                    newUser.setPhoneNumber(sanitizedPhoneNumber);
                     newUser.setImageUrl(request.getImageUrl());
                     newUser.setRegistrationDate(LocalDateTime.now());
                     newUser.setActive(true);

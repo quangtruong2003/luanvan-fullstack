@@ -56,4 +56,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     @Query("SELECT a FROM Appointment a WHERE a.status = 'CONFIRMED' AND a.appointmentDateTime BETWEEN :startTime AND :endTime")
     List<Appointment> findUpcomingAppointmentsForReminder(@Param("startTime") LocalDateTime startTime, 
                                                          @Param("endTime") LocalDateTime endTime);
+
+    long countByDoctorUserIdAndStatusIn(Long doctorId, List<Appointment.AppointmentStatus> statuses);
 } 

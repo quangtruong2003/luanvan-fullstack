@@ -81,8 +81,8 @@
     - Database indexes cho performance optimization
     - Performance monitoring với metrics
 13. ✅ **Giai đoạn 12: Chuẩn bị Triển khai** - HOÀN THÀNH
-    - Dockerfile cho containerization
-    - Docker Compose cho full stack deployment
+    - Traditional Java deployment configuration
+    - Systemd service configuration
     - Production configuration files
     - Deployment scripts
     - Comprehensive deployment guide (DEPLOYMENT_GUIDE.md)
@@ -185,7 +185,7 @@ Dự án backend đã hoàn thành 100% theo kế hoạch phát triển với:
 - ✅ File upload/download functionality
 - ✅ Comprehensive logging và monitoring
 - ✅ Performance optimization
-- ✅ Production-ready với Docker
+- ✅ Production-ready với traditional Java deployment
 - ✅ Đầy đủ tài liệu và hướng dẫn
 - ✅ **Hybrid Authentication: Clerk (Patients) + JWT (Admin/Doctors)**
 - ✅ **Comprehensive sample data cho testing**

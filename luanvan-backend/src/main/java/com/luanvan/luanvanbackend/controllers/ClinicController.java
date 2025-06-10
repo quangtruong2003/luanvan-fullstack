@@ -1,6 +1,7 @@
 package com.luanvan.luanvanbackend.controllers;
 
 import com.luanvan.luanvanbackend.dto.ClinicDTO;
+import com.luanvan.luanvanbackend.dto.ClinicResponseDTO;
 import com.luanvan.luanvanbackend.dto.ClinicUpdateDTO;
 import com.luanvan.luanvanbackend.entities.Clinic;
 import com.luanvan.luanvanbackend.services.ClinicService;
@@ -27,30 +28,27 @@ public class ClinicController {
      * Lấy danh sách tất cả phòng khám (public)
      */
     @GetMapping
-    public ResponseEntity<Page<Clinic>> getAllClinics(
+    public ResponseEntity<Page<ClinicResponseDTO>> getAllClinics(
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<Clinic> clinics = clinicService.getAllClinics(pageable);
-        return ResponseEntity.ok(clinics);
+        return ResponseEntity.ok(clinicService.getAllClinicsDTO(pageable));
     }
 
     /**
      * Lấy thông tin chi tiết phòng khám theo ID (public)
      */
     @GetMapping("/{clinicId}")
-    public ResponseEntity<Clinic> getClinicById(@PathVariable Long clinicId) {
-        Clinic clinic = clinicService.getClinicById(clinicId);
-        return ResponseEntity.ok(clinic);
+    public ResponseEntity<ClinicResponseDTO> getClinicById(@PathVariable Long clinicId) {
+        return ResponseEntity.ok(clinicService.getClinicResponseDTOById(clinicId));
     }
 
     /**
      * Tìm kiếm phòng khám theo tên (public)
      */
     @GetMapping("/search")
-    public ResponseEntity<Page<Clinic>> searchClinicsByName(
+    public ResponseEntity<Page<ClinicResponseDTO>> searchClinicsByName(
             @RequestParam String name,
             @PageableDefault(size = 10) Pageable pageable) {
-        Page<Clinic> clinics = clinicService.searchClinicsByName(name, pageable);
-        return ResponseEntity.ok(clinics);
+        return ResponseEntity.ok(clinicService.searchClinicsByNameDTO(name, pageable));
     }
 
     /**

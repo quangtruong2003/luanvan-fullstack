@@ -1,12 +1,14 @@
 package com.luanvan.luanvanbackend.services.impl;
 
 import com.luanvan.luanvanbackend.dto.ContactInfoUpdateDTO;
+import com.luanvan.luanvanbackend.dto.UserResponseDTO;
 import com.luanvan.luanvanbackend.dto.UserUpdateDTO;
 import com.luanvan.luanvanbackend.entities.Role;
 import com.luanvan.luanvanbackend.entities.User;
 import com.luanvan.luanvanbackend.repositories.RoleRepository;
 import com.luanvan.luanvanbackend.repositories.UserRepository;
 import com.luanvan.luanvanbackend.services.UserService;
+import com.luanvan.luanvanbackend.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -27,7 +29,13 @@ public class UserServiceImpl implements UserService {
     @Override
     public User getUserById(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với ID: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+    }
+
+    @Override
+    public UserResponseDTO getUserResponseDTOById(Long userId) {
+        User user = getUserById(userId);
+        return convertToResponseDTO(user);
     }
 
     @Override
@@ -41,48 +49,44 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public Page<UserResponseDTO> getAllUsersDTO(Pageable pageable) {
+        return userRepository.findAll(pageable).map(this::convertToResponseDTO);
+    }
+
+    @Override
     public Page<User> getUsersByRole(Long roleId, Pageable pageable) {
         Role role = roleRepository.findById(roleId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy vai trò với ID: " + roleId));
-        
-        // Giả sử chúng ta thêm method findByRole trong UserRepository
-        // Sẽ cần bổ sung method này vào UserRepository
-        // return userRepository.findByRole(role, pageable);
-        
-        // Hoặc sử dụng method có sẵn trong Spring Data JPA
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + roleId));
         return userRepository.findByRole(role, pageable);
+    }
+
+    @Override
+    public Page<UserResponseDTO> getUsersByRoleDTO(Long roleId, Pageable pageable) {
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new ResourceNotFoundException("Role not found with id: " + roleId));
+        return userRepository.findByRole(role, pageable).map(this::convertToResponseDTO);
     }
 
     @Override
     public User updateUser(Long userId, UserUpdateDTO userUpdateDTO) {
         User user = getUserById(userId);
         
-        // Cập nhật thông tin
         if (userUpdateDTO.getFullName() != null) {
             user.setFullName(userUpdateDTO.getFullName());
         }
-        
         if (userUpdateDTO.getEmail() != null) {
-            // Kiểm tra email đã tồn tại chưa (nếu khác email hiện tại)
-            if (!userUpdateDTO.getEmail().equals(user.getEmail()) && 
-                    userRepository.existsByEmail(userUpdateDTO.getEmail())) {
-                throw new RuntimeException("Email đã được sử dụng bởi người dùng khác");
-            }
             user.setEmail(userUpdateDTO.getEmail());
         }
-        
         if (userUpdateDTO.getDateOfBirth() != null) {
             user.setDateOfBirth(userUpdateDTO.getDateOfBirth());
         }
-        
         if (userUpdateDTO.getGender() != null) {
             user.setGender(userUpdateDTO.getGender());
         }
-        
         if (userUpdateDTO.getAddress() != null) {
             user.setAddress(userUpdateDTO.getAddress());
         }
-        
+
         return userRepository.save(user);
     }
 
@@ -174,5 +178,17 @@ public class UserServiceImpl implements UserService {
         
         user.setRole(role);
         return userRepository.save(user);
+    }
+
+    private UserResponseDTO convertToResponseDTO(User user) {
+        return UserResponseDTO.builder()
+                .userId(user.getUserId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phoneNumber(user.getPhoneNumber())
+                .imageUrl(user.getImageUrl())
+                .roleName(user.getRole() != null ? user.getRole().getRoleName() : null)
+                .active(user.isActive())
+                .build();
     }
 } 
