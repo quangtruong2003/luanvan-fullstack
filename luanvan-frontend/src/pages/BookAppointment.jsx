@@ -1,272 +1,235 @@
-"use client"
-
-import { useState } from "react"
-import { Calendar, Clock, User, Phone, Mail, FileText, CheckCircle } from "lucide-react"
+import React, { useState, useEffect } from 'react';
+import { Calendar, Stethoscope, Search, UserCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { doctorService } from '../services/api/index';
 
 const BookAppointment = () => {
-  const [formData, setFormData] = useState({
-    doctorId: "",
-    date: "",
-    time: "",
-    fullName: "",
-    phone: "",
-    email: "",
-    reason: "",
-    notes: "",
-  })
+  const [activeTab, setActiveTab] = useState('specialty');
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const [isSubmitted, setIsSubmitted] = useState(false)
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      if (activeTab === 'doctor') {
+        try {
+          setLoading(true);
+          setError(null);
+          const response = await doctorService.getAllDoctors();
+          setDoctors(response.doctors);
+        } catch (err) {
+          setError('Không thể tải danh sách bác sĩ');
+          console.error('Error fetching doctors:', err);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
 
-  const doctors = [
-    { id: 1, name: "BS. Nguyễn Văn An", specialty: "Tim mạch" },
-    { id: 2, name: "BS. Trần Thị Bình", specialty: "Nhi khoa" },
-    { id: 3, name: "BS. Lê Minh Cường", specialty: "Thần kinh" },
-    { id: 4, name: "BS. Phạm Thị Dung", specialty: "Da liễu" },
-    { id: 5, name: "BS. Hoàng Văn Em", specialty: "Tai mũi họng" },
-  ]
+    fetchDoctors();
+  }, [activeTab]);
 
-  const timeSlots = [
-    "08:00",
-    "08:30",
-    "09:00",
-    "09:30",
-    "10:00",
-    "10:30",
-    "14:00",
-    "14:30",
-    "15:00",
-    "15:30",
-    "16:00",
-    "16:30",
-  ]
+  const bookingOptions = [
+    {
+      id: 'specialty',
+      title: 'Đặt khám theo chuyên khoa',
+      description: 'Chọn chuyên khoa phù hợp với nhu cầu khám bệnh của bạn',
+      icon: Calendar,
+      color: 'blue'
+    },
+    {
+      id: 'doctor',
+      title: 'Đặt khám theo bác sĩ',
+      description: 'Chọn bác sĩ mà bạn mong muốn thăm khám',
+      icon: Stethoscope,
+      color: 'green'
+    },
+    {
+      id: 'search',
+      title: 'Tra cứu thông tin',
+      description: 'tra cứu thông tin bệnh nhân',
+      icon: Search,
+      color: 'yellow'
+    },
+  ];
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
-  }
+  const specialties = [
+    { id: 1, name: 'Tim mạch', image: '/specialties/cardiology.jpg', count: '45 bác sĩ' },
+    { id: 2, name: 'Thần kinh', image: '/specialties/neurology.jpg', count: '32 bác sĩ' },
+    { id: 3, name: 'Nhi khoa', image: '/specialties/pediatrics.jpg', count: '28 bác sĩ' },
+    { id: 4, name: 'Da liễu', image: '/specialties/dermatology.jpg', count: '20 bác sĩ' },
+    { id: 5, name: 'Tai mũi họng', image: '/specialties/ent.jpg', count: '25 bác sĩ' },
+    { id: 6, name: 'Cơ xương khớp', image: '/specialties/orthopedics.jpg', count: '30 bác sĩ' },
+  ];
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    // Simulate API call
-    setTimeout(() => {
-      setIsSubmitted(true)
-    }, 1000)
-  }
-
-  if (isSubmitted) {
-    return (
-      <div className="min-h-screen bg-gray-50 py-12">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Đặt lịch thành công!</h2>
-            <p className="text-gray-600 mb-6">
-              Lịch hẹn của bạn đã được ghi nhận. Chúng tôi sẽ liên hệ xác nhận trong thời gian sớm nhất.
-            </p>
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <h3 className="font-semibold text-gray-900 mb-2">Thông tin lịch hẹn:</h3>
-              <p className="text-gray-600">
-                <strong>Bác sĩ:</strong> {doctors.find((d) => d.id === Number.parseInt(formData.doctorId))?.name}
-              </p>
-              <p className="text-gray-600">
-                <strong>Ngày:</strong> {formData.date}
-              </p>
-              <p className="text-gray-600">
-                <strong>Giờ:</strong> {formData.time}
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setIsSubmitted(false)
-                setFormData({
-                  doctorId: "",
-                  date: "",
-                  time: "",
-                  fullName: "",
-                  phone: "",
-                  email: "",
-                  reason: "",
-                  notes: "",
-                })
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-            >
-              Đặt lịch mới
-            </button>
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'specialty':
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {specialties.map((specialty) => (
+              <Link
+                key={specialty.id}
+                to={`/book-appointment/specialty/${specialty.id}`}
+                className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow p-4 flex items-center gap-4"
+              >
+                <img
+                  src={specialty.image}
+                  alt={specialty.name}
+                  className="w-24 h-24 rounded-lg object-cover"
+                />
+                <div>
+                  <h3 className="font-semibold text-lg text-gray-800">{specialty.name}</h3>
+                  <p className="text-sm text-gray-500">{specialty.count}</p>
+                </div>
+              </Link>
+            ))}
           </div>
-        </div>
-      </div>
-    )
-  }
+        );
+
+      case 'doctor':
+        if (loading) {
+          return (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+            </div>
+          );
+        }
+
+        if (error) {
+          return (
+            <div className="text-center py-12">
+              <p className="text-red-500">{error}</p>
+              <button 
+                onClick={() => setActiveTab('doctor')} 
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Thử lại
+              </button>
+            </div>
+          );
+        }
+
+        if (!doctors || doctors.length === 0) {
+          return (
+            <div className="text-center py-12">
+              <p className="text-gray-500">Không có bác sĩ nào</p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {doctors.map((doctor) => (
+              <Link
+                key={doctor.userId}
+                to={`/book-appointment/doctor/${doctor.userId}`}
+                className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow overflow-hidden"
+              >
+                <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
+                  {doctor.imageUrl ? (
+                    <img
+                      src={doctor.imageUrl}
+                      alt={doctor.fullName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <UserCircle className="w-24 h-24 text-gray-400" />
+                  )}
+                </div>
+                <div className="p-4">
+                  <h3 className="font-semibold text-lg text-gray-800">{doctor.fullName}</h3>
+                  <p className="text-sm text-gray-500">{doctor.role?.roleName || 'Bác sĩ'}</p>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">SĐT:</span> {doctor.phoneNumber}
+                    </p>
+                    {doctor.email && (
+                      <p className="text-sm text-gray-600">
+                        <span className="font-medium">Email:</span> {doctor.email}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        );
+
+      default:
+        return (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Tính năng đang được phát triển</p>
+          </div>
+        );
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Đặt lịch hẹn</h1>
-          <p className="text-gray-600">Vui lòng điền đầy đủ thông tin để đặt lịch hẹn với bác sĩ</p>
-        </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      {/* Header */}
+      <div className="text-center mb-12">
+        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          Đặt lịch khám bệnh
+        </h1>
+        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          Chọn hình thức đặt khám phù hợp với nhu cầu của bạn
+        </p>
+      </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Doctor Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <User className="inline w-4 h-4 mr-2" />
-                Chọn bác sĩ
-              </label>
-              <select
-                name="doctorId"
-                value={formData.doctorId}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="">Chọn bác sĩ...</option>
-                {doctors.map((doctor) => (
-                  <option key={doctor.id} value={doctor.id}>
-                    {doctor.name} - {doctor.specialty}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Date and Time */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Calendar className="inline w-4 h-4 mr-2" />
-                  Ngày khám
-                </label>
-                <input
-                  type="date"
-                  name="date"
-                  value={formData.date}
-                  onChange={handleInputChange}
-                  min={new Date().toISOString().split("T")[0]}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+      {/* Booking Options */}
+      <div className="flex justify-center items-center mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl w-full">
+          {bookingOptions.map((option) => (
+            <button
+              key={option.id}
+              onClick={() => setActiveTab(option.id)}
+              className={`p-8 rounded-xl text-center transition-all transform hover:scale-105 ${
+                activeTab === option.id
+                  ? `bg-${option.color}-50 border-2 border-${option.color}-500 shadow-lg`
+                  : 'bg-white border-2 border-transparent hover:border-gray-200 hover:shadow-lg'
+              }`}
+            >
+              <div className="flex flex-col items-center">
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
+                  activeTab === option.id ? `bg-${option.color}-100` : 'bg-gray-50'
+                }`}>
+                  <option.icon
+                    className={`w-10 h-10 ${
+                      activeTab === option.id ? `text-${option.color}-500` : 'text-gray-400'
+                    }`}
+                  />
+                </div>
+                <h3 className="font-semibold text-xl text-gray-800 mb-3">
+                  {option.title}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {option.description}
+                </p>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Clock className="inline w-4 h-4 mr-2" />
-                  Giờ khám
-                </label>
-                <select
-                  name="time"
-                  value={formData.time}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Chọn giờ...</option>
-                  {timeSlots.map((time) => (
-                    <option key={time} value={time}>
-                      {time}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Patient Information */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Họ và tên</label>
-                <input
-                  type="text"
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Nhập họ và tên"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Phone className="inline w-4 h-4 mr-2" />
-                  Số điện thoại
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Nhập số điện thoại"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Mail className="inline w-4 h-4 mr-2" />
-                Email
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Nhập địa chỉ email"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <FileText className="inline w-4 h-4 mr-2" />
-                Lý do khám
-              </label>
-              <input
-                type="text"
-                name="reason"
-                value={formData.reason}
-                onChange={handleInputChange}
-                required
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Mô tả ngắn gọn lý do khám"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Ghi chú thêm (tùy chọn)</label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleInputChange}
-                rows={4}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Thông tin bổ sung (triệu chứng, tiền sử bệnh...)"
-              />
-            </div>
-
-            <div className="flex justify-end space-x-4">
-              <button
-                type="button"
-                className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
-              >
-                Đặt lịch hẹn
-              </button>
-            </div>
-          </form>
+            </button>
+          ))}
         </div>
       </div>
-    </div>
-  )
-}
 
-export default BookAppointment
+      {/* Search Bar */}
+      <div className="mb-8">
+        <div className="relative max-w-2xl mx-auto">
+          <input
+            type="text"
+            placeholder="Tìm kiếm theo tên bác sĩ hoặc chuyên khoa..."
+            className="w-full px-6 py-4 rounded-full border-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-700 pr-12"
+          />
+          <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="mt-8">
+        {renderContent()}
+      </div>
+    </div>
+  );
+};
+
+export default BookAppointment;

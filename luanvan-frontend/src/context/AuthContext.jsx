@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import ApiService from '../services/api';
+import { authService } from '../services/api';
 
 const AuthContext = createContext();
 
@@ -24,7 +24,7 @@ export function AuthProvider({ children }) {
           return;
         }
         
-        const userData = await ApiService.getCurrentUser();
+        const userData = await authService.getCurrentUser();
         if (userData) {
           setCurrentUser(userData);
         } else {
@@ -46,7 +46,7 @@ export function AuthProvider({ children }) {
   const login = async (credentials) => {
     try {
       setError(null);
-      const response = await ApiService.loginWithCredentials(credentials);
+      const response = await authService.loginWithCredentials(credentials);
       
       if (response.success) {
         // Lưu token và thông tin người dùng
@@ -77,7 +77,7 @@ export function AuthProvider({ children }) {
   
   // Đăng xuất
   const logout = async () => {
-    await ApiService.logout();
+    await authService.logout();
     setCurrentUser(null);
   };
   

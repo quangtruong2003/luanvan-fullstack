@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Link } from "react-router-dom"
 import { SignedIn, SignedOut, UserButton, SignInButton, SignUpButton, useUser } from "@clerk/clerk-react"
 import { useAuth } from "../context/AuthContext"
-import { Calendar, User, Stethoscope, Home, LayoutDashboard, LogOut } from "lucide-react"
+import { Calendar, User, Stethoscope, Home, LayoutDashboard, LogOut, BookOpen } from "lucide-react"
 
 const Menubar = () => {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -60,6 +60,10 @@ const Menubar = () => {
           <Calendar className="w-5 h-5" />
           Đặt lịch hẹn
         </Link>
+        <Link to="/pr" className="flex items-center gap-2 text-gray-700 hover:text-blue-600 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-blue-50">
+          <BookOpen className="w-5 h-5" />
+          Giới thiệu
+        </Link>
         <Link to="/my-appointments" className="flex items-center gap-2 text-gray-700 hover:text-blue-600 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-blue-50">
           <Stethoscope className="w-5 h-5" />
           Lịch hẹn của tôi
@@ -111,9 +115,7 @@ const Menubar = () => {
         <SignedIn>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-blue-100 px-4 py-2 rounded-full">
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
-                {user?.firstName?.charAt(0) || 'U'}
-              </div>
+              
               <p className="text-gray-700 font-medium">
                 Xin chào, <span className="text-blue-600">{user?.firstName || 'Người dùng'}</span>
               </p>
@@ -133,11 +135,6 @@ const Menubar = () => {
           <div className="p-6">
             <div className="flex justify-between items-center mb-8">
               <div className="flex items-center">
-                <img
-                  src="/logo.svg"
-                  alt="Logo"
-                  className="h-8 w-8"
-                />
                 <span className="ml-2 text-xl font-bold text-blue-700">Medical.Care</span>
               </div>
               <button 
@@ -275,11 +272,7 @@ const Menubar = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center">
-              <img
-                src="/logo.svg"
-                alt="Logo"
-                className="h-8 w-8"
-              />
+             
               <span className="ml-2 text-xl font-bold text-blue-700">Medical.Care</span>
             </Link>
           </div>
