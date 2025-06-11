@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
+// import { useAuth } from '../../context/AuthContext'; // Commented out vì header bị comment
 import { 
   Home, Users, UserCog, Building, Stethoscope, Calendar, 
-  FileText, Settings, DollarSign, BarChart3, LogOut,
-  Plus, Search, Filter, Edit, Trash2, Eye
+  FileText, Settings, DollarSign, BarChart3
 } from 'lucide-react';
 import { adminService, apiService } from '../../services/api';
 import UserManagement from './UserManagement';
@@ -14,7 +13,7 @@ import AppointmentManagement from './AppointmentManagement';
 import SystemSettings from './SystemSettings';
 
 const AdminDashboardNew = () => {
-  const { currentUser, logout } = useAuth();
+  // const { currentUser, logout } = useAuth(); // Commented out vì header bị comment
   const [activeTab, setActiveTab] = useState('dashboard');
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -23,38 +22,64 @@ const AdminDashboardNew = () => {
     totalClinics: 0
   });
   const [loading, setLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     fetchDashboardStats();
-  }, []);
+    
+    // Auto refresh stats every 30 seconds when on dashboard tab
+    const interval = setInterval(() => {
+      if (activeTab === 'dashboard') {
+        fetchDashboardStats();
+      }
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [activeTab]);
 
   const fetchDashboardStats = async () => {
     try {
       setLoading(true);
       // Parallel API calls for better performance
-      const [usersRes, doctorsRes, clinicsRes] = await Promise.all([
-        adminService.getAllUsers(),
-        apiService.getDoctors(),
-        apiService.getClinics()
+      const [usersRes, doctorsRes, clinicsRes, todayAppointmentsRes] = await Promise.all([
+        adminService.getAllUsers().catch(() => ({ totalElements: 0, content: [] })),
+        apiService.getDoctors().catch(() => ({ totalElements: 0, content: [] })),
+        apiService.getClinics().catch(() => ({ totalElements: 0, content: [] })),
+        adminService.getAllAppointments({ date: new Date().toISOString().split('T')[0] }).catch(() => ({ totalElements: 0, content: [] }))
       ]);
       
-      setStats({
-        totalUsers: usersRes.totalElements || usersRes.length || 0,
-        totalDoctors: doctorsRes.totalElements || doctorsRes.content?.length || 0,
-        totalAppointments: 0, // Will implement when appointment API is ready
-        totalClinics: clinicsRes.totalElements || clinicsRes.content?.length || 0
-      });
+      // Calculate stats với support cho cả array và Page object
+      const totalUsers = usersRes.totalElements || (Array.isArray(usersRes) ? usersRes.length : (usersRes.content?.length || 0));
+      const totalDoctors = doctorsRes.totalElements || (Array.isArray(doctorsRes) ? doctorsRes.length : (doctorsRes.content?.length || 0));
+      const totalClinics = clinicsRes.totalElements || (Array.isArray(clinicsRes) ? clinicsRes.length : (clinicsRes.content?.length || 0));
+      const todayAppointments = todayAppointmentsRes.totalElements || (Array.isArray(todayAppointmentsRes) ? todayAppointmentsRes.length : (todayAppointmentsRes.content?.length || 0));
+      
+              setStats({
+          totalUsers,
+          totalDoctors,
+          totalAppointments: todayAppointments,
+          totalClinics
+        });
+        
+        setLastUpdated(new Date());
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
+      // Set default values on error
+      setStats({
+        totalUsers: 0,
+        totalDoctors: 0,
+        totalAppointments: 0,
+        totalClinics: 0
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    await logout();
-    window.location.href = '/login';
-  };
+  // const handleLogout = async () => {
+  //   await logout();
+  //   window.location.href = '/login';
+  // };
 
   const tabs = [
     { id: 'dashboard', name: 'Tổng quan', icon: Home },
@@ -70,9 +95,32 @@ const AdminDashboardNew = () => {
 
   const renderDashboardOverview = () => (
     <div className="space-y-6">
+      {/* Dashboard Header */}
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-semibold text-gray-900">Tổng quan hệ thống</h2>
+        <div className="flex items-center space-x-3">
+          {lastUpdated && (
+            <span className="text-sm text-gray-500">
+              Cập nhật lúc: {lastUpdated.toLocaleTimeString('vi-VN')}
+            </span>
+          )}
+          <button
+            onClick={fetchDashboardStats}
+            disabled={loading}
+            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+          >
+            <BarChart3 className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Đang tải...' : 'Làm mới'}
+          </button>
+        </div>
+      </div>
+      
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div 
+          className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-lg transition-shadow duration-200"
+          onClick={() => setActiveTab('users')}
+        >
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0 bg-blue-500 rounded-md p-3">
@@ -90,9 +138,17 @@ const AdminDashboardNew = () => {
               </div>
             </div>
           </div>
+          <div className="bg-blue-50 px-5 py-3">
+            <div className="text-sm text-blue-700 font-medium">
+              Click để xem chi tiết →
+            </div>
+          </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div 
+          className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-lg transition-shadow duration-200"
+          onClick={() => setActiveTab('doctors')}
+        >
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0 bg-green-500 rounded-md p-3">
@@ -110,9 +166,17 @@ const AdminDashboardNew = () => {
               </div>
             </div>
           </div>
+          <div className="bg-green-50 px-5 py-3">
+            <div className="text-sm text-green-700 font-medium">
+              Click để xem chi tiết →
+            </div>
+          </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div 
+          className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-lg transition-shadow duration-200"
+          onClick={() => setActiveTab('clinics')}
+        >
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0 bg-purple-500 rounded-md p-3">
@@ -130,9 +194,17 @@ const AdminDashboardNew = () => {
               </div>
             </div>
           </div>
+          <div className="bg-purple-50 px-5 py-3">
+            <div className="text-sm text-purple-700 font-medium">
+              Click để xem chi tiết →
+            </div>
+          </div>
         </div>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
+        <div 
+          className="bg-white overflow-hidden shadow rounded-lg cursor-pointer hover:shadow-lg transition-shadow duration-200"
+          onClick={() => setActiveTab('appointments')}
+        >
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0 bg-yellow-500 rounded-md p-3">
@@ -150,21 +222,18 @@ const AdminDashboardNew = () => {
               </div>
             </div>
           </div>
+          <div className="bg-yellow-50 px-5 py-3">
+            <div className="text-sm text-yellow-700 font-medium">
+              Click để xem chi tiết →
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div className="bg-white shadow rounded-lg p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Thao tác nhanh</h3>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <button
-            onClick={() => setActiveTab('users')}
-            className="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Thêm người dùng
-          </button>
-          
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <button
             onClick={() => setActiveTab('doctors')}
             className="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
@@ -191,48 +260,7 @@ const AdminDashboardNew = () => {
         </div>
       </div>
 
-      {/* Recent Activity */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Hoạt động gần đây</h3>
-        <div className="flow-root">
-          <ul className="-mb-8">
-            <li>
-              <div className="relative pb-8">
-                <div className="relative flex space-x-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500">
-                    <Plus className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div>
-                      <p className="text-sm text-gray-900">
-                        Bác sĩ <span className="font-medium">Nguyễn Văn A</span> đã được thêm vào hệ thống
-                      </p>
-                      <p className="text-sm text-gray-500">2 giờ trước</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </li>
-            <li>
-              <div className="relative pb-8">
-                <div className="relative flex space-x-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500">
-                    <Edit className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div>
-                      <p className="text-sm text-gray-900">
-                        Cập nhật thông tin phòng khám <span className="font-medium">ABC</span>
-                      </p>
-                      <p className="text-sm text-gray-500">5 giờ trước</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </li>
-          </ul>
-        </div>
-      </div>
+
     </div>
   );
 
@@ -264,7 +292,7 @@ const AdminDashboardNew = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <header className="bg-white shadow">
+      {/* <header className="bg-white shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
@@ -286,7 +314,7 @@ const AdminDashboardNew = () => {
             </div>
           </div>
         </div>
-      </header>
+      </header> */}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex space-x-6">

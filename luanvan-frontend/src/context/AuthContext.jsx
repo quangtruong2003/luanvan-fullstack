@@ -16,24 +16,75 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
+        console.log('🔍 Checking auth status...');
         setLoading(true);
+        setError(null);
+        
         const token = localStorage.getItem('token');
+        const userRole = localStorage.getItem('userRole');
+        const backendUserId = localStorage.getItem('backendUserId');
+        const userEmail = localStorage.getItem('userEmail');
+        const userName = localStorage.getItem('userName');
+        
+        console.log('🔑 Token exists:', !!token);
+        console.log('👤 Stored user role:', userRole);
+        
         if (!token) {
+          console.log('❌ No token found, setting user to null');
           setCurrentUser(null);
           setLoading(false);
           return;
         }
         
+        // Nếu có đủ thông tin trong localStorage, sử dụng trước
+        if (userRole && backendUserId) {
+          console.log('✅ Found user data in localStorage, setting currentUser');
+          setCurrentUser({
+            id: parseInt(backendUserId),
+            fullName: userName || 'User',
+            email: userEmail,
+            role: userRole
+          });
+          setLoading(false);
+          
+          // Vẫn verify với server trong background
+          authService.getCurrentUser().then(userData => {
+            if (userData) {
+              console.log('✅ Server verification successful');
+              setCurrentUser({
+                id: userData.user_id || userData.id,
+                fullName: userData.full_name || userData.fullName,
+                email: userData.email,
+                phoneNumber: userData.phone_number || userData.phoneNumber,
+                role: userData.role_name || userData.role
+              });
+            }
+          }).catch(err => {
+            console.log('❌ Server verification failed:', err.message);
+            // Nếu server không verify được, vẫn giữ user từ localStorage
+          });
+          return;
+        }
+        
+        // Nếu không có thông tin đầy đủ, verify với server
+        console.log('🔍 Verifying with server...');
         const userData = await authService.getCurrentUser();
         if (userData) {
-          setCurrentUser(userData);
+          console.log('✅ Server verification successful:', userData);
+          setCurrentUser({
+            id: userData.user_id || userData.id,
+            fullName: userData.full_name || userData.fullName,
+            email: userData.email,
+            phoneNumber: userData.phone_number || userData.phoneNumber,
+            role: userData.role_name || userData.role
+          });
         } else {
-          // Nếu không lấy được thông tin người dùng, token không hợp lệ
+          console.log('❌ Server returned null user data');
           setCurrentUser(null);
         }
       } catch (err) {
-        console.error("Lỗi khi kiểm tra trạng thái đăng nhập:", err);
-        setError("Không thể xác thực phiên đăng nhập");
+        console.error("❌ Error checking auth status:", err);
+        setCurrentUser(null);
       } finally {
         setLoading(false);
       }

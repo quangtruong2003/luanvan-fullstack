@@ -12,11 +12,15 @@ const getAuthHeaders = () => {
 
 // Helper function để xử lý response
 const handleResponse = async (response) => {
+  console.log('📡 Response:', response.url, response.status);
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
+    console.error('❌ API Error:', response.status, errorData);
     throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
   }
-  return response.json();
+  const data = await response.json();
+  console.log('✅ API Success:', response.url, data);
+  return data;
 };
 
 // Auth Service
@@ -43,24 +47,40 @@ export const authService = {
   // Lấy thông tin user hiện tại
   async getCurrentUser() {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No token found');
+      }
+
       const response = await fetch(`${API_BASE_URL}/users/me`, {
         method: 'GET',
         headers: getAuthHeaders()
       });
 
+      // Kiểm tra response status trước khi parse JSON
+      if (response.status === 401) {
+        // Token hết hạn hoặc không hợp lệ
+        localStorage.removeItem('token');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('backendUserId');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userName');
+        throw new Error('Token expired or invalid');
+      }
+
       const data = await handleResponse(response);
       return data;
     } catch (error) {
       console.error('Get current user error:', error);
-      // Nếu lỗi 401, xóa token
-      if (error.message.includes('401')) {
+      // Nếu lỗi 401 hoặc token không hợp lệ, xóa token
+      if (error.message.includes('401') || error.message.includes('Token') || error.message.includes('No token')) {
         localStorage.removeItem('token');
         localStorage.removeItem('userRole');
         localStorage.removeItem('backendUserId');
         localStorage.removeItem('userEmail');
         localStorage.removeItem('userName');
       }
-      throw error;
+      return null; // Trả về null thay vì throw error để tránh crash app
     }
   },
 
@@ -120,102 +140,7 @@ export const authService = {
   }
 };
 
-// API Service cho các endpoint khác
-export const apiService = {
-  // Doctors
-  async getDoctors(params = {}) {
-    try {
-      const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/doctors?${queryParams}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-
-      return handleResponse(response);
-    } catch (error) {
-      console.error('Get doctors error:', error);
-      throw error;
-    }
-  },
-
-  async getDoctorById(id) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/doctors/${id}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-
-      return handleResponse(response);
-    } catch (error) {
-      console.error('Get doctor by id error:', error);
-      throw error;
-    }
-  },
-
-  // Specialties
-  async getSpecialties(params = {}) {
-    try {
-      const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/specialties?${queryParams}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-
-      return handleResponse(response);
-    } catch (error) {
-      console.error('Get specialties error:', error);
-      throw error;
-    }
-  },
-
-  // Appointments
-  async getMyAppointments() {
-    try {
-      const response = await fetch(`${API_BASE_URL}/appointments/patient/me`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-
-      return handleResponse(response);
-    } catch (error) {
-      console.error('Get my appointments error:', error);
-      throw error;
-    }
-  },
-
-  async createAppointment(appointmentData) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/appointments`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(appointmentData)
-      });
-
-      return handleResponse(response);
-    } catch (error) {
-      console.error('Create appointment error:', error);
-      throw error;
-    }
-  },
-
-  // Clinics
-  async getClinics(params = {}) {
-    try {
-      const queryParams = new URLSearchParams(params);
-      const response = await fetch(`${API_BASE_URL}/clinics?${queryParams}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-
-      return handleResponse(response);
-    } catch (error) {
-      console.error('Get clinics error:', error);
-      throw error;
-    }
-  }
-};
-
-// Extended Admin API Services
+// Admin Service - Tách riêng để dễ quản lý
 export const adminService = {
   // User Management
   async getAllUsers(params = {}) {
@@ -504,6 +429,128 @@ export const adminService = {
       return handleResponse(response);
     } catch (error) {
       console.error('Update system config error:', error);
+      throw error;
+    }
+  },
+
+  // Dashboard Statistics
+  async getDashboardStats() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/admin/dashboard/stats`, {
+        headers: getAuthHeaders()
+      });
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Get dashboard stats error:', error);
+      throw error;
+    }
+  },
+
+  // Get today's appointments
+  async getTodayAppointments() {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const response = await fetch(`${API_BASE_URL}/appointments?date=${today}`, {
+        headers: getAuthHeaders()
+      });
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Get today appointments error:', error);
+      throw error;
+    }
+  }
+};
+
+// API Service cho các endpoint khác
+export const apiService = {
+  // Doctors
+  async getDoctors(params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params);
+      const response = await fetch(`${API_BASE_URL}/doctors?${queryParams}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Get doctors error:', error);
+      throw error;
+    }
+  },
+
+  async getDoctorById(id) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/doctors/${id}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Get doctor by id error:', error);
+      throw error;
+    }
+  },
+
+  // Specialties
+  async getSpecialties(params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params);
+      const response = await fetch(`${API_BASE_URL}/specialties?${queryParams}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Get specialties error:', error);
+      throw error;
+    }
+  },
+
+  // Appointments
+  async getMyAppointments() {
+    try {
+      const response = await fetch(`${API_BASE_URL}/appointments/patient/me`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Get my appointments error:', error);
+      throw error;
+    }
+  },
+
+  async createAppointment(appointmentData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/appointments`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(appointmentData)
+      });
+
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Create appointment error:', error);
+      throw error;
+    }
+  },
+
+  // Clinics
+  async getClinics(params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params);
+      const response = await fetch(`${API_BASE_URL}/clinics?${queryParams}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Get clinics error:', error);
       throw error;
     }
   }

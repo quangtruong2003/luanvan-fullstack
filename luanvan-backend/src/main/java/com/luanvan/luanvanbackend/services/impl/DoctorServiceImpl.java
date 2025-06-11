@@ -86,18 +86,21 @@ public class DoctorServiceImpl implements DoctorService {
     @Override
     @Transactional
     public Doctor createDoctor(User user, DoctorDTO doctorDTO) {
+        // Check if doctor profile already exists
         if (doctorRepository.existsById(user.getUserId())) {
             throw new IllegalStateException("Doctor profile already exists for this user.");
         }
 
+        // Create new Doctor entity
         Doctor doctor = new Doctor();
-        doctor.setUser(user);
-        doctor.setDoctorId(user.getUserId());
+        doctor.setUser(user); // @MapsId will automatically set doctorId = user.userId
         doctor.setBio(doctorDTO.getBio());
         doctor.setYearsOfExperience(doctorDTO.getYearsOfExperience());
-
+        
+        // Save doctor (this will persist the new entity)
         Doctor savedDoctor = doctorRepository.save(doctor);
-
+        
+        // Assign specialties if provided
         if (doctorDTO.getSpecialtyIds() != null && !doctorDTO.getSpecialtyIds().isEmpty()) {
             for (Long specialtyId : doctorDTO.getSpecialtyIds()) {
                 boolean isPrimary = specialtyId.equals(doctorDTO.getPrimarySpecialtyId());
@@ -105,6 +108,7 @@ public class DoctorServiceImpl implements DoctorService {
             }
         }
 
+        // Return the saved doctor with all relationships loaded
         return getDoctorById(savedDoctor.getDoctorId());
     }
 

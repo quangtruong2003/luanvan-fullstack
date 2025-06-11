@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Plus, Search, Filter, Edit, Trash2, Eye, UserCog, 
   Stethoscope, Calendar, Clock, Mail, Phone, MapPin
@@ -22,15 +22,43 @@ const DoctorManagement = () => {
     userId: '',
     bio: '',
     yearsOfExperience: 0,
-    profilePictureURL: '',
     specialtyIds: []
   });
+
+  // Debug: Log formData changes
+  useEffect(() => {
+    console.log('FormData updated:', formData);
+  }, [formData]);
+
+  // Memoized handler for checkbox changes
+  const handleSpecialtyChange = useCallback((specialtyId, checked) => {
+    console.log(`handleSpecialtyChange called: ID=${specialtyId}, checked=${checked}`);
+    setFormData(prevFormData => {
+      const newSpecialtyIds = checked 
+        ? [...prevFormData.specialtyIds, specialtyId]
+        : prevFormData.specialtyIds.filter(id => id !== specialtyId);
+      
+      console.log('Previous specialtyIds:', prevFormData.specialtyIds);
+      console.log('New specialtyIds:', newSpecialtyIds);
+      
+      return {
+        ...prevFormData,
+        specialtyIds: newSpecialtyIds
+      };
+    });
+  }, []);
 
   useEffect(() => {
     fetchDoctors();
     fetchSpecialties();
-    fetchUsers();
   }, []);
+
+  // Fetch users after doctors are loaded
+  useEffect(() => {
+    if (doctors.length >= 0) { // Trigger even when doctors is empty array
+      fetchUsers();
+    }
+  }, [doctors]);
 
   const fetchDoctors = async () => {
     try {
@@ -38,9 +66,11 @@ const DoctorManagement = () => {
       const response = await apiService.getDoctors();
       const doctorData = response.content || response || [];
       console.log('Fetched doctors data:', doctorData); // Debug log
+      console.log('First doctor sample:', doctorData[0]); // Debug log for structure
       setDoctors(doctorData);
     } catch (error) {
       console.error('Error fetching doctors:', error);
+      setDoctors([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -49,19 +79,32 @@ const DoctorManagement = () => {
   const fetchSpecialties = async () => {
     try {
       const response = await apiService.getSpecialties();
-      setSpecialties(response.content || response || []);
+      const specialtyData = response.content || response || [];
+      console.log('Fetched specialties:', specialtyData); // Debug log
+      setSpecialties(specialtyData);
     } catch (error) {
       console.error('Error fetching specialties:', error);
+      setSpecialties([]); // Set empty array on error
     }
   };
 
   const fetchUsers = async () => {
     try {
       const response = await adminService.getAllUsers();
+      const allUsers = response.content || response || [];
+      console.log('All users fetched:', allUsers); // Debug log
+      
       // Filter only DOCTOR role users who don't have doctor profile yet
-      const doctorUsers = (response.content || response || []).filter(user => 
-        user.role?.roleName === 'DOCTOR' && !doctors.some(doc => doc.doctorId === user.userId)
-      );
+      const doctorUsers = allUsers.filter(user => {
+        const userRole = user.role_name || user.roleName; // From UserResponseDTO, field is role_name
+        const hasProfile = doctors.some(doc => 
+          doc.user?.userId === (user.user_id || user.userId)
+        );
+        console.log(`User ${user.email}: role=${userRole}, hasProfile=${hasProfile}`); // Debug log
+        return userRole === 'DOCTOR' && !hasProfile;
+      });
+      
+      console.log('Available doctor users:', doctorUsers); // Debug log
       setUsers(doctorUsers);
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -70,27 +113,92 @@ const DoctorManagement = () => {
 
   const handleCreateDoctor = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.userId) {
+      alert('Vui lòng chọn người dùng');
+      return;
+    }
+    
+    if (!formData.bio.trim()) {
+      alert('Vui lòng nhập tiểu sử');
+      return;
+    }
+    
+    if (formData.bio.trim().length > 1000) {
+      alert('Tiểu sử không được vượt quá 1000 ký tự');
+      return;
+    }
+    
+    if (formData.yearsOfExperience < 0 || formData.yearsOfExperience > 60) {
+      alert('Số năm kinh nghiệm phải từ 0 đến 60 năm');
+      return;
+    }
+    
+    if (formData.specialtyIds.length > 10) {
+      alert('Không thể gán quá 10 chuyên khoa cho một bác sĩ');
+      return;
+    }
+
+    // Prevent duplicate submissions
+    if (loading) {
+      return;
+    }
+    
+    setLoading(true);
+    
     try {
-      await adminService.createDoctorProfile(formData.userId, {
-        bio: formData.bio,
-        yearsOfExperience: parseInt(formData.yearsOfExperience),
-        profilePictureURL: formData.profilePictureURL
+      // Prepare data in snake_case format as expected by backend
+      const doctorData = {
+        bio: formData.bio.trim(),
+        years_of_experience: parseInt(formData.yearsOfExperience) || 0,
+        specialty_ids: formData.specialtyIds.length > 0 ? formData.specialtyIds : [],
+        primary_specialty_id: formData.specialtyIds.length > 0 ? formData.specialtyIds[0] : null
+      };
+      
+      console.log('Creating doctor with data:', {
+        userId: formData.userId,
+        doctorData: doctorData
       });
+      
+      // Create doctor profile
+      const response = await adminService.createDoctorProfile(formData.userId, doctorData);
+      
+      console.log('Doctor profile created:', response);
 
-      // Assign specialties if selected
-      if (formData.specialtyIds.length > 0) {
-        for (const specialtyId of formData.specialtyIds) {
-          await adminService.assignSpecialty(formData.userId, specialtyId);
-        }
-      }
+      // Note: Specialties are now handled in the create request via specialty_ids
+      console.log('Doctor created successfully with specialties included in request');
 
-      fetchDoctors();
+      await fetchDoctors();
       setShowCreateModal(false);
       resetForm();
       alert('Tạo hồ sơ bác sĩ thành công!');
     } catch (error) {
       console.error('Error creating doctor:', error);
-      alert('Lỗi khi tạo hồ sơ bác sĩ: ' + error.message);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response,
+        formData: formData
+      });
+      
+      let errorMessage = 'Lỗi khi tạo hồ sơ bác sĩ: ';
+      if (error.message.includes('400')) {
+        errorMessage += 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.';
+      } else if (error.message.includes('409') || error.message.includes('already exists')) {
+        errorMessage += 'Người dùng này đã có hồ sơ bác sĩ.';
+      } else if (error.message.includes('404')) {
+        errorMessage += 'Không tìm thấy người dùng.';
+      } else if (error.message.includes('500') || error.message.includes('OptimisticLocking')) {
+        errorMessage += 'Lỗi hệ thống. Vui lòng thử lại sau ít phút.';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorMessage += 'Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.';
+      } else {
+        errorMessage += error.message;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -104,10 +212,10 @@ const DoctorManagement = () => {
     }
     
     try {
-      // Chỉ gửi những trường cần cập nhật cho hồ sơ bác sĩ
+      // Chỉ gửi những trường cần cập nhật cho hồ sơ bác sĩ với snake_case format
       const doctorUpdateData = {
         bio: formData.bio,
-        yearsOfExperience: parseInt(formData.yearsOfExperience, 10),
+        years_of_experience: parseInt(formData.yearsOfExperience, 10),
       };
 
       // Gửi yêu cầu cập nhật thông tin User (nếu cần)
@@ -156,10 +264,10 @@ const DoctorManagement = () => {
       userId: '',
       bio: '',
       yearsOfExperience: 0,
-      profilePictureURL: '',
       specialtyIds: []
     });
     setSelectedDoctor(null);
+    console.log('Form reset, specialtyIds:', []); // Debug log
   };
 
   const openEditModal = (doctor) => {
@@ -169,16 +277,21 @@ const DoctorManagement = () => {
         alert('Lỗi: Dữ liệu bác sĩ không hợp lệ.');
         return;
     }
+    
+    const user = doctor.user;
     setSelectedDoctor(doctor);
     setFormData({
       doctorId: doctor.doctorId,
-      userId: doctor.user.userId,
-      fullName: doctor.user.fullName || '',
-      email: doctor.user.email || '',
+      userId: user.userId,
+      fullName: user.fullName || '',
+      email: user.email || '',
       bio: doctor.bio || '',
       yearsOfExperience: doctor.yearsOfExperience || 0,
-      profilePictureURL: doctor.user.imageUrl || '',
-      specialtyIds: doctor.specialties?.map(s => s.specialtyId) || []
+      
+      specialtyIds: doctor.specialties?.map(s => {
+        const id = s.specialtyId || s.id;
+        return isNaN(Number(id)) ? 0 : Number(id);
+      }).filter(id => id > 0) || []
     });
     setShowEditModal(true);
   };
@@ -190,11 +303,18 @@ const DoctorManagement = () => {
 
   const filteredDoctors = doctors.filter(doctor => {
     const user = doctor.user || {};
-    const matchesSearch = user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doctor.bio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const userName = user.fullName || '';
+    const userEmail = user.email || '';
+    const doctorBio = doctor.bio || '';
+    
+    const matchesSearch = userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         doctorBio.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         userEmail.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSpecialty = !filterSpecialty || 
-                            doctor.specialties?.some(s => s.specialtyId.toString() === filterSpecialty);
+                            doctor.specialties?.some(s => {
+                              const id = s.specialtyId || s.id;
+                              return !isNaN(Number(id)) && Number(id) === Number(filterSpecialty);
+                            });
     return matchesSearch && matchesSpecialty;
   });
 
@@ -204,9 +324,13 @@ const DoctorManagement = () => {
     const userA = a.user || {};
     const userB = b.user || {};
     if (sortBy === 'name') {
-      compareValue = (userA.fullName || '').localeCompare(userB.fullName || '');
+      const nameA = userA.fullName || '';
+      const nameB = userB.fullName || '';
+      compareValue = nameA.localeCompare(nameB);
     } else if (sortBy === 'experience') {
-      compareValue = (a.yearsOfExperience || 0) - (b.yearsOfExperience || 0);
+      const expA = a.yearsOfExperience || 0;
+      const expB = b.yearsOfExperience || 0;
+      compareValue = expA - expB;
     }
     return sortOrder === 'asc' ? compareValue : -compareValue;
   });
@@ -226,7 +350,11 @@ const DoctorManagement = () => {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-900">Quản lý Bác sĩ</h2>
           <button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => {
+              console.log('Opening create modal, resetting form...');
+              resetForm();
+              setShowCreateModal(true);
+            }}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -283,38 +411,47 @@ const DoctorManagement = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {sortedDoctors.map(doctor => {
           const user = doctor.user || {};
+          // Backend returns camelCase format via DoctorResponseDTO
+          const userName = user.fullName || 'N/A';
+          const userEmail = user.email || 'N/A';
+          const userPhone = user.phoneNumber || 'N/A';
+          const userImage = user.imageUrl;
+          
           return (
           <div key={doctor.doctorId} className="bg-white shadow rounded-lg overflow-hidden">
             <div className="p-6">
               <div className="flex items-center space-x-4 mb-4">
                  <img 
-                    src={user.imageUrl || `https://ui-avatars.com/api/?name=${user.fullName}&background=random`} 
-                    alt={user.fullName}
-                    className="h-12 w-12 rounded-full"
+                    src={userImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random`} 
+                    alt={userName}
+                    className="h-12 w-12 rounded-full object-cover"
+                    onError={(e) => {
+                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random`;
+                    }}
                   />
                 <div className="flex-1">
                   <h3 className="text-lg font-medium text-gray-900">
-                    {user.fullName || 'N/A'}
+                    {userName}
                   </h3>
-                  <p className="text-sm text-gray-500">
-                    {doctor.yearsOfExperience || 0} năm kinh nghiệm
-                  </p>
+                                      <p className="text-sm text-gray-500">
+                      {doctor.yearsOfExperience || 0} năm kinh nghiệm
+                    </p>
                 </div>
               </div>
 
               <div className="space-y-2 mb-4">
                 <div className="flex items-center text-sm text-gray-600">
                   <Mail className="h-4 w-4 mr-2" />
-                  {user.email || 'N/A'}
+                  {userEmail}
                 </div>
                 <div className="flex items-center text-sm text-gray-600">
                   <Phone className="h-4 w-4 mr-2" />
-                  {user.phoneNumber || 'N/A'}
+                  {userPhone}
                 </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Stethoscope className="h-4 w-4 mr-2" />
-                  {doctor.specialties?.map(s => s.name).join(', ') || 'Chưa có chuyên khoa'}
-                </div>
+                                  <div className="flex items-center text-sm text-gray-600">
+                    <Stethoscope className="h-4 w-4 mr-2" />
+                    {doctor.specialties?.map(s => s.name).join(', ') || 'Chưa có chuyên khoa'}
+                  </div>
               </div>
 
               <p className="text-sm text-gray-700 mb-4 line-clamp-3">
@@ -370,8 +507,8 @@ const DoctorManagement = () => {
                     >
                       <option value="">Chọn tài khoản DOCTOR</option>
                       {users.map(user => (
-                        <option key={user.userId} value={user.userId}>
-                          {user.fullName} ({user.email})
+                        <option key={user.user_id || user.userId} value={user.user_id || user.userId}>
+                          {user.full_name || user.fullName || 'N/A'} ({user.email})
                         </option>
                       ))}
                     </select>
@@ -405,47 +542,36 @@ const DoctorManagement = () => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      URL ảnh đại diện
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.profilePictureURL}
-                      onChange={(e) => setFormData({...formData, profilePictureURL: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="https://example.com/avatar.jpg"
-                    />
-                  </div>
+
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Chuyên khoa
                     </label>
                     <div className="space-y-2 max-h-32 overflow-y-auto">
-                      {specialties.map(specialty => (
-                        <label key={specialty.specialtyId} className="flex items-center">
+                      {specialties.map((specialty, index) => {
+                        // Safe conversion with fallback to avoid NaN
+                        const specialtyId = specialty.specialtyId || specialty.id || index;
+                        const numericId = isNaN(Number(specialtyId)) ? index : Number(specialtyId);
+                        const isChecked = formData.specialtyIds.includes(numericId);
+                        
+                        console.log(`Specialty ${specialty.name} (Original ID: ${specialtyId}, Numeric ID: ${numericId}): checked = ${isChecked}`);
+                        
+                        return (
+                        <label key={`specialty-${numericId}-${index}`} className="flex items-center">
                           <input
                             type="checkbox"
-                            checked={formData.specialtyIds.includes(specialty.specialtyId)}
+                            checked={isChecked}
                             onChange={(e) => {
-                              if (e.target.checked) {
-                                setFormData({
-                                  ...formData,
-                                  specialtyIds: [...formData.specialtyIds, specialty.specialtyId]
-                                });
-                              } else {
-                                setFormData({
-                                  ...formData,
-                                  specialtyIds: formData.specialtyIds.filter(id => id !== specialty.specialtyId)
-                                });
-                              }
+                              console.log(`Checkbox clicked for ${specialty.name}, checked: ${e.target.checked}`);
+                              handleSpecialtyChange(numericId, e.target.checked);
                             }}
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="ml-2 text-sm text-gray-700">{specialty.name}</span>
                         </label>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -463,9 +589,14 @@ const DoctorManagement = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                    disabled={loading}
+                    className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                      loading 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-blue-600 hover:bg-blue-700'
+                    }`}
                   >
-                    Tạo bác sĩ
+                    {loading ? 'Đang tạo...' : 'Tạo bác sĩ'}
                   </button>
                 </div>
               </form>
@@ -535,17 +666,7 @@ const DoctorManagement = () => {
                     />
                   </div>
 
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      URL ảnh đại diện
-                    </label>
-                    <input
-                      type="url"
-                      value={formData.profilePictureURL}
-                      onChange={(e) => setFormData({...formData, profilePictureURL: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
+
                 </div>
 
                 <div className="mt-6 flex justify-end space-x-3">

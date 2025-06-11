@@ -21,13 +21,13 @@ const Menubar = () => {
               <LayoutDashboard className="w-5 h-5" />
               Dashboard
             </Link>
-            <button 
+            {/* <button 
               onClick={() => { logout(); window.location.href = '/login'; }} 
               className="flex items-center gap-2 text-gray-700 hover:text-red-600 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-red-50"
             >
               <LogOut className="w-5 h-5" />
               Đăng xuất
-            </button>
+            </button> */}
           </>
         )
       } else if (isDoctor()) {
