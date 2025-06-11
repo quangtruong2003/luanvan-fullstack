@@ -14,7 +14,7 @@ import java.lang.management.ThreadMXBean;
 import java.util.HashMap;
 import java.util.Map;
 
-// @Service - Tạm thời disable để debug
+// @Service // Tạm thời disable để tránh lỗi compilation
 @RequiredArgsConstructor
 @Slf4j
 public class PerformanceMonitoringService {
@@ -101,11 +101,10 @@ public class PerformanceMonitoringService {
         summary.put("threadCount", threadBean.getThreadCount());
         summary.put("peakThreadCount", threadBean.getPeakThreadCount());
 
-        // CPU info
-        com.sun.management.OperatingSystemMXBean osBean = 
-            (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
-        summary.put("processCpuLoad", osBean.getProcessCpuLoad() * 100);
-        summary.put("systemCpuLoad", osBean.getSystemCpuLoad() * 100);
+        // CPU info - Sử dụng standard API thay vì deprecated sun.management
+        java.lang.management.OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
+        summary.put("availableProcessors", osBean.getAvailableProcessors());
+        summary.put("systemLoadAverage", osBean.getSystemLoadAverage());
 
         return summary;
     }

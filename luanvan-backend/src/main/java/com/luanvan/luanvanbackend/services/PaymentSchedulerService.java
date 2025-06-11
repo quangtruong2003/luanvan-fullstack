@@ -22,7 +22,7 @@ public class PaymentSchedulerService {
      * Chạy mỗi 5 phút để kiểm tra payment hết hạn
      */
     @Scheduled(fixedDelay = 300000) // 5 phút
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void processExpiredPayments() {
         try {
             LocalDateTime currentTime = LocalDateTime.now();
@@ -34,13 +34,17 @@ public class PaymentSchedulerService {
                 for (Payment payment : expiredPayments) {
                     log.info("Marking payment {} as expired", payment.getOrderId());
                     payment.setStatus(Payment.PaymentStatus.EXPIRED);
+                    payment.setUpdatedAt(LocalDateTime.now());
                     paymentRepository.save(payment);
                 }
                 
                 log.info("Processed {} expired payments", expiredPayments.size());
+            } else {
+                log.debug("No expired payments found");
             }
         } catch (Exception e) {
             log.error("Error processing expired payments: ", e);
+            throw e; // Rethrow để trigger rollback
         }
     }
 
@@ -48,7 +52,7 @@ public class PaymentSchedulerService {
      * Chạy mỗi 30 phút để xử lý retry payment failed
      */
     @Scheduled(fixedDelay = 1800000) // 30 phút  
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void processFailedPaymentsRetry() {
         try {
             // Chỉ retry trong vòng 24 giờ
@@ -63,6 +67,7 @@ public class PaymentSchedulerService {
                 for (Payment payment : failedPayments) {
                     log.info("Incrementing retry count for payment {}", payment.getOrderId());
                     payment.setRetryCount(payment.getRetryCount() + 1);
+                    payment.setUpdatedAt(LocalDateTime.now());
                     
                     // Nếu đã retry quá số lần cho phép, mark as CANCELLED
                     if (payment.getRetryCount() >= maxRetry) {
@@ -73,9 +78,12 @@ public class PaymentSchedulerService {
                     
                     paymentRepository.save(payment);
                 }
+            } else {
+                log.debug("No failed payments found that need retry");
             }
         } catch (Exception e) {
             log.error("Error processing failed payments retry: ", e);
+            throw e; // Rethrow để trigger rollback
         }
     }
 

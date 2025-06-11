@@ -3,28 +3,45 @@ package com.luanvan.luanvanbackend.services.impl;
 import com.luanvan.luanvanbackend.entities.Appointment;
 import com.luanvan.luanvanbackend.entities.User;
 import com.luanvan.luanvanbackend.services.EmailService;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.timelimiter.TimeLimiter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Primary;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Supplier;
 
-@Service
-@Primary
-@RequiredArgsConstructor
+@Service("resilientEmailService")
 @Slf4j
-public class EmailServiceImpl implements EmailService {
+public class ResilientEmailService implements EmailService {
 
     private final JavaMailSender mailSender;
+    private final CircuitBreaker circuitBreaker;
+    private final Retry retry;
+    private final TimeLimiter timeLimiter;
+
+    // Constructor with proper @Qualifier annotations
+    public ResilientEmailService(
+            JavaMailSender mailSender,
+            @Qualifier("emailCircuitBreaker") CircuitBreaker circuitBreaker,
+            @Qualifier("emailRetry") Retry retry,
+            @Qualifier("emailTimeLimiter") TimeLimiter timeLimiter) {
+        this.mailSender = mailSender;
+        this.circuitBreaker = circuitBreaker;
+        this.retry = retry;
+        this.timeLimiter = timeLimiter;
+    }
 
     @Value("${spring.mail.username:noreply@luanvan.com}")
     private String fromEmail;
@@ -34,150 +51,199 @@ public class EmailServiceImpl implements EmailService {
     @Override
     @Async("emailTaskExecutor")
     public void sendWelcomeOnFirstAppointmentEmail(User user) {
-        log.info("Sending welcome email to user: {}", user.getEmail());
-        
-        try {
+        executeEmailOperation(() -> {
+            log.info("Sending welcome email to user: {}", user.getEmail());
+            
             String subject = "Chào mừng bạn đến với Hệ thống Đặt lịch Y tế!";
             String content = buildWelcomeEmailContent(user);
             
-            CompletableFuture.runAsync(() -> {
-                sendHtmlEmail(user.getEmail(), subject, content);
-                log.info("Welcome email sent successfully to: {}", user.getEmail());
-            }).exceptionally(ex -> {
-                log.error("Failed to send welcome email to: " + user.getEmail(), ex);
-                return null;
-            });
+            sendHtmlEmailInternal(user.getEmail(), subject, content);
+            log.info("Welcome email sent successfully to: {}", user.getEmail());
             
-        } catch (Exception e) {
-            log.error("Error sending welcome email to user: " + user.getEmail(), e);
-        }
+            return null;
+        }, "sendWelcomeEmail", user.getEmail());
     }
 
     @Override
     @Async("emailTaskExecutor")
     public void sendAppointmentConfirmationEmail(Appointment appointment) {
-        log.info("Sending appointment confirmation email for appointment: {}", appointment.getAppointmentId());
-        
-        try {
+        executeEmailOperation(() -> {
+            log.info("Sending appointment confirmation email for appointment: {}", appointment.getAppointmentId());
+            
             String subject = "Xác nhận lịch hẹn khám bệnh - " + appointment.getClinic().getName();
             String content = buildConfirmationEmailContent(appointment);
             
-            CompletableFuture.runAsync(() -> {
-                sendHtmlEmail(appointment.getPatient().getEmail(), subject, content);
-                log.info("Confirmation email sent successfully for appointment: {}", appointment.getAppointmentId());
-            }).exceptionally(ex -> {
-                log.error("Failed to send confirmation email for appointment: " + appointment.getAppointmentId(), ex);
-                return null;
-            });
+            sendHtmlEmailInternal(appointment.getPatient().getEmail(), subject, content);
+            log.info("Confirmation email sent successfully for appointment: {}", appointment.getAppointmentId());
             
-        } catch (Exception e) {
-            log.error("Error sending confirmation email for appointment: " + appointment.getAppointmentId(), e);
-        }
+            return null;
+        }, "sendConfirmationEmail", appointment.getPatient().getEmail());
     }
 
     @Override
     @Async("emailTaskExecutor")
     public void sendAppointmentReminderEmail(Appointment appointment) {
-        log.info("Sending appointment reminder email for appointment: {}", appointment.getAppointmentId());
-        
-        try {
+        executeEmailOperation(() -> {
+            log.info("Sending appointment reminder email for appointment: {}", appointment.getAppointmentId());
+            
             String subject = "Nhắc nhở lịch hẹn khám bệnh - " + appointment.getClinic().getName();
             String content = buildReminderEmailContent(appointment);
             
-            CompletableFuture.runAsync(() -> {
-                sendHtmlEmail(appointment.getPatient().getEmail(), subject, content);
-                log.info("Reminder email sent successfully for appointment: {}", appointment.getAppointmentId());
-            }).exceptionally(ex -> {
-                log.error("Failed to send reminder email for appointment: " + appointment.getAppointmentId(), ex);
-                return null;
-            });
+            sendHtmlEmailInternal(appointment.getPatient().getEmail(), subject, content);
+            log.info("Reminder email sent successfully for appointment: {}", appointment.getAppointmentId());
             
-        } catch (Exception e) {
-            log.error("Error sending reminder email for appointment: " + appointment.getAppointmentId(), e);
-        }
+            return null;
+        }, "sendReminderEmail", appointment.getPatient().getEmail());
     }
 
     @Override
     @Async("emailTaskExecutor")
     public void sendAppointmentCancellationEmail(Appointment appointment, String reason) {
-        log.info("Sending appointment cancellation email for appointment: {}", appointment.getAppointmentId());
-        
-        try {
+        executeEmailOperation(() -> {
+            log.info("Sending appointment cancellation email for appointment: {}", appointment.getAppointmentId());
+            
             String subject = "Thông báo hủy lịch hẹn - " + appointment.getClinic().getName();
             String content = buildCancellationEmailContent(appointment, reason);
             
-            CompletableFuture.runAsync(() -> {
-                sendHtmlEmail(appointment.getPatient().getEmail(), subject, content);
-                log.info("Cancellation email sent successfully for appointment: {}", appointment.getAppointmentId());
-            }).exceptionally(ex -> {
-                log.error("Failed to send cancellation email for appointment: " + appointment.getAppointmentId(), ex);
-                return null;
-            });
+            sendHtmlEmailInternal(appointment.getPatient().getEmail(), subject, content);
+            log.info("Cancellation email sent successfully for appointment: {}", appointment.getAppointmentId());
             
-        } catch (Exception e) {
-            log.error("Error sending cancellation email for appointment: " + appointment.getAppointmentId(), e);
-        }
+            return null;
+        }, "sendCancellationEmail", appointment.getPatient().getEmail());
     }
 
     @Override
     @Async("emailTaskExecutor")
     public void sendAppointmentUpdateEmail(Appointment appointment) {
-        log.info("Sending appointment update email for appointment: {}", appointment.getAppointmentId());
-        
-        try {
+        executeEmailOperation(() -> {
+            log.info("Sending appointment update email for appointment: {}", appointment.getAppointmentId());
+            
             String subject = "Cập nhật lịch hẹn khám bệnh - " + appointment.getClinic().getName();
             String content = buildUpdateEmailContent(appointment);
             
-            CompletableFuture.runAsync(() -> {
-                sendHtmlEmail(appointment.getPatient().getEmail(), subject, content);
-                log.info("Update email sent successfully for appointment: {}", appointment.getAppointmentId());
-            }).exceptionally(ex -> {
-                log.error("Failed to send update email for appointment: " + appointment.getAppointmentId(), ex);
-                return null;
-            });
+            sendHtmlEmailInternal(appointment.getPatient().getEmail(), subject, content);
+            log.info("Update email sent successfully for appointment: {}", appointment.getAppointmentId());
             
-        } catch (Exception e) {
-            log.error("Error sending update email for appointment: " + appointment.getAppointmentId(), e);
-        }
+            return null;
+        }, "sendUpdateEmail", appointment.getPatient().getEmail());
     }
 
     @Override
     public void sendSimpleEmail(String to, String subject, String content) {
+        executeEmailOperation(() -> {
+            sendSimpleEmailInternal(to, subject, content);
+            return null;
+        }, "sendSimpleEmail", to);
+    }
+
+    @Override
+    public void sendHtmlEmail(String to, String subject, String htmlContent) {
+        executeEmailOperation(() -> {
+            sendHtmlEmailInternal(to, subject, htmlContent);
+            return null;
+        }, "sendHtmlEmail", to);
+    }
+
+    // Core resilient email execution method
+    private void executeEmailOperation(Supplier<Void> emailOperation, String operationType, String recipient) {
+        try {
+            // Tạo ScheduledExecutorService cho TimeLimiter
+            java.util.concurrent.ScheduledExecutorService scheduler = 
+                java.util.concurrent.Executors.newScheduledThreadPool(1);
+            
+            // Tạo Supplier đơn giản cho CompletionStage
+            Supplier<CompletableFuture<Void>> operation = () -> {
+                return CompletableFuture.supplyAsync(emailOperation);
+            };
+
+            // Apply resilience patterns một cách tuần tự
+            CompletableFuture<Void> result = timeLimiter.executeCompletionStage(
+                scheduler, 
+                operation
+            ).toCompletableFuture().thenCompose(value -> {
+                return circuitBreaker.executeCompletionStage(() -> 
+                    CompletableFuture.completedFuture(value)
+                ).toCompletableFuture();
+            }).thenCompose(value -> {
+                return retry.executeCompletionStage(
+                    scheduler,
+                    () -> CompletableFuture.completedFuture(value)
+                ).toCompletableFuture();
+            });
+
+            result.whenComplete((success, throwable) -> {
+                scheduler.shutdown(); // Cleanup scheduler
+                if (throwable != null) {
+                    handleEmailFailure(operationType, recipient, throwable);
+                } else {
+                    log.debug("Email operation {} completed successfully for {}", operationType, recipient);
+                }
+            });
+
+        } catch (Exception e) {
+            handleEmailFailure(operationType, recipient, e);
+        }
+    }
+
+    private void handleEmailFailure(String operationType, String recipient, Throwable throwable) {
+        log.error("Failed to execute email operation {} for recipient {}: {}", 
+                operationType, recipient, throwable.getMessage());
+
+        // In production, you might want to:
+        // 1. Store failed emails in a queue for retry
+        // 2. Send alerts to administrators
+        // 3. Use alternative communication channels
+        
+        // For now, we'll just log and optionally queue for manual retry
+        queueFailedEmail(operationType, recipient, throwable);
+    }
+
+    private void queueFailedEmail(String operationType, String recipient, Throwable error) {
+        // This could be implemented with a message queue (RabbitMQ, Kafka, etc.)
+        // For now, we'll just log the failure for manual investigation
+        log.warn("Queuing failed email operation {} for recipient {} due to: {}", 
+                operationType, recipient, error.getMessage());
+        
+        // TODO: Implement actual queue mechanism for production
+        // Example: rabbitTemplate.send("failed-emails", new FailedEmailMessage(...));
+    }
+
+    // Internal email sending methods (no resilience applied - used within resilient wrapper)
+    private void sendSimpleEmailInternal(String to, String subject, String content) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(to);
             message.setSubject(subject);
             message.setText(content);
-
+            
             mailSender.send(message);
-            log.info("Simple email sent successfully to: {}", to);
+            log.debug("Simple email sent successfully to: {}", to);
         } catch (Exception e) {
             log.error("Error sending simple email to: " + to, e);
-            throw new RuntimeException("Failed to send email", e);
+            throw new RuntimeException("Failed to send simple email", e);
         }
     }
 
-    @Override
-    public void sendHtmlEmail(String to, String subject, String htmlContent) {
+    private void sendHtmlEmailInternal(String to, String subject, String htmlContent) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
+            
             helper.setFrom(fromEmail);
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlContent, true);
-
+            
             mailSender.send(message);
-            log.info("HTML email sent successfully to: {}", to);
+            log.debug("HTML email sent successfully to: {}", to);
         } catch (MessagingException e) {
             log.error("Error sending HTML email to: " + to, e);
             throw new RuntimeException("Failed to send HTML email", e);
         }
     }
 
-    // Private methods for building email content
+    // Email content building methods (reused from original EmailServiceImpl)
     private String buildWelcomeEmailContent(User user) {
         return String.format("""
             <html>

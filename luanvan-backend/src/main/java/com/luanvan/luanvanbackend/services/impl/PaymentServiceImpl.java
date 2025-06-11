@@ -399,6 +399,7 @@ public class PaymentServiceImpl implements PaymentService {
         return params;
     }
 
+    @SuppressWarnings("unchecked")
     private PaymentResponseDTO processMomoResponse(Map<String, Object> momoResponse, Payment payment, PaymentRequestDTO request) {
         String resultCode = String.valueOf(momoResponse.get("resultCode"));
         

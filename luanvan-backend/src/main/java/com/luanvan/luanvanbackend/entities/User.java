@@ -39,9 +39,22 @@ public class User {
     private String address;
     private String imageUrl; // Profile image URL from Clerk
     private LocalDateTime registrationDate;
+    private LocalDateTime createdAt;
+    private LocalDateTime lastLoginAt;
     private boolean isActive;
+    private boolean emailNotificationsEnabled = true;
     
     @ManyToOne
     @JoinColumn(name = "role_id")
     private Role role;
+    
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+        if (registrationDate == null) {
+            registrationDate = LocalDateTime.now();
+        }
+    }
 }

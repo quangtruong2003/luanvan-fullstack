@@ -8,6 +8,10 @@ import com.luanvan.luanvanbackend.repositories.ClinicRepository;
 import com.luanvan.luanvanbackend.repositories.SpecialtyRepository;
 import com.luanvan.luanvanbackend.services.ClinicService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -25,18 +29,21 @@ public class ClinicServiceImpl implements ClinicService {
     private SpecialtyRepository specialtyRepository;
 
     @Override
+    // @Cacheable(value = "clinics", key = "#clinicId") // Tạm thời tắt cache
     public Clinic getClinicById(Long clinicId) {
         return clinicRepository.findById(clinicId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy phòng khám với ID: " + clinicId));
     }
 
     @Override
+    // @Cacheable(value = "clinics", key = "'dto_' + #clinicId") // Tạm thời tắt cache
     public ClinicResponseDTO getClinicResponseDTOById(Long clinicId) {
         Clinic clinic = getClinicById(clinicId);
         return convertToResponseDTO(clinic);
     }
 
     @Override
+    // @Cacheable(value = "clinics", key = "'all'") // Tạm thời tắt cache
     public List<Clinic> getAllClinics() {
         return clinicRepository.findAll();
     }
@@ -63,6 +70,7 @@ public class ClinicServiceImpl implements ClinicService {
 
     @Override
     @Transactional
+    @CacheEvict(value = "clinics", allEntries = true) // Clear cache khi tạo mới
     public Clinic createClinic(ClinicDTO clinicDTO) {
         // Kiểm tra email và số điện thoại đã tồn tại chưa
         if (clinicDTO.getEmail() != null && !clinicDTO.getEmail().isEmpty() && 
@@ -96,6 +104,10 @@ public class ClinicServiceImpl implements ClinicService {
 
     @Override
     @Transactional
+    @Caching(
+        put = @CachePut(value = "clinics", key = "#clinicId"),
+        evict = @CacheEvict(value = "clinics", key = "'all'")
+    )
     public Clinic updateClinic(Long clinicId, ClinicUpdateDTO clinicUpdateDTO) {
         Clinic clinic = getClinicById(clinicId);
         
@@ -170,6 +182,7 @@ public class ClinicServiceImpl implements ClinicService {
 
     @Override
     @Transactional
+    @CachePut(value = "clinics", key = "#clinicId")
     public Clinic updateLogo(Long clinicId, String logoURL) {
         Clinic clinic = getClinicById(clinicId);
         clinic.setLogoURL(logoURL);
@@ -178,6 +191,10 @@ public class ClinicServiceImpl implements ClinicService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "clinics", key = "#clinicId"),
+        @CacheEvict(value = "clinics", key = "'all'")
+    })
     public boolean deleteClinic(Long clinicId) {
         Clinic clinic = getClinicById(clinicId);
 

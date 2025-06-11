@@ -1,17 +1,11 @@
 package com.luanvan.luanvanbackend.entities;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
 @Entity
 @Table(name = "availability_slots")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class AvailabilitySlot {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,5 +28,74 @@ public class AvailabilitySlot {
     
     public enum SlotStatus {
         AVAILABLE, BOOKED, CANCELLED_BY_CLINIC, ON_LEAVE
+    }
+    
+    public AvailabilitySlot() {
+    }
+    
+    public AvailabilitySlot(Long slotId, Doctor doctor, LocalDate date, LocalTime startTime, LocalTime endTime, SlotStatus status, Clinic clinic) {
+        this.slotId = slotId;
+        this.doctor = doctor;
+        this.date = date;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        this.status = status;
+        this.clinic = clinic;
+    }
+    
+    public Long getSlotId() {
+        return slotId;
+    }
+    
+    public void setSlotId(Long slotId) {
+        this.slotId = slotId;
+    }
+    
+    public Doctor getDoctor() {
+        return doctor;
+    }
+    
+    public void setDoctor(Doctor doctor) {
+        this.doctor = doctor;
+    }
+    
+    public LocalDate getDate() {
+        return date;
+    }
+    
+    public void setDate(LocalDate date) {
+        this.date = date;
+    }
+    
+    public LocalTime getStartTime() {
+        return startTime;
+    }
+    
+    public void setStartTime(LocalTime startTime) {
+        this.startTime = startTime;
+    }
+    
+    public LocalTime getEndTime() {
+        return endTime;
+    }
+    
+    public void setEndTime(LocalTime endTime) {
+        this.endTime = endTime;
+    }
+    
+    public SlotStatus getStatus() {
+        return status;
+    }
+    
+    public void setStatus(SlotStatus status) {
+        this.status = status;
+    }
+    
+    public Clinic getClinic() {
+        return clinic;
+    }
+    
+    public void setClinic(Clinic clinic) {
+        this.clinic = clinic;
     }
 }
