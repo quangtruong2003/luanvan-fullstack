@@ -71,11 +71,15 @@ public class StandardWorkShiftServiceImpl implements StandardWorkShiftService {
     @Override
     @Transactional
     public StandardWorkShift createShift(StandardWorkShiftDTO shiftDTO) {
+        System.out.println("🔨 Service creating shift with DTO: " + shiftDTO);
+        
         // Kiểm tra phòng khám có tồn tại hay không
         Clinic clinic = null;
         if (shiftDTO.getClinicId() != null) {
+            System.out.println("🏥 Looking for clinic with ID: " + shiftDTO.getClinicId());
             clinic = clinicRepository.findById(shiftDTO.getClinicId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy phòng khám với ID: " + shiftDTO.getClinicId()));
+            System.out.println("🏥 Found clinic: " + clinic.getName());
         }
         
         // Tạo ca làm việc mới
@@ -85,9 +89,13 @@ public class StandardWorkShiftServiceImpl implements StandardWorkShiftService {
         shift.setStartTime(shiftDTO.getStartTime());
         shift.setEndTime(shiftDTO.getEndTime());
         shift.setClinic(clinic);
-        shift.setDefault(shiftDTO.getIsDefault() != null ? shiftDTO.getIsDefault() : false);
+        shift.setDefault(shiftDTO.getIsDefault() != null && shiftDTO.getIsDefault());
         
-        return shiftRepository.save(shift);
+        System.out.println("💾 Saving shift: " + shift);
+        StandardWorkShift savedShift = shiftRepository.save(shift);
+        System.out.println("✅ Saved shift with ID: " + savedShift.getShiftId());
+        
+        return savedShift;
     }
 
     @Override

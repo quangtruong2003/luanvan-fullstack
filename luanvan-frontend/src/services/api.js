@@ -446,6 +446,99 @@ export const adminService = {
     }
   },
 
+  // Standard Work Shift Management
+  async getAllStandardWorkShifts(params = {}) {
+    try {
+      const queryParams = new URLSearchParams(params);
+      const response = await fetch(`${API_BASE_URL}/standard-work-shifts?${queryParams}`, {
+        headers: getAuthHeaders()
+      });
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Get all standard work shifts error:', error);
+      throw error;
+    }
+  },
+
+  async getStandardWorkShiftsByClinic(clinicId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/standard-work-shifts/clinic/${clinicId}`, {
+        headers: getAuthHeaders()
+      });
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Get standard work shifts by clinic error:', error);
+      throw error;
+    }
+  },
+
+  async createStandardWorkShift(shiftData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/standard-work-shifts`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(shiftData)
+      });
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Create standard work shift error:', error);
+      throw error;
+    }
+  },
+
+  async updateStandardWorkShift(shiftId, shiftData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/standard-work-shifts/${shiftId}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(shiftData)
+      });
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Update standard work shift error:', error);
+      throw error;
+    }
+  },
+
+  async deleteStandardWorkShift(shiftId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/standard-work-shifts/${shiftId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Delete standard work shift error:', error);
+      throw error;
+    }
+  },
+
+  async setDefaultStandardWorkShift(shiftId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/standard-work-shifts/${shiftId}/set-default`, {
+        method: 'PUT',
+        headers: getAuthHeaders()
+      });
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Set default standard work shift error:', error);
+      throw error;
+    }
+  },
+
+  async unsetDefaultStandardWorkShift(shiftId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/standard-work-shifts/${shiftId}/unset-default`, {
+        method: 'PUT',
+        headers: getAuthHeaders()
+      });
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Unset default standard work shift error:', error);
+      throw error;
+    }
+  },
+
   // Dashboard Statistics
   async getDashboardStats() {
     try {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 // import { useAuth } from '../../context/AuthContext'; // Commented out vì header bị comment
 import { 
   Home, Users, UserCog, Building, Stethoscope, Calendar, 
-  FileText, Settings, DollarSign, BarChart3
+  FileText, Settings, DollarSign, BarChart3, Clock
 } from 'lucide-react';
 import { adminService, apiService } from '../../services/api';
 import UserManagement from './UserManagement';
@@ -11,6 +11,7 @@ import ClinicManagement from './ClinicManagement';
 import SpecialtyManagement from './SpecialtyManagement';
 import AppointmentManagement from './AppointmentManagement';
 import SystemSettings from './SystemSettings';
+import StandardWorkShiftManagement from './StandardWorkShiftManagement';
 
 const AdminDashboardNew = () => {
   // const { currentUser, logout } = useAuth(); // Commented out vì header bị comment
@@ -90,6 +91,7 @@ const AdminDashboardNew = () => {
     { id: 'appointments', name: 'Lịch hẹn', icon: Calendar },
     { id: 'articles', name: 'Bài viết', icon: FileText },
     { id: 'payments', name: 'Thanh toán', icon: DollarSign },
+    { id: 'standardWorkShifts', name: 'Ca làm việc (Tập trung)', icon: Clock },
     { id: 'settings', name: 'Cài đặt', icon: Settings }
   ];
 
@@ -251,6 +253,14 @@ const AdminDashboardNew = () => {
           </button>
           
           <button
+            onClick={() => setActiveTab('standardWorkShifts')}
+            className="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-md text-purple-700 bg-purple-100 hover:bg-purple-200"
+          >
+            <Clock className="h-4 w-4 mr-2" />
+            Quản lý ca làm việc
+          </button>
+          
+          <button
             onClick={() => setActiveTab('settings')}
             className="inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200"
           >
@@ -284,6 +294,8 @@ const AdminDashboardNew = () => {
         return <div className="p-6 bg-white rounded-lg shadow"><h2 className="text-xl font-semibold">Quản lý thanh toán</h2><p className="text-gray-600 mt-2">Tính năng đang được phát triển...</p></div>;
       case 'settings':
         return <SystemSettings />;
+      case 'standardWorkShifts':
+        return <StandardWorkShiftManagement />;
       default:
         return renderDashboardOverview();
     }
