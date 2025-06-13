@@ -41,6 +41,12 @@ public class CustomUserDetailsService implements UserDetailsService {
             return userByPhone.get();
         }
         
+        // Thử tìm theo Clerk User ID (for JWT validation of Clerk users)
+        Optional<User> userByClerkId = userRepository.findByClerkUserId(identifier);
+        if (userByClerkId.isPresent()) {
+            return userByClerkId.get();
+        }
+        
         throw new UsernameNotFoundException("Không tìm thấy người dùng với thông tin: " + identifier);
     }
 }

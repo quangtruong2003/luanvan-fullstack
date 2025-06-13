@@ -25,7 +25,7 @@ public class UserPrincipal implements UserDetails {
         return new UserPrincipal(
                 user.getUserId(),
                 user.getPhoneNumber(),
-                user.getPasswordHash(),
+                user.getPasswordHash() != null ? user.getPasswordHash() : "CLERK_MANAGED_AUTH",
                 user.getRole().getRoleName(),
                 user.isActive(),
                 user.getFullName(),

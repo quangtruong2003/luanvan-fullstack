@@ -28,6 +28,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -347,15 +349,23 @@ public class AuthServiceImpl implements AuthService {
     
     /**
      * Generate JWT token for user
+     * Đối với Clerk users, không cần password trong quá trình tạo JWT token
      */
     private String generateTokenForUser(User user) {
+        // Tạo custom claims cho JWT token
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getUserId());
+        claims.put("role", user.getRole().getRoleName());
+        claims.put("isClerkUser", user.getClerkUserId() != null);
+        
+        // Đối với user đăng nhập qua Clerk, sử dụng email làm username và không cần password
         UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
-                .password(user.getPasswordHash())
+                .password("") // Empty password for Clerk users - JWT generation doesn't validate this
                 .authorities("ROLE_" + user.getRole().getRoleName())
                 .build();
         
-        return jwtUtils.generateToken(userDetails);
+        return jwtUtils.generateToken(claims, userDetails);
     }
 
     @Override

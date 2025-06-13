@@ -123,7 +123,11 @@ export const authService = {
   // Đồng bộ user với Clerk
   async syncClerkUser(userData) {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/clerk-sync`, {
+      console.log('🔄 Calling syncClerkUser API with data:', userData);
+      const requestUrl = `${API_BASE_URL}/auth/clerk-sync`;
+      console.log('📡 Request URL:', requestUrl);
+      
+      const response = await fetch(requestUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -131,10 +135,19 @@ export const authService = {
         body: JSON.stringify(userData)
       });
 
+      console.log('📡 Raw response status:', response.status);
+      console.log('📡 Raw response headers:', [...response.headers.entries()]);
+      
       const data = await handleResponse(response);
+      console.log('✅ syncClerkUser success data:', data);
       return data;
     } catch (error) {
-      console.error('Sync Clerk user error:', error);
+      console.error('❌ Sync Clerk user error:', error);
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error instanceof:', error instanceof Error);
+      if (error.response) {
+        console.error('❌ Error response:', error.response);
+      }
       throw error;
     }
   }
