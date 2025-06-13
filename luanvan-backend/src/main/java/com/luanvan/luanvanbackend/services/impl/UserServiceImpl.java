@@ -180,6 +180,30 @@ public class UserServiceImpl implements UserService {
         return userRepository.save(user);
     }
 
+    @Override
+    public Page<UserResponseDTO> searchUsers(String keyword, String role, Pageable pageable) {
+        if (role != null && !role.trim().isEmpty()) {
+            // Nếu có role, tìm kiếm trong role đó
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                // Tìm kiếm theo cả keyword và role
+                return userRepository.searchUsersWithRole(keyword, role, pageable)
+                        .map(this::convertToResponseDTO);
+            } else {
+                // Chỉ tìm kiếm theo role
+                return userRepository.findByRoleNamePageable(role, pageable)
+                        .map(this::convertToResponseDTO);
+            }
+        } else if (keyword != null && !keyword.trim().isEmpty()) {
+            // Chỉ tìm kiếm theo keyword
+            return userRepository.searchUsers(keyword, pageable)
+                    .map(this::convertToResponseDTO);
+        } else {
+            // Không có điều kiện tìm kiếm, trả về tất cả
+            return userRepository.findAll(pageable)
+                    .map(this::convertToResponseDTO);
+        }
+    }
+
     private UserResponseDTO convertToResponseDTO(User user) {
         return UserResponseDTO.builder()
                 .userId(user.getUserId())

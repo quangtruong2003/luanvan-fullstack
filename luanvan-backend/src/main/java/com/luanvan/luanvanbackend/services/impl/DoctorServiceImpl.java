@@ -41,6 +41,7 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public DoctorResponseDTO getDoctorResponseDTOById(Long doctorId) {
         Doctor doctor = getDoctorById(doctorId);
         return convertToResponseDTO(doctor);
@@ -53,6 +54,7 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public DoctorResponseDTO getDoctorResponseDTOByUserId(Long userId) {
         Doctor doctor = getDoctorByUserId(userId);
         return convertToResponseDTO(doctor);
@@ -206,14 +208,30 @@ public class DoctorServiceImpl implements DoctorService {
                 doctor.getUser().getImageUrl()
         );
 
-        List<DoctorResponseDTO.SpecialtyResponseDTO> specialtyDTOs = doctor.getSpecialties().stream()
-                .map(ds -> new DoctorResponseDTO.SpecialtyResponseDTO(
-                        ds.getSpecialty().getSpecialtyId(),
-                        ds.getSpecialty().getName(),
-                        ds.getSpecialty().getDescription(),
-                        ds.isPrimary()
-                ))
-                .collect(Collectors.toList());
+        // Xử lý specialties với fallback nếu lazy loading thất bại
+        List<DoctorResponseDTO.SpecialtyResponseDTO> specialtyDTOs;
+        try {
+            // Thử sử dụng specialties từ entity nếu đã được eager load
+            specialtyDTOs = doctor.getSpecialties().stream()
+                    .map(ds -> new DoctorResponseDTO.SpecialtyResponseDTO(
+                            ds.getSpecialty().getSpecialtyId(),
+                            ds.getSpecialty().getName(),
+                            ds.getSpecialty().getDescription(),
+                            ds.isPrimary()
+                    ))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            // Fallback: Load từ repository nếu lazy loading thất bại
+            List<DoctorSpecialty> doctorSpecialties = doctorSpecialtyRepository.findByDoctorDoctorId(doctor.getDoctorId());
+            specialtyDTOs = doctorSpecialties.stream()
+                    .map(ds -> new DoctorResponseDTO.SpecialtyResponseDTO(
+                            ds.getSpecialty().getSpecialtyId(),
+                            ds.getSpecialty().getName(),
+                            ds.getSpecialty().getDescription(),
+                            ds.isPrimary()
+                    ))
+                    .collect(Collectors.toList());
+        }
 
         return new DoctorResponseDTO(
                 doctor.getDoctorId(),
@@ -225,21 +243,25 @@ public class DoctorServiceImpl implements DoctorService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<DoctorResponseDTO> getAllDoctorsDTO(Pageable pageable) {
         return doctorRepository.findAll(pageable).map(this::convertToResponseDTO);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<DoctorResponseDTO> getDoctorsByExperienceDTO(int yearsOfExperience, Pageable pageable) {
         return doctorRepository.findByYearsOfExperienceGreaterThanEqual(yearsOfExperience, pageable).map(this::convertToResponseDTO);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<DoctorResponseDTO> getDoctorsBySpecialtyDTO(Long specialtyId, Pageable pageable) {
         return doctorRepository.findBySpecialtyId(specialtyId, pageable).map(this::convertToResponseDTO);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<DoctorResponseDTO> searchDoctorsByNameDTO(String name, Pageable pageable) {
         return doctorRepository.findByUserFullNameContainingIgnoreCase(name, pageable).map(this::convertToResponseDTO);
     }

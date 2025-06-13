@@ -1,5 +1,7 @@
 package com.luanvan.luanvanbackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
@@ -13,6 +15,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class DoctorDTO {
     
     @Size(max = 1000, message = "Tiểu sử không được vượt quá 1000 ký tự")
@@ -20,10 +23,13 @@ public class DoctorDTO {
     
     @Min(value = 0, message = "Số năm kinh nghiệm không được âm")
     @Max(value = 60, message = "Số năm kinh nghiệm không được vượt quá 60 năm")
-    private Integer yearsOfExperience; // Will be mapped from "years_of_experience" by SNAKE_CASE strategy
+    @JsonAlias("years_of_experience")
+    private Integer yearsOfExperience;
     
     @Size(max = 10, message = "Không thể gán quá 10 chuyên khoa cho một bác sĩ")
-    private List<Long> specialtyIds; // Will be mapped from "specialty_ids" by SNAKE_CASE strategy  
+    @JsonAlias("specialty_ids")
+    private List<Long> specialtyIds;
     
-    private Long primarySpecialtyId; // Will be mapped from "primary_specialty_id" by SNAKE_CASE strategy
+    @JsonAlias("primary_specialty_id")
+    private Long primarySpecialtyId;
 }

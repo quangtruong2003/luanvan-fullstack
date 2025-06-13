@@ -64,6 +64,16 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
     }
 
     @Override
+    public List<AvailabilitySlot> getAvailableSlotsByDoctorAndDate(Long doctorId, LocalDate date) {
+        // Kiểm tra bác sĩ có tồn tại không
+        if (!doctorRepository.existsById(doctorId)) {
+            throw new RuntimeException("Không tìm thấy bác sĩ với ID: " + doctorId);
+        }
+        
+        return slotRepository.findByDoctorDoctorIdAndDateAndStatus(doctorId, date, AvailabilitySlot.SlotStatus.AVAILABLE);
+    }
+
+    @Override
     public List<AvailabilitySlot> getSlotsByDateRange(Long doctorId, LocalDate startDate, LocalDate endDate) {
         // Kiểm tra bác sĩ có tồn tại không
         if (!doctorRepository.existsById(doctorId)) {
@@ -75,6 +85,20 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         }
         
         return slotRepository.findByDoctorDoctorIdAndDateBetween(doctorId, startDate, endDate);
+    }
+
+    @Override
+    public List<AvailabilitySlot> getAvailableSlotsInDateRange(Long doctorId, LocalDate startDate, LocalDate endDate) {
+        // Kiểm tra bác sĩ có tồn tại không
+        if (!doctorRepository.existsById(doctorId)) {
+            throw new RuntimeException("Không tìm thấy bác sĩ với ID: " + doctorId);
+        }
+        
+        if (startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("Ngày bắt đầu không thể sau ngày kết thúc");
+        }
+        
+        return slotRepository.findByDoctorDoctorIdAndDateBetweenAndStatus(doctorId, startDate, endDate, AvailabilitySlot.SlotStatus.AVAILABLE);
     }
 
     @Override
@@ -219,15 +243,11 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
     @Override
     @Transactional
     public boolean deleteSlot(Long slotId) {
-        AvailabilitySlot slot = getSlotById(slotId);
-        
-        // Kiểm tra xem có thể xóa không (ví dụ: nếu slot đã được đặt lịch thì không thể xóa)
-        if (slot.getStatus() == AvailabilitySlot.SlotStatus.BOOKED) {
-            throw new RuntimeException("Không thể xóa khung giờ đã được đặt lịch");
+        if (slotRepository.existsById(slotId)) {
+            slotRepository.deleteById(slotId);
+            return true;
         }
-        
-        slotRepository.delete(slot);
-        return true;
+        return false;
     }
 
     @Override
@@ -268,5 +288,73 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         }
         
         return createdSlots;
+    }
+
+    @Override
+    public List<AvailabilitySlot> searchSlots(Long doctorId, Long clinicId, LocalDate date, AvailabilitySlot.SlotStatus status) {
+        List<AvailabilitySlot> slots;
+        
+        // Nếu có doctorId và date, sử dụng query tối ưu nhất
+        if (doctorId != null && date != null) {
+            slots = slotRepository.findByDoctorDoctorIdAndDate(doctorId, date);
+        } 
+        // Nếu chỉ có doctorId
+        else if (doctorId != null) {
+            slots = slotRepository.findByDoctorDoctorId(doctorId);
+        }
+        // Nếu chỉ có clinicId
+        else if (clinicId != null) {
+            slots = slotRepository.findByClinicClinicId(clinicId);
+        }
+        // Nếu chỉ có date và status
+        else if (date != null && status != null) {
+            slots = slotRepository.findByDateAndStatus(date, status);
+        }
+        // Nếu chỉ có date
+        else if (date != null) {
+            slots = slotRepository.findAll().stream()
+                    .filter(slot -> slot.getDate().equals(date))
+                    .toList();
+        }
+        // Nếu không có filter gì, lấy tất cả (cẩn thận với performance)
+        else {
+            slots = slotRepository.findAll();
+        }
+        
+        // Lọc thêm theo clinicId nếu cần
+        if (clinicId != null && doctorId != null) {
+            slots = slots.stream()
+                    .filter(slot -> slot.getClinic() != null && slot.getClinic().getClinicId().equals(clinicId))
+                    .toList();
+        }
+        
+        // Lọc thêm theo status nếu cần
+        if (status != null && (date == null || clinicId != null || doctorId != null)) {
+            slots = slots.stream()
+                    .filter(slot -> slot.getStatus() == status)
+                    .toList();
+        }
+        
+        return slots;
+    }
+
+    @Override
+    public Page<AvailabilitySlot> getAvailableSlotsByDoctor(Long doctorId, Pageable pageable) {
+        // Kiểm tra bác sĩ có tồn tại không
+        if (!doctorRepository.existsById(doctorId)) {
+            throw new RuntimeException("Không tìm thấy bác sĩ với ID: " + doctorId);
+        }
+        
+        return slotRepository.findByDoctorDoctorIdAndStatus(doctorId, AvailabilitySlot.SlotStatus.AVAILABLE, pageable);
+    }
+
+    @Override
+    public Page<AvailabilitySlot> getAllSlotsByDoctor(Long doctorId, Pageable pageable) {
+        // Kiểm tra bác sĩ có tồn tại không
+        if (!doctorRepository.existsById(doctorId)) {
+            throw new RuntimeException("Không tìm thấy bác sĩ với ID: " + doctorId);
+        }
+        
+        return slotRepository.findByDoctorDoctorId(doctorId, pageable);
     }
 } 

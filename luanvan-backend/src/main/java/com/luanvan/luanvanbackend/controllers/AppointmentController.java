@@ -105,10 +105,10 @@ public class AppointmentController {
     }
 
     /**
-     * Tạo lịch hẹn mới (Patient)
+     * Tạo lịch hẹn mới (Patient hoặc Admin)
      */
     @PostMapping
-    @PreAuthorize("hasRole('PATIENT')")
+    @PreAuthorize("hasRole('PATIENT') or hasRole('ADMIN')")
     public ResponseEntity<Appointment> createAppointment(@Valid @RequestBody AppointmentDTO appointmentDTO) {
         Appointment appointment = appointmentService.createAppointment(appointmentDTO);
         return ResponseEntity.status(HttpStatus.CREATED).body(appointment);

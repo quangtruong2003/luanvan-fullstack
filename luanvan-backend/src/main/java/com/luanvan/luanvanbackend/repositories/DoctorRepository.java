@@ -10,9 +10,14 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface DoctorRepository extends JpaRepository<Doctor, Long> {
+    
+    @Override
+    @EntityGraph(attributePaths = {"user", "specialties", "specialties.specialty"})
+    Optional<Doctor> findById(Long id);
     
     @Override
     @EntityGraph(attributePaths = {"user", "specialties", "specialties.specialty"})

@@ -38,6 +38,18 @@ public interface UserRepository extends JpaRepository<User, Long> {
         """)
     Page<User> searchUsers(@Param("keyword") String keyword, Pageable pageable);
 
+    // Search with role filter
+    @Query("""
+        SELECT u FROM User u 
+        WHERE u.role.roleName = :roleName
+        AND (:keyword IS NULL OR :keyword = '' 
+             OR LOWER(u.fullName) LIKE LOWER(CONCAT('%', :keyword, '%'))
+             OR LOWER(u.email) LIKE LOWER(CONCAT('%', :keyword, '%'))
+             OR u.phoneNumber LIKE CONCAT('%', :keyword, '%'))
+        ORDER BY u.fullName
+        """)
+    Page<User> searchUsersWithRole(@Param("keyword") String keyword, @Param("roleName") String roleName, Pageable pageable);
+
     // Contact information validation
     @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.userId = :userId AND u.phoneNumber IS NOT NULL AND u.email IS NOT NULL")
     boolean hasRequiredContactInfo(@Param("userId") Long userId);

@@ -112,4 +112,13 @@ public interface UserService {
      * @return Thông tin người dùng sau khi cập nhật vai trò
      */
     User changeUserRole(Long userId, Long roleId);
+    
+    /**
+     * Tìm kiếm người dùng theo từ khóa và vai trò
+     * @param keyword Từ khóa tìm kiếm (tên, email, số điện thoại)
+     * @param role Tên vai trò (PATIENT, DOCTOR, ADMIN)
+     * @param pageable Thông tin phân trang
+     * @return Danh sách người dùng tìm thấy
+     */
+    Page<UserResponseDTO> searchUsers(String keyword, String role, Pageable pageable);
 } 

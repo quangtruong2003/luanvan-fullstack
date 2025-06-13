@@ -1,5 +1,7 @@
 package com.luanvan.luanvanbackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Past;
@@ -13,8 +15,10 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UserUpdateDTO {
     @JsonProperty(value = "fullName", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("full_name")
     @Size(min = 2, max = 100, message = "Họ tên phải từ 2-100 ký tự")
     private String fullName;
     
@@ -22,6 +26,7 @@ public class UserUpdateDTO {
     private String email;
     
     @JsonProperty(value = "dateOfBirth", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("date_of_birth")
     @Past(message = "Ngày sinh phải là ngày trong quá khứ")
     private LocalDate dateOfBirth;
     

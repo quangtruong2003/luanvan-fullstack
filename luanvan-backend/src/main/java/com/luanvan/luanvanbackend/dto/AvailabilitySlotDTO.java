@@ -1,5 +1,8 @@
 package com.luanvan.luanvanbackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.luanvan.luanvanbackend.dto.validation.ValidTimeRange;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.FutureOrPresent;
@@ -10,9 +13,12 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 @ValidTimeRange
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AvailabilitySlotDTO {
     
     @NotNull(message = "ID bác sĩ không được để trống")
+    @JsonProperty("doctorId")
+    @JsonAlias({"doctor_id", "doctorId"})
     private Long doctorId;
     
     @NotNull(message = "Ngày không được để trống")
@@ -20,15 +26,21 @@ public class AvailabilitySlotDTO {
     private LocalDate date;
     
     @NotNull(message = "Thời gian bắt đầu không được để trống")
+    @JsonProperty("startTime")
+    @JsonAlias({"start_time", "startTime"})
     private LocalTime startTime;
     
     @NotNull(message = "Thời gian kết thúc không được để trống")
+    @JsonProperty("endTime")
+    @JsonAlias({"end_time", "endTime"})
     private LocalTime endTime;
     
-    @Pattern(regexp = "^(AVAILABLE|BOOKED|CANCELLED)$", message = "Trạng thái phải là AVAILABLE, BOOKED hoặc CANCELLED")
+    @Pattern(regexp = "^(AVAILABLE|BOOKED|CANCELLED_BY_CLINIC|ON_LEAVE)$", message = "Trạng thái phải là AVAILABLE, BOOKED, CANCELLED_BY_CLINIC hoặc ON_LEAVE")
     private String status;
     
     @NotNull(message = "ID phòng khám không được để trống")
+    @JsonProperty("clinicId")
+    @JsonAlias({"clinic_id", "clinicId"})
     private Long clinicId;
     
     public AvailabilitySlotDTO() {

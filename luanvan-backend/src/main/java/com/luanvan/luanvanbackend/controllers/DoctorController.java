@@ -30,7 +30,7 @@ public class DoctorController {
     /**
      * Lấy danh sách tất cả bác sĩ (có phân trang) - Trả về DTO để tránh circular reference
      */
-    @GetMapping
+    @GetMapping({"", "/"})
     public ResponseEntity<Page<DoctorResponseDTO>> getAllDoctors(
             @PageableDefault(size = 10, sort = "user.fullName") Pageable pageable) {
         Page<DoctorResponseDTO> doctors = doctorService.getAllDoctorsDTO(pageable);

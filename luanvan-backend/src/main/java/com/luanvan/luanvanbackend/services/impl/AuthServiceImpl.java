@@ -70,11 +70,12 @@ public class AuthServiceImpl implements AuthService {
             User user = userOptional.get();
             
             // Kiểm tra chỉ cho phép admin và doctor đăng nhập qua email
+            // Patient sử dụng Clerk authentication
             String roleName = user.getRole().getRoleName();
             if (!roleName.equals("ADMIN") && !roleName.equals("DOCTOR")) {
                 return LoginResponse.builder()
                         .success(false)
-                        .message("Chỉ Admin và Doctor được phép đăng nhập qua email")
+                        .message("Chỉ Admin và Doctor được phép đăng nhập qua email. Patient sử dụng Clerk authentication.")
                         .token(null)
                         .userInfo(null)
                         .build();
@@ -343,6 +344,19 @@ public class AuthServiceImpl implements AuthService {
             }
         }
     }
+    
+    /**
+     * Generate JWT token for user
+     */
+    private String generateTokenForUser(User user) {
+        UserDetails userDetails = org.springframework.security.core.userdetails.User.builder()
+                .username(user.getEmail())
+                .password(user.getPasswordHash())
+                .authorities("ROLE_" + user.getRole().getRoleName())
+                .build();
+        
+        return jwtUtils.generateToken(userDetails);
+    }
 
     @Override
     public ClerkUserSyncResponse syncClerkUser(ClerkUserSyncRequest request) {
@@ -378,6 +392,9 @@ public class AuthServiceImpl implements AuthService {
                 User savedUser = userRepository.save(user);
                 logger.info("User updated successfully. UserId: {}", savedUser.getUserId());
                 
+                // Generate JWT token for patient
+                String token = generateTokenForUser(savedUser);
+                
                 return ClerkUserSyncResponse.builder()
                         .success(true)
                         .message("Cập nhật thông tin người dùng thành công")
@@ -385,6 +402,8 @@ public class AuthServiceImpl implements AuthService {
                         .fullName(savedUser.getFullName())
                         .email(savedUser.getEmail())
                         .isNewUser(false)
+                        .token(token)
+                        .role(savedUser.getRole().getRoleName())
                         .build();
             } else {
                 // Kiểm tra xem có user nào với email này không
@@ -412,6 +431,9 @@ public class AuthServiceImpl implements AuthService {
                     User savedUser = userRepository.save(user);
                     logger.info("Updated existing user with ClerkUserId. UserId: {}", savedUser.getUserId());
                     
+                    // Generate JWT token for patient
+                    String token = generateTokenForUser(savedUser);
+                    
                     return ClerkUserSyncResponse.builder()
                             .success(true)
                             .message("Liên kết tài khoản hiện có với Clerk thành công")
@@ -419,6 +441,8 @@ public class AuthServiceImpl implements AuthService {
                             .fullName(savedUser.getFullName())
                             .email(savedUser.getEmail())
                             .isNewUser(false)
+                            .token(token)
+                            .role(savedUser.getRole().getRoleName())
                             .build();
                 } else {
                     // Tạo user mới
@@ -451,6 +475,9 @@ public class AuthServiceImpl implements AuthService {
                     User savedUser = userRepository.save(newUser);
                     logger.info("New user created successfully. UserId: {}", savedUser.getUserId());
                     
+                    // Generate JWT token for patient
+                    String token = generateTokenForUser(savedUser);
+                    
                     return ClerkUserSyncResponse.builder()
                             .success(true)
                             .message("Tạo tài khoản mới thành công")
@@ -458,6 +485,8 @@ public class AuthServiceImpl implements AuthService {
                             .fullName(savedUser.getFullName())
                             .email(savedUser.getEmail())
                             .isNewUser(true)
+                            .token(token)
+                            .role(savedUser.getRole().getRoleName())
                             .build();
                 }
             }

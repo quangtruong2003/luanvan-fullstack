@@ -1,5 +1,8 @@
 package com.luanvan.luanvanbackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -10,6 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SpecialtyDTO {
     
     @NotBlank(message = "Tên chuyên khoa không được để trống")
@@ -20,5 +24,7 @@ public class SpecialtyDTO {
     private String description;
     
     @NotNull(message = "ID phòng khám không được để trống")
+    @JsonProperty("clinicId")
+    @JsonAlias({"clinic_id", "clinicId"})
     private Long clinicId;
 } 

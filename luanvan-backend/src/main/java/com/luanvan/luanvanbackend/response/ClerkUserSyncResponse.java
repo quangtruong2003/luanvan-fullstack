@@ -16,4 +16,6 @@ public class ClerkUserSyncResponse {
     private String fullName;
     private String email;
     private boolean isNewUser;
+    private String token; // JWT token for patient authentication
+    private String role; // User role
 } 

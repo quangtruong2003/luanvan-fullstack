@@ -40,10 +40,22 @@ public class UserController {
     }
 
     /**
+     * Tìm kiếm người dùng (chỉ Admin)
+     */
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<UserResponseDTO>> searchUsers(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String role,
+            @PageableDefault(size = 10) Pageable pageable) {
+        return ResponseEntity.ok(userService.searchUsers(keyword, role, pageable));
+    }
+
+    /**
      * Lấy thông tin người dùng theo ID (chỉ Admin hoặc chính người dùng đó)
      */
     @GetMapping("/{userId}")
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
+    @PreAuthorize("hasRole('ADMIN') or @userController.isCurrentUser(#userId, authentication)")
     public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long userId) {
         return ResponseEntity.ok(userService.getUserResponseDTOById(userId));
     }
@@ -73,7 +85,7 @@ public class UserController {
      * Cập nhật thông tin người dùng (Admin hoặc chính người dùng đó)
      */
     @PutMapping("/{userId}")
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
+    @PreAuthorize("hasRole('ADMIN') or @userController.isCurrentUser(#userId, authentication)")
     public ResponseEntity<User> updateUser(
             @PathVariable Long userId,
             @Valid @RequestBody UserUpdateDTO userUpdateDTO) {
@@ -85,7 +97,7 @@ public class UserController {
      * Cập nhật thông tin liên hệ của người dùng (Admin hoặc chính người dùng đó)
      */
     @PutMapping("/{userId}/contact-info")
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
+    @PreAuthorize("hasRole('ADMIN') or @userController.isCurrentUser(#userId, authentication)")
     public ResponseEntity<User> updateContactInfo(
             @PathVariable Long userId,
             @Valid @RequestBody ContactInfoUpdateDTO contactInfo) {
@@ -97,7 +109,7 @@ public class UserController {
      * Kiểm tra thông tin liên hệ của người dùng (Admin hoặc chính người dùng đó)
      */
     @GetMapping("/{userId}/contact-info/check")
-    @PreAuthorize("hasRole('ADMIN') or #userId == authentication.principal.userId")
+    @PreAuthorize("hasRole('ADMIN') or @userController.isCurrentUser(#userId, authentication)")
     public ResponseEntity<Map<String, Object>> checkContactInfo(@PathVariable Long userId) {
         boolean hasRequiredInfo = userService.hasRequiredContactInfo(userId);
         List<String> missingInfo = userService.getMissingContactInfo(userId);
@@ -157,5 +169,17 @@ public class UserController {
         // Có thể cần adjust tùy theo cách implement authentication
         // Ví dụ: nếu username là email, có thể cần query để lấy userId
         return Long.parseLong(principal.getName());
+    }
+
+    /**
+     * Helper method để kiểm tra user hiện tại có phải là user được yêu cầu không
+     */
+    public boolean isCurrentUser(Long userId, org.springframework.security.core.Authentication authentication) {
+        if (authentication != null && authentication.getPrincipal() instanceof com.luanvan.luanvanbackend.security.UserPrincipal) {
+            com.luanvan.luanvanbackend.security.UserPrincipal userPrincipal = 
+                (com.luanvan.luanvanbackend.security.UserPrincipal) authentication.getPrincipal();
+            return userId.equals(userPrincipal.getUserId());
+        }
+        return false;
     }
 } 

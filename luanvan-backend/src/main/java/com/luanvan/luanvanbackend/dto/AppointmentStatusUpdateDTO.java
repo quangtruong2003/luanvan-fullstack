@@ -1,5 +1,7 @@
 package com.luanvan.luanvanbackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -10,6 +12,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AppointmentStatusUpdateDTO {
     
     @NotBlank(message = "Trạng thái không được để trống")
@@ -18,5 +21,6 @@ public class AppointmentStatusUpdateDTO {
     private String status;
     
     @Size(max = 500, message = "Lý do hủy không được vượt quá 500 ký tự")
+    @JsonAlias("cancellation_reason")
     private String cancellationReason;
 } 

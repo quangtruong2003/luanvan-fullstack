@@ -18,6 +18,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 @RestController
@@ -42,36 +43,51 @@ public class AvailabilityController {
     }
 
     /**
-     * Lấy danh sách khung giờ theo bác sĩ (public)
+     * Tìm kiếm khung giờ theo nhiều tiêu chí (public)
+     */
+    @GetMapping("/slots")
+    public ResponseEntity<List<AvailabilitySlot>> searchSlots(
+            @RequestParam(required = false) Long doctorId,
+            @RequestParam(required = false) Long clinicId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(required = false) AvailabilitySlot.SlotStatus status) {
+        // Nếu không có status được chỉ định, mặc định chỉ lấy AVAILABLE slots
+        AvailabilitySlot.SlotStatus finalStatus = (status != null) ? status : AvailabilitySlot.SlotStatus.AVAILABLE;
+        List<AvailabilitySlot> slots = availabilitySlotService.searchSlots(doctorId, clinicId, date, finalStatus);
+        return ResponseEntity.ok(slots);
+    }
+
+    /**
+     * Lấy danh sách khung giờ theo bác sĩ (public) - chỉ slots khả dụng
      */
     @GetMapping("/slots/doctor/{doctorId}")
     public ResponseEntity<Page<AvailabilitySlot>> getSlotsByDoctor(
             @PathVariable Long doctorId,
             @PageableDefault(size = 20) Pageable pageable) {
-        Page<AvailabilitySlot> slots = availabilitySlotService.getSlotsByDoctor(doctorId, pageable);
+        Page<AvailabilitySlot> slots = availabilitySlotService.getAvailableSlotsByDoctor(doctorId, pageable);
         return ResponseEntity.ok(slots);
     }
 
     /**
-     * Lấy danh sách khung giờ theo bác sĩ và ngày (public)
+     * Lấy danh sách khung giờ theo bác sĩ và ngày (public) - chỉ slots khả dụng
      */
     @GetMapping("/slots/doctor/{doctorId}/date/{date}")
     public ResponseEntity<List<AvailabilitySlot>> getSlotsByDoctorAndDate(
             @PathVariable Long doctorId,
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        List<AvailabilitySlot> slots = availabilitySlotService.getSlotsByDoctorAndDate(doctorId, date);
+        List<AvailabilitySlot> slots = availabilitySlotService.getAvailableSlotsByDoctorAndDate(doctorId, date);
         return ResponseEntity.ok(slots);
     }
 
     /**
-     * Lấy danh sách khung giờ theo khoảng thời gian (public)
+     * Lấy danh sách khung giờ theo khoảng thời gian (public) - chỉ slots khả dụng
      */
     @GetMapping("/slots/doctor/{doctorId}/range")
     public ResponseEntity<List<AvailabilitySlot>> getSlotsByDateRange(
             @PathVariable Long doctorId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        List<AvailabilitySlot> slots = availabilitySlotService.getSlotsByDateRange(doctorId, startDate, endDate);
+        List<AvailabilitySlot> slots = availabilitySlotService.getAvailableSlotsInDateRange(doctorId, startDate, endDate);
         return ResponseEntity.ok(slots);
     }
 
@@ -271,5 +287,29 @@ public class AvailabilityController {
     public ResponseEntity<StandardWorkShift> unsetDefaultShift(@PathVariable Long shiftId) {
         StandardWorkShift shift = standardWorkShiftService.unsetDefaultShift(shiftId);
         return ResponseEntity.ok(shift);
+    }
+
+    /**
+     * Lấy TẤT CẢ khung giờ theo bác sĩ và ngày - bao gồm đã đặt (chỉ Admin)
+     */
+    @GetMapping("/admin/slots/doctor/{doctorId}/date/{date}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<AvailabilitySlot>> getAllSlotsByDoctorAndDate(
+            @PathVariable Long doctorId,
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        List<AvailabilitySlot> slots = availabilitySlotService.getSlotsByDoctorAndDate(doctorId, date);
+        return ResponseEntity.ok(slots);
+    }
+
+    /**
+     * Lấy TẤT CẢ khung giờ theo bác sĩ - bao gồm đã đặt (chỉ Admin)
+     */
+    @GetMapping("/admin/slots/doctor/{doctorId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<AvailabilitySlot>> getAllSlotsByDoctor(
+            @PathVariable Long doctorId,
+            @PageableDefault(size = 20) Pageable pageable) {
+        Page<AvailabilitySlot> slots = availabilitySlotService.getAllSlotsByDoctor(doctorId, pageable);
+        return ResponseEntity.ok(slots);
     }
 } 

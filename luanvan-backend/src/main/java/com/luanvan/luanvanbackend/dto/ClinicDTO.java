@@ -1,5 +1,8 @@
 package com.luanvan.luanvanbackend.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -11,6 +14,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ClinicDTO {
     
     @NotBlank(message = "Tên phòng khám không được để trống")
@@ -23,6 +27,8 @@ public class ClinicDTO {
     
     @NotBlank(message = "Số điện thoại không được để trống")
     @Pattern(regexp = "^[0-9+\\-\\s()]{10,15}$", message = "Số điện thoại không hợp lệ")
+    @JsonProperty("phoneNumber")
+    @JsonAlias({"phone_number", "phoneNumber"})
     private String phoneNumber;
     
     @NotBlank(message = "Email không được để trống")
@@ -30,12 +36,16 @@ public class ClinicDTO {
     private String email;
     
     @Size(max = 500, message = "URL logo không được vượt quá 500 ký tự")
+    @JsonProperty("logoURL")
+    @JsonAlias({"logo_url", "logoURL"})
     private String logoURL;
     
     @Size(max = 1000, message = "Mô tả không được vượt quá 1000 ký tự")
     private String description;
     
     @Size(max = 200, message = "Giờ làm việc không được vượt quá 200 ký tự")
+    @JsonProperty("workingHours")
+    @JsonAlias({"working_hours", "workingHours", "openingHours"})
     private String workingHours;
     
     @Size(max = 2000, message = "Lịch sử không được vượt quá 2000 ký tự")
@@ -48,11 +58,17 @@ public class ClinicDTO {
     private String mission;
     
     @Size(max = 1000, message = "Giá trị cốt lõi không được vượt quá 1000 ký tự")
+    @JsonProperty("coreValues")
+    @JsonAlias({"core_values", "coreValues"})
     private String coreValues;
     
     @Size(max = 2000, message = "Mô tả cơ sở vật chất không được vượt quá 2000 ký tự")
+    @JsonProperty("facilitiesDescription")
+    @JsonAlias({"facilities_description", "facilitiesDescription"})
     private String facilitiesDescription;
     
     @Size(max = 2000, message = "Mô tả thiết bị không được vượt quá 2000 ký tự")
+    @JsonProperty("equipmentDescription")
+    @JsonAlias({"equipment_description", "equipmentDescription"})
     private String equipmentDescription;
 } 

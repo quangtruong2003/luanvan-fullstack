@@ -1,6 +1,8 @@
 package com.luanvan.luanvanbackend.repositories;
 
 import com.luanvan.luanvanbackend.entities.AvailabilitySlot;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,9 +16,20 @@ import java.util.List;
 public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySlot, Long> {
     List<AvailabilitySlot> findByDoctorDoctorId(Long doctorId);
     
+    Page<AvailabilitySlot> findByDoctorDoctorId(Long doctorId, Pageable pageable);
+    
     List<AvailabilitySlot> findByDoctorDoctorIdAndDate(Long doctorId, LocalDate date);
     
     List<AvailabilitySlot> findByDoctorDoctorIdAndDateBetween(Long doctorId, LocalDate startDate, LocalDate endDate);
+    
+    // Available slots only methods
+    List<AvailabilitySlot> findByDoctorDoctorIdAndStatus(Long doctorId, AvailabilitySlot.SlotStatus status);
+    
+    Page<AvailabilitySlot> findByDoctorDoctorIdAndStatus(Long doctorId, AvailabilitySlot.SlotStatus status, Pageable pageable);
+    
+    List<AvailabilitySlot> findByDoctorDoctorIdAndDateAndStatus(Long doctorId, LocalDate date, AvailabilitySlot.SlotStatus status);
+    
+    List<AvailabilitySlot> findByDoctorDoctorIdAndDateBetweenAndStatus(Long doctorId, LocalDate startDate, LocalDate endDate, AvailabilitySlot.SlotStatus status);
     
     List<AvailabilitySlot> findByDateAndStatus(LocalDate date, AvailabilitySlot.SlotStatus status);
     
