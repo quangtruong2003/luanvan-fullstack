@@ -43,16 +43,19 @@ public class AvailabilitySlotDTO {
     @JsonAlias({"clinic_id", "clinicId"})
     private Long clinicId;
     
+    private Long specialtyId;
+    
     public AvailabilitySlotDTO() {
     }
     
-    public AvailabilitySlotDTO(Long doctorId, LocalDate date, LocalTime startTime, LocalTime endTime, String status, Long clinicId) {
+    public AvailabilitySlotDTO(Long doctorId, LocalDate date, LocalTime startTime, LocalTime endTime, String status, Long clinicId, Long specialtyId) {
         this.doctorId = doctorId;
         this.date = date;
         this.startTime = startTime;
         this.endTime = endTime;
         this.status = status;
         this.clinicId = clinicId;
+        this.specialtyId = specialtyId;
     }
     
     public Long getDoctorId() {
@@ -102,4 +105,12 @@ public class AvailabilitySlotDTO {
     public void setClinicId(Long clinicId) {
         this.clinicId = clinicId;
     }
-} 
+    
+    public Long getSpecialtyId() {
+        return specialtyId;
+    }
+    
+    public void setSpecialtyId(Long specialtyId) {
+        this.specialtyId = specialtyId;
+    }
+}

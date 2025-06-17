@@ -1443,6 +1443,18 @@ export const doctorService = {
       console.error('Resolve schedule conflict error:', error);
       throw handleApiError(error, 'resolveScheduleConflict');
     }
+  },
+
+  // Lấy danh sách availability slots của bác sĩ
+  async getAvailabilitySlots(doctorId, page = 0, size = 10) {
+    try {
+      const params = new URLSearchParams({ page, size });
+      const response = await apiRequest(`${API_BASE_URL}/doctor-schedules/doctor/${doctorId}?${params.toString()}`);
+      return response; // Assuming the backend returns { content: [], totalPages: X, ... }
+    } catch (error) {
+      console.error('Error fetching availability slots:', error);
+      throw handleApiError(error, 'GET_AVAILABILITY_SLOTS');
+    }
   }
 };
 

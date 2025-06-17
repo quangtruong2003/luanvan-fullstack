@@ -16,22 +16,45 @@ const ScheduleManagement = ({
   specialties,
   selectedSpecialtyForSchedule,
   setSelectedSpecialtyForSchedule,
-  availabilitySlots,
   handleGenerateSlotsFromWorkShifts,
   handleToggleSlot,
   handleCreateNewSlot,
-  loadingSlots = false,
   refetchData
 }) => {
+  const [availabilitySlots, setAvailabilitySlots] = useState([]);
+  const [internalLoadingSlots, setInternalLoadingSlots] = useState(false);
   const [workShifts, setWorkShifts] = useState([]);
   const [loadingWorkShifts, setLoadingWorkShifts] = useState(false);
   const [autoGenerating, setAutoGenerating] = useState(false);
   const [showEnhancedConflictDialog, setShowEnhancedConflictDialog] = useState(false);
   const [enhancedConflictInfo, setEnhancedConflictInfo] = useState(null);
-  const [slotCounts, setSlotCounts] = useState({});
   
   const { showError, showWarning } = useNotification();
+  const doctorId = localStorage.getItem('backendUserId');
   
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!doctorId) {
+        showError("Không tìm thấy ID bác sĩ để tải lịch làm việc.");
+        return;
+      }
+      setInternalLoadingSlots(true);
+      try {
+        const response = await doctorService.getAvailabilitySlots(doctorId, 0, 1000);
+        // The new endpoint returns a map with a 'slots' array
+        setAvailabilitySlots(response.slots || []); 
+      } catch (error) {
+        console.error('Error fetching availability slots:', error);
+        showError('Không thể tải lịch làm việc của bác sĩ.');
+        setAvailabilitySlots([]);
+      } finally {
+        setInternalLoadingSlots(false);
+      }
+    };
+
+    fetchSlots();
+  }, [doctorId, showError, refetchData]); 
+
   // Load work shifts when specialty is selected
   useEffect(() => {
     const loadWorkShifts = async () => {
@@ -56,44 +79,17 @@ const ScheduleManagement = ({
     loadWorkShifts();
   }, [selectedSpecialtyForSchedule, showError]);
 
-  // Calculate slot counts by specialty
-  useEffect(() => {
-    const calculateSlotCounts = () => {
-      const counts = {};
-      
-      specialties.forEach(specialty => {
-        const specialtySlots = availabilitySlots.filter(slot => 
-          slot.specialty_id === specialty.specialty_id
-        );
-        
-        const today = new Date().toISOString().split('T')[0];
-        const todaySlots = specialtySlots.filter(slot => slot.date === today);
-        
-        counts[specialty.specialty_id] = {
-          total: todaySlots.length,
-          available: todaySlots.filter(slot => slot.status === 'AVAILABLE').length,
-          booked: todaySlots.filter(slot => slot.status === 'BOOKED').length,
-          cancelled: todaySlots.filter(slot => slot.status === 'CANCELLED_BY_CLINIC').length
-        };
-      });
-      
-      setSlotCounts(counts);
-    };
-
-    calculateSlotCounts();
-  }, [availabilitySlots, specialties]);
-
   // Filter slots for the selected specialty to pass to the calendar
   const filteredSlotsForCalendar = useMemo(() => {
     if (!selectedSpecialtyForSchedule) return [];
     return availabilitySlots.filter(slot => 
-      (slot.specialty_id || slot.specialty?.specialtyId) === selectedSpecialtyForSchedule
+      (slot.specialtyId || slot.specialty_id || slot.specialty?.specialtyId) === selectedSpecialtyForSchedule
     );
   }, [availabilitySlots, selectedSpecialtyForSchedule]);
 
   // Advanced toggle with conflict checking
   const handleAdvancedToggleSlot = useCallback(async (slotId, currentStatus, slotTime, specialtyName, clinicName) => {
-    if (loadingSlots) return;
+    if (internalLoadingSlots) return;
 
     // Check for conflicts only if we are enabling a slot and doctor has multiple specialties
     if (currentStatus !== 'AVAILABLE' && specialties.length > 1) {
@@ -124,7 +120,7 @@ const ScheduleManagement = ({
     
     // Proceed with toggling if no conflict or not applicable
     await handleToggleSlot(slotId, currentStatus, slotTime);
-  }, [loadingSlots, specialties.length, selectedSpecialtyForSchedule, handleToggleSlot, showWarning]);
+  }, [internalLoadingSlots, specialties.length, selectedSpecialtyForSchedule, handleToggleSlot, showWarning]);
   
   // Handle conflict resolution from the dialog
   const handleEnhancedConflictResolve = useCallback(async (resolution, conflictInfo) => {
@@ -132,6 +128,7 @@ const ScheduleManagement = ({
     try {
       await handleToggleSlot(conflictInfo.slotId, 'CANCELLED_BY_CLINIC', conflictInfo.slotTime);
     } catch (error) {
+      console.error('Error resolving conflict:', error);
       showError('Không thể giải quyết xung đột. Vui lòng thử lại.');
     } finally {
       setShowEnhancedConflictDialog(false);
@@ -204,9 +201,8 @@ const ScheduleManagement = ({
       <SpecialtyTabBar 
         specialties={specialties}
         selectedSpecialty={selectedSpecialtyForSchedule}
-        onSpecialtyChange={setSelectedSpecialtyForSchedule}
-        availabilitySlots={availabilitySlots}
-        loading={loadingSlots || loadingWorkShifts}
+        onSelectSpecialty={setSelectedSpecialtyForSchedule}
+        loadingWorkShifts={loadingWorkShifts}
       />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -217,8 +213,8 @@ const ScheduleManagement = ({
             selectedSpecialty={selectedSpecialtyForSchedule}
             specialties={specialties}
             onSlotToggle={handleAdvancedToggleSlot}
-            onBulkToggle={handleToggleSlot} // Reusing for simplicity, can be enhanced
-            loading={loadingSlots || loadingWorkShifts || autoGenerating}
+            onBulkToggle={handleToggleSlot} 
+            loading={internalLoadingSlots || loadingWorkShifts || autoGenerating}
             onCreateNewSlot={handleCreateNewSlot}
             refetchData={refetchData}
           />
@@ -243,18 +239,37 @@ const ScheduleManagement = ({
         onCancel={() => setShowEnhancedConflictDialog(false)}
       />
 
-      {(autoGenerating || loadingWorkShifts) && (
+      {(autoGenerating || loadingWorkShifts || internalLoadingSlots) && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-40">
-          <div className="bg-white rounded-xl p-8 shadow-2xl max-w-md w-full mx-4">
-            <div className="text-center">
-              <RefreshCw className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {autoGenerating ? 'Đang tạo slots tự động...' : 'Đang tải ca làm việc...'}
+          <div className="bg-white rounded-xl p-8 shadow-2xl max-w-md w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">
+                {autoGenerating ? 'Đang tạo lịch tự động...' : 'Đang tải dữ liệu...'}
               </h3>
-              <p className="text-gray-600 text-sm">
+              
+              <button 
+                onClick={() => {
+                  setAutoGenerating(false);
+                  setLoadingWorkShifts(false);
+                  setInternalLoadingSlots(false);
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <PowerOff className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="flex flex-col items-center">
+              <RefreshCw className="w-16 h-16 animate-spin text-emerald-600 mb-4" />
+              
+              <p className="text-center text-gray-700 mb-2">
                 {autoGenerating 
-                  ? 'Hệ thống đang tạo slots dựa trên ca làm việc của phòng khám' 
-                  : 'Đang tải thông tin ca làm việc từ phòng khám'}
+                  ? "Đang xử lý lịch khám dựa trên ca làm việc của phòng khám." 
+                  : "Đang tải lịch làm việc và ca khám."}
+              </p>
+              
+              <p className="text-sm text-gray-500">
+                Vui lòng chờ trong giây lát...
               </p>
             </div>
           </div>
