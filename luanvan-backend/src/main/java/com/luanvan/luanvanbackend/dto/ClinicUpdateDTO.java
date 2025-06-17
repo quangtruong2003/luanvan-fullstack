@@ -33,11 +33,6 @@ public class ClinicUpdateDTO {
     @Size(max = 1000, message = "Mô tả không được vượt quá 1000 ký tự")
     private String description;
     
-    @Size(max = 200, message = "Giờ làm việc không được vượt quá 200 ký tự")
-    @JsonProperty("workingHours")
-    @JsonAlias({"working_hours", "workingHours", "openingHours"})
-    private String workingHours;
-    
     @Size(max = 2000, message = "Lịch sử không được vượt quá 2000 ký tự")
     private String history;
     

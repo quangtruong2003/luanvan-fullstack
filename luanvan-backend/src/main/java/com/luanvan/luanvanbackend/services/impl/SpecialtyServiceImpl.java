@@ -153,7 +153,6 @@ public class SpecialtyServiceImpl implements SpecialtyService {
             clinicDTO.setAddress(specialty.getClinic().getAddress());
             clinicDTO.setPhoneNumber(specialty.getClinic().getPhoneNumber());
             clinicDTO.setEmail(specialty.getClinic().getEmail());
-            clinicDTO.setWorkingHours(specialty.getClinic().getWorkingHours());
             dto.setClinic(clinicDTO);
         }
         

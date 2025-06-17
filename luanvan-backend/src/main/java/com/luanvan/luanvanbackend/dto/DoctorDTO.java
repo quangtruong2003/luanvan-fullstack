@@ -20,16 +20,18 @@ public class DoctorDTO {
     
     @Size(max = 1000, message = "Tiểu sử không được vượt quá 1000 ký tự")
     private String bio;
-    
-    @Min(value = 0, message = "Số năm kinh nghiệm không được âm")
+      @Min(value = 0, message = "Số năm kinh nghiệm không được âm")
     @Max(value = 60, message = "Số năm kinh nghiệm không được vượt quá 60 năm")
-    @JsonAlias("years_of_experience")
+    @JsonProperty("years_of_experience")
+    @JsonAlias({"yearsOfExperience", "years_of_experience"})
     private Integer yearsOfExperience;
     
     @Size(max = 10, message = "Không thể gán quá 10 chuyên khoa cho một bác sĩ")
-    @JsonAlias("specialty_ids")
+    @JsonProperty("specialty_ids")
+    @JsonAlias({"specialtyIds", "specialty_ids"})
     private List<Long> specialtyIds;
     
-    @JsonAlias("primary_specialty_id")
+    @JsonProperty("primary_specialty_id")
+    @JsonAlias({"primarySpecialtyId", "primary_specialty_id"})
     private Long primarySpecialtyId;
 }

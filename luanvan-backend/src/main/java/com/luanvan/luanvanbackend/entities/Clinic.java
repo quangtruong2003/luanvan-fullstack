@@ -24,14 +24,6 @@ public class Clinic {
     @Column(columnDefinition = "TEXT")
     private String description;
     
-    /**
-     * @deprecated This field is deprecated and will be replaced by StandardWorkShift entities.
-     * Use StandardWorkShift management for better structured work schedule handling.
-     * This field is kept for backward compatibility only.
-     */
-    @Deprecated
-    private String workingHours;
-    
     @Column(columnDefinition = "TEXT")
     private String history;
     

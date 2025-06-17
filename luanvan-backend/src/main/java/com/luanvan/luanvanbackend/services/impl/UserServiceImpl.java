@@ -33,6 +33,18 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+    }
+
+    @Override
+    public User getUserByPhoneNumber(String phoneNumber) {
+        return userRepository.findByPhoneNumber(phoneNumber)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with phone number: " + phoneNumber));
+    }
+
+    @Override
     public UserResponseDTO getUserResponseDTOById(Long userId) {
         User user = getUserById(userId);
         return convertToResponseDTO(user);
@@ -75,7 +87,20 @@ public class UserServiceImpl implements UserService {
             user.setFullName(userUpdateDTO.getFullName());
         }
         if (userUpdateDTO.getEmail() != null) {
+            // Kiểm tra email đã tồn tại chưa (nếu khác email hiện tại)
+            if (!userUpdateDTO.getEmail().equals(user.getEmail()) && 
+                    userRepository.existsByEmail(userUpdateDTO.getEmail())) {
+                throw new RuntimeException("Email đã được sử dụng bởi người dùng khác");
+            }
             user.setEmail(userUpdateDTO.getEmail());
+        }
+        if (userUpdateDTO.getPhoneNumber() != null) {
+            // Kiểm tra số điện thoại đã tồn tại chưa (nếu khác số hiện tại)
+            if (!userUpdateDTO.getPhoneNumber().equals(user.getPhoneNumber()) && 
+                    userRepository.existsByPhoneNumber(userUpdateDTO.getPhoneNumber())) {
+                throw new RuntimeException("Số điện thoại đã được sử dụng bởi người dùng khác");
+            }
+            user.setPhoneNumber(userUpdateDTO.getPhoneNumber());
         }
         if (userUpdateDTO.getDateOfBirth() != null) {
             user.setDateOfBirth(userUpdateDTO.getDateOfBirth());

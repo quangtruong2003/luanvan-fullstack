@@ -23,6 +23,10 @@ public interface DoctorRepository extends JpaRepository<Doctor, Long> {
     @EntityGraph(attributePaths = {"user", "specialties", "specialties.specialty"})
     Page<Doctor> findAll(Pageable pageable);
     
+    // Tìm bác sĩ theo userId
+    @EntityGraph(attributePaths = {"user", "specialties", "specialties.specialty"})
+    Optional<Doctor> findByUserUserId(Long userId);
+    
     // Tìm bác sĩ theo tên (tìm kiếm không phân biệt chữ hoa/thường)
     @Query("SELECT d FROM Doctor d JOIN d.user u WHERE LOWER(u.fullName) LIKE LOWER(CONCAT('%', :name, '%'))")
     @EntityGraph(attributePaths = {"user", "specialties", "specialties.specialty"})

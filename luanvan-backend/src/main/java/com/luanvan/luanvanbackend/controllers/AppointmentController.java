@@ -3,16 +3,23 @@ package com.luanvan.luanvanbackend.controllers;
 import com.luanvan.luanvanbackend.dto.AppointmentDTO;
 import com.luanvan.luanvanbackend.dto.AppointmentStatusUpdateDTO;
 import com.luanvan.luanvanbackend.entities.Appointment;
+import com.luanvan.luanvanbackend.entities.Doctor;
+import com.luanvan.luanvanbackend.entities.User;
 import com.luanvan.luanvanbackend.services.AppointmentService;
+import com.luanvan.luanvanbackend.services.DoctorService;
+import com.luanvan.luanvanbackend.services.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -21,9 +28,32 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/appointments")
 @RequiredArgsConstructor
+@Slf4j
 public class AppointmentController {
 
     private final AppointmentService appointmentService;
+    private final UserService userService;
+    private final DoctorService doctorService;
+
+    /**
+     * Helper method để lấy user hiện tại từ authentication
+     * Thử tìm theo email trước, sau đó theo phone number
+     */
+    private User getCurrentUserFromAuth(Authentication auth) {
+        String identifier = auth.getName();
+        
+        // Thử tìm theo email trước (admin/doctor login)
+        try {
+            return userService.getUserByEmail(identifier);
+        } catch (Exception e) {
+            // Nếu không tìm thấy theo email, thử phone number
+            try {
+                return userService.getUserByPhoneNumber(identifier);
+            } catch (Exception ex) {
+                throw new RuntimeException("Không tìm thấy người dùng với identifier: " + identifier);
+            }
+        }
+    }
 
     /**
      * Lấy danh sách tất cả lịch hẹn (chỉ Admin)
@@ -71,6 +101,26 @@ public class AppointmentController {
             @PageableDefault(size = 10) Pageable pageable) {
         Page<Appointment> appointments = appointmentService.getAppointmentsByDoctor(doctorId, pageable);
         return ResponseEntity.ok(appointments);
+    }
+
+    /**
+     * Lấy danh sách lịch hẹn của bác sĩ hiện tại (chỉ bác sĩ đăng nhập)
+     */
+    @GetMapping("/doctor/my")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    public ResponseEntity<Page<Appointment>> getMyAppointments(
+            Authentication auth,
+            @PageableDefault(size = 100, sort = "appointmentDateTime", direction = Sort.Direction.DESC) Pageable pageable) {
+        try {
+            User currentUser = getCurrentUserFromAuth(auth);
+            Doctor doctor = doctorService.getDoctorByUserId(currentUser.getUserId());
+            
+            Page<Appointment> appointments = appointmentService.getAppointmentsByDoctor(doctor.getDoctorId(), pageable);
+            return ResponseEntity.ok(appointments);
+        } catch (Exception e) {
+            log.error("Error getting my appointments: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     /**
@@ -214,5 +264,32 @@ public class AppointmentController {
             @RequestParam(defaultValue = "24") int reminderThreshold) {
         List<Appointment> appointments = appointmentService.getUpcomingAppointmentsForReminder(reminderThreshold);
         return ResponseEntity.ok(appointments);
+    }
+
+    /**
+     * Cập nhật trạng thái lịch hẹn bởi bác sĩ (chỉ bác sĩ đó)
+     */
+    @PutMapping("/doctor/{appointmentId}/status")
+    @PreAuthorize("hasRole('DOCTOR')")
+    public ResponseEntity<Appointment> updateMyAppointmentStatus(
+            Authentication auth,
+            @PathVariable Long appointmentId,
+            @Valid @RequestBody AppointmentStatusUpdateDTO statusUpdateDTO) {
+        try {
+            User currentUser = getCurrentUserFromAuth(auth);
+            Doctor doctor = doctorService.getDoctorByUserId(currentUser.getUserId());
+            
+            // Verify appointment belongs to this doctor
+            Appointment appointment = appointmentService.getAppointmentById(appointmentId);
+            if (!appointment.getDoctor().getUserId().equals(currentUser.getUserId())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            
+            Appointment updatedAppointment = appointmentService.updateAppointmentStatus(appointmentId, statusUpdateDTO);
+            return ResponseEntity.ok(updatedAppointment);
+        } catch (Exception e) {
+            log.error("Error updating my appointment status: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 } 

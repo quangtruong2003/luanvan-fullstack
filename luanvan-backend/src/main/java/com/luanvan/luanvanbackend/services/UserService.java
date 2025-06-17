@@ -19,6 +19,20 @@ public interface UserService {
     User getUserById(Long userId);
     
     /**
+     * Lấy thông tin người dùng theo email
+     * @param email Email của người dùng
+     * @return Thông tin chi tiết của người dùng
+     */
+    User getUserByEmail(String email);
+    
+    /**
+     * Lấy thông tin người dùng theo số điện thoại
+     * @param phoneNumber Số điện thoại của người dùng
+     * @return Thông tin chi tiết của người dùng
+     */
+    User getUserByPhoneNumber(String phoneNumber);
+    
+    /**
      * Lấy thông tin người dùng theo ID dưới dạng DTO
      * @param userId ID của người dùng
      * @return Thông tin người dùng DTO

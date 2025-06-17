@@ -24,10 +24,10 @@ public class Doctor {
     @MapsId
     @JoinColumn(name = "user_id")
     private User user;
-    
-    @Column(columnDefinition = "TEXT")
+      @Column(columnDefinition = "TEXT")
     private String bio;
     
+    @Column(name = "years_of_experience")
     private Integer yearsOfExperience;
     
     @OneToMany(mappedBy = "doctor")

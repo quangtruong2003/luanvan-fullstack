@@ -98,18 +98,16 @@ const SpecialtyDoctors = () => {
             </h2>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {doctors.map((doctor) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">            {doctors.map((doctor) => (
               <Link
-                key={doctor.doctorId}
-                to={`/book-appointment/doctor/${doctor.doctorId}`}
+                key={doctor.doctorId || doctor.doctor_id}
+                to={`/book-appointment/doctor/${doctor.doctorId || doctor.doctor_id}`}
                 className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-shadow overflow-hidden"
               >
-                <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
-                  {doctor.profilePictureURL ? (
+                <div className="w-full h-48 bg-gray-200 flex items-center justify-center">                  {doctor.profilePictureURL || doctor.profile_picture_url ? (
                     <img
-                      src={doctor.profilePictureURL}
-                      alt={doctor.user?.fullName}
+                      src={doctor.profilePictureURL || doctor.profile_picture_url}
+                      alt={doctor.user?.fullName || doctor.user?.full_name}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -117,9 +115,8 @@ const SpecialtyDoctors = () => {
                   )}
                 </div>
                 
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg text-gray-800">
-                    {doctor.user?.fullName || 'Bác sĩ'}
+                <div className="p-4">                  <h3 className="font-semibold text-lg text-gray-800">
+                    {doctor.user?.fullName || doctor.user?.full_name || 'Bác sĩ'}
                   </h3>
                   
                   {doctor.bio && (
@@ -127,17 +124,16 @@ const SpecialtyDoctors = () => {
                       {doctor.bio}
                     </p>
                   )}
-                  
-                  <div className="mt-3 space-y-1">
-                    {doctor.yearsOfExperience && (
+                    <div className="mt-3 space-y-1">
+                    {(doctor.yearsOfExperience || doctor.years_of_experience) && (
                       <p className="text-sm text-gray-600">
-                        <span className="font-medium">Kinh nghiệm:</span> {doctor.yearsOfExperience} năm
+                        <span className="font-medium">Kinh nghiệm:</span> {doctor.yearsOfExperience || doctor.years_of_experience} năm
                       </p>
                     )}
                     
-                    {doctor.user?.phoneNumber && (
+                    {(doctor.user?.phoneNumber || doctor.user?.phone_number) && (
                       <p className="text-sm text-gray-600">
-                        <span className="font-medium">SĐT:</span> {doctor.user.phoneNumber}
+                        <span className="font-medium">SĐT:</span> {doctor.user.phoneNumber || doctor.user.phone_number}
                       </p>
                     )}
                     

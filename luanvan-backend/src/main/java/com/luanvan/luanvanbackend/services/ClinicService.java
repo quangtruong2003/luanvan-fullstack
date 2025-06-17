@@ -4,6 +4,7 @@ import com.luanvan.luanvanbackend.dto.ClinicDTO;
 import com.luanvan.luanvanbackend.dto.ClinicUpdateDTO;
 import com.luanvan.luanvanbackend.dto.ClinicResponseDTO;
 import com.luanvan.luanvanbackend.entities.Clinic;
+import com.luanvan.luanvanbackend.entities.Specialty;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -90,4 +91,11 @@ public interface ClinicService {
      * @return true nếu xóa thành công
      */
     boolean deleteClinic(Long clinicId);
+    
+    /**
+     * Lấy danh sách chuyên khoa của phòng khám
+     * @param clinicId ID của phòng khám
+     * @return Danh sách chuyên khoa
+     */
+    List<Specialty> getSpecialtiesByClinic(Long clinicId);
 } 

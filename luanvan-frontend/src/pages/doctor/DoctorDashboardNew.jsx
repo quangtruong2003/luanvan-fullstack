@@ -1,15 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { 
-  Home, Calendar, Users, FileText, Settings, 
-  Clock, CheckCircle, XCircle, AlertCircle,
-  User, Phone, Mail, Edit, LogOut
-} from 'lucide-react';
-import { doctorService, apiService } from '../../services/api';
+import { Clock, CheckCircle, XCircle } from 'lucide-react';
+import { doctorService } from '../../services/api';
+import { useNotification } from '../../components/NotificationSystem';
+
+// Import components
+import {
+  DoctorSidebar,
+  DashboardOverview,
+  AppointmentManagement,
+  ScheduleManagement,
+  AppointmentDetailsModal,
+  SlotConflictModal,
+  DoctorProfileManagement
+} from './components';
+import DebugInfo from './components/DebugInfo';
 
 const DoctorDashboardNew = () => {
-  const { currentUser, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const { logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('appointments'); // Mặc định là tab lịch hẹn nổi bật nhất
   const [stats, setStats] = useState({
     todayAppointments: 0,
     totalAppointments: 0,
@@ -17,66 +26,348 @@ const DoctorDashboardNew = () => {
     cancelledAppointments: 0
   });
   const [appointments, setAppointments] = useState([]);
-  const [schedule, setSchedule] = useState([]);
+  const [availabilitySlots, setAvailabilitySlots] = useState([]);
+  const [specialties, setSpecialties] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [showAppointmentDetails, setShowAppointmentDetails] = useState(false);
+  const [showSlotConflictDialog, setShowSlotConflictDialog] = useState(false);
+  const [conflictInfo, setConflictInfo] = useState(null);
+  const [selectedSpecialtyForSchedule, setSelectedSpecialtyForSchedule] = useState(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  const [doctorName, setDoctorName] = useState('Bác sĩ');
+  const [showDebug, setShowDebug] = useState(false);
 
-  const fetchDashboardData = async () => {
+  const { showSuccess, showError, showWarning } = useNotification();
+
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       
       // Parallel API calls
-      const [appointmentsRes, scheduleRes] = await Promise.all([
+      const [appointmentsRes, specialtiesRes, slotsRes] = await Promise.all([
         doctorService.getMyAppointments(),
-        doctorService.getMySchedule()
+        doctorService.getMySpecialties(),
+        doctorService.getMyAvailabilitySlots()
       ]);
       
       const appointmentList = appointmentsRes.content || appointmentsRes || [];
+      const specialtiesList = specialtiesRes || [];
+      
+      // Xử lý dữ liệu slots từ database, đảm bảo đúng định dạng
+      let slots = slotsRes.content || slotsRes || [];
+      slots = slots.map(slot => ({
+        ...slot,
+        // Đảm bảo date có định dạng YYYY-MM-DD
+        date: slot.date ? new Date(slot.date).toISOString().split('T')[0] : null,
+        // Đảm bảo start_time và end_time đúng định dạng
+        start_time: slot.start_time ? slot.start_time.toString().split('.')[0] : null,
+        end_time: slot.end_time ? slot.end_time.toString().split('.')[0] : null,
+        // Đảm bảo status có giá trị
+        status: slot.status || 'CANCELLED_BY_CLINIC',
+        // Đảm bảo thông tin specialty và clinic được trả về
+        specialty: slot.specialty || null,
+        clinic: slot.clinic || null
+      }));
+      
       setAppointments(appointmentList);
-      setSchedule(scheduleRes.content || scheduleRes || []);
+      setSpecialties(specialtiesList);
+      setAvailabilitySlots(slots);
       
-      // Calculate stats
-      const today = new Date().toDateString();
+      // Get doctor name from profile
+      try {
+        const profile = await doctorService.getMyProfile();
+        if (profile && profile.user) {
+          setDoctorName(profile.user.fullName || profile.user.full_name || 'Bác sĩ');
+        }
+      } catch (error) {
+        console.warn('Không thể lấy tên bác sĩ:', error);
+        setDoctorName('Bác sĩ');
+      }
+      
+      // Auto-select specialty based on conditions
+      if (!selectedSpecialtyForSchedule) {
+        if (specialtiesList.length === 1) {
+          // Single specialty: auto-select
+          console.log('🎯 Auto-selecting single specialty:', specialtiesList[0]);
+          setSelectedSpecialtyForSchedule(specialtiesList[0].specialty_id);
+        } else if (specialtiesList.length > 1) {
+          // Multiple specialties: select primary or first
+          const primarySpecialty = specialtiesList.find(s => s.is_primary);
+          if (primarySpecialty) {
+            console.log('🎯 Auto-selecting primary specialty:', primarySpecialty);
+            setSelectedSpecialtyForSchedule(primarySpecialty.specialty_id);
+          } else {
+            console.log('🎯 Auto-selecting first specialty:', specialtiesList[0]);
+            setSelectedSpecialtyForSchedule(specialtiesList[0].specialty_id);
+          }
+        }
+      }
+        
+        // Calculate stats
+        const today = new Date().toDateString();
       const todayAppointments = appointmentList.filter(apt => 
-        new Date(apt.appointmentDate).toDateString() === today
+        new Date(apt.appointment_date_time).toDateString() === today
       );
-      
-      setStats({
+        
+        setStats({
         todayAppointments: todayAppointments.length,
         totalAppointments: appointmentList.length,
         completedAppointments: appointmentList.filter(apt => apt.status === 'COMPLETED').length,
-        cancelledAppointments: appointmentList.filter(apt => apt.status === 'CANCELLED').length
+        cancelledAppointments: appointmentList.filter(apt => apt.status?.startsWith('CANCELLED')).length
       });
       
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      
+      // Handle specific authentication errors
+      if (error.message.includes('Dữ liệu xác thực không hợp lệ') || 
+          error.message.includes('User not found') ||
+          error.message.includes('Không tìm thấy thông tin bác sĩ')) {
+        // Show user-friendly error and redirect to login
+        showError('Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại để tiếp tục.');
+        
+        // Clear localStorage and redirect
+        localStorage.clear();
+        window.location.href = '/login';
+        return;
+      }
+      
+      // For other errors, show generic message
+      showError('Có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại sau.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedSpecialtyForSchedule, showError]);
 
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  // Keyboard shortcuts for tab navigation
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key) {
+          case '1':
+            event.preventDefault();
+            setActiveTab('dashboard');
+            break;
+          case '2':
+            event.preventDefault();
+            setActiveTab('appointments');
+            break;
+          case '3':
+            event.preventDefault();
+            setActiveTab('schedule');
+            break;
+          case '4':
+            event.preventDefault();
+            setActiveTab('patients');
+            break;
+          case '5':
+            event.preventDefault();
+            setActiveTab('articles');
+            break;
+          case '6':
+            event.preventDefault();
+            setActiveTab('profile');
+            break;
+          case 'r':
+            event.preventDefault();
+            fetchDashboardData();
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [fetchDashboardData]);
+
+  // Logout handler
   const handleLogout = async () => {
-    await logout();
-    window.location.href = '/login';
+    try {
+      await logout();
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
 
-  const tabs = [
-    { id: 'dashboard', name: 'Tổng quan', icon: Home },
-    { id: 'appointments', name: 'Lịch hẹn', icon: Calendar },
-    { id: 'schedule', name: 'Lịch làm việc', icon: Clock },
-    { id: 'patients', name: 'Bệnh nhân', icon: Users },
-    { id: 'articles', name: 'Bài viết', icon: FileText },
-    { id: 'profile', name: 'Hồ sơ', icon: Settings }
-  ];
+  // Xem chi tiết lịch hẹn
+  const handleViewAppointmentDetails = async (appointmentId) => {
+    try {
+      const details = await doctorService.getAppointmentDetails(appointmentId);
+      setSelectedAppointment(details);
+      setShowAppointmentDetails(true);
+    } catch (error) {
+      console.error('Error fetching appointment details:', error);
+      // Show error notification instead of alert
+      const errorMessage = error.response?.data?.message || 'Không thể tải thông tin lịch hẹn. Vui lòng thử lại!';
+      showError(errorMessage);
+    }
+  };
+
+  // Cập nhật trạng thái lịch hẹn
+  const handleUpdateAppointmentStatus = async (appointmentId, status, notes = '') => {
+    try {
+      await doctorService.updateMyAppointmentStatus(appointmentId, { 
+        status: status, 
+        cancellation_reason: notes 
+      });
+      // Refresh data
+      await fetchDashboardData();
+      setShowAppointmentDetails(false);
+      // Show success notification
+      showSuccess('Cập nhật trạng thái thành công!');
+    } catch (error) {
+      console.error('Error updating appointment status:', error);
+      const errorMessage = error.response?.data?.message || 'Không thể cập nhật trạng thái. Vui lòng thử lại!';
+      showError(errorMessage);
+    }
+  };
+
+  // Bật/tắt slot và xử lý xung đột
+  const handleToggleSlot = useCallback(async (slotId, currentStatus, slotTime, specialtyName) => {
+    try {
+      const newStatus = currentStatus === 'AVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE';
+      
+      if (newStatus === 'AVAILABLE') {
+        // Kiểm tra xung đột trước khi bật slot
+        const conflictCheck = await doctorService.checkSlotConflicts(slotId);
+        
+        if (conflictCheck.hasConflict) {
+          // Hiển thị dialog xung đột
+          setConflictInfo({
+            slotId,
+            slotTime,
+            currentSpecialty: specialtyName,
+            conflictSpecialty: conflictCheck.conflictSpecialty,
+            conflictClinic: conflictCheck.conflictClinic
+          });
+          setShowSlotConflictDialog(true);
+          return;
+        }
+      }
+      
+      // Không có xung đột, toggle bình thường
+      await doctorService.toggleSlotAvailability(slotId, newStatus);
+      
+      // Refresh slots
+      const slotsRes = await doctorService.getMyAvailabilitySlots();
+      setAvailabilitySlots(slotsRes.content || slotsRes || []);
+      
+      showSuccess(`Đã ${newStatus === 'AVAILABLE' ? 'bật' : 'tắt'} slot thành công!`);
+    } catch (error) {
+      console.error('Error toggling slot:', error);
+      showError('Không thể cập nhật slot. Vui lòng thử lại!');
+    }
+  }, [showSuccess, showError]);
+
+  // Xử lý xác nhận conflict
+  const handleConfirmSlotConflict = useCallback(async () => {
+    if (!conflictInfo) return;
+    
+    try {
+      // Toggle the slot with force enable
+      await doctorService.toggleSlotAvailability(conflictInfo.slotId, true);
+      
+      // Refresh slots to reflect changes
+      const slotsRes = await doctorService.getMyAvailabilitySlots();
+      setAvailabilitySlots(slotsRes.content || slotsRes || []);
+      
+      setShowSlotConflictDialog(false);
+      setConflictInfo(null);
+      
+      // Success notification
+      showSuccess(`Đã bật slot ${conflictInfo.slotTime} cho ${conflictInfo.currentSpecialty}! Slot cùng giờ ở chuyên khoa khác đã được tự động tắt.`);
+    } catch (error) {
+      console.error('Error resolving slot conflict:', error);
+      showError('Không thể cập nhật slot. Vui lòng thử lại!');
+    }
+  }, [conflictInfo, showSuccess, showError]);
+
+  // Tạo slots từ work shifts
+  const handleGenerateSlotsFromWorkShifts = useCallback(async (specialtyId, clinicId, dateRange) => {
+    try {
+      setLoadingSlots(true);
+      
+      console.log('Generating slots with specialtyId:', specialtyId);
+      
+      await doctorService.createBulkSlotsFromWorkShifts({
+        specialtyId: specialtyId,
+        clinicId: clinicId,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+        slotDurationMinutes: dateRange.slotDuration || 30
+      });
+      
+      // Refresh data
+      const slotsRes = await doctorService.getMyAvailabilitySlots();
+      setAvailabilitySlots(slotsRes.content || slotsRes || []);
+      
+      showSuccess('Tạo lịch làm việc thành công!');
+    } catch (error) {
+      console.error('Error generating slots:', error);
+      showError('Không thể tạo lịch làm việc. Vui lòng thử lại!');
+    } finally {
+      setLoadingSlots(false);
+    }
+  }, [showSuccess, showError]);
+
+  // Hàm mới để tạo slot mới khi click vào ô trống
+  const handleCreateNewSlot = useCallback(async (slotData) => {
+    try {
+      setLoadingSlots(true);
+      
+      // Kiểm tra xem slot đã tồn tại chưa
+      const existingSlot = availabilitySlots.find(slot => 
+        slot.date === slotData.date && 
+        slot.start_time === slotData.startTime &&
+        slot.specialty?.specialty_id === slotData.specialty_id
+      );
+      
+      if (existingSlot) {
+        showWarning('Slot đã tồn tại cho chuyên khoa này', 'Không thể tạo mới');
+        return;
+      }
+      
+      // Gọi API để tạo slot mới
+      await doctorService.createAvailabilitySlot({
+        doctorId: null, // API sẽ sử dụng ID của bác sĩ hiện tại từ token
+        date: slotData.date,
+        startTime: slotData.startTime,
+        endTime: slotData.endTime,
+        status: slotData.status || 'AVAILABLE',
+        clinic_id: slotData.clinic_id,
+        specialty_id: slotData.specialty_id
+      });
+      
+      // Refresh slots
+      const slotsRes = await doctorService.getMyAvailabilitySlots();
+      setAvailabilitySlots(slotsRes.content || slotsRes || []);
+      showSuccess('Đã tạo slot thành công!');
+      
+    } catch (error) {
+      console.error('Error creating new slot:', error);
+      showError('Không thể tạo slot mới. Vui lòng thử lại!');
+    } finally {
+      setLoadingSlots(false);
+    }
+  }, [availabilitySlots, showSuccess, showError, showWarning]);
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'CONFIRMED': return 'bg-green-100 text-green-800';
       case 'PENDING_PAYMENT': return 'bg-yellow-100 text-yellow-800';
-      case 'CANCELLED': return 'bg-red-100 text-red-800';
+      case 'CANCELLED':
+      case 'CANCELLED_BY_PATIENT':
+      case 'CANCELLED_BY_CLINIC':
+        return 'bg-red-100 text-red-800';
       case 'COMPLETED': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
@@ -85,309 +376,158 @@ const DoctorDashboardNew = () => {
   const getStatusIcon = (status) => {
     switch (status) {
       case 'CONFIRMED': return <CheckCircle className="w-4 h-4" />;
-      case 'PENDING_PAYMENT': return <AlertCircle className="w-4 h-4" />;
-      case 'CANCELLED': return <XCircle className="w-4 h-4" />;
+      case 'PENDING_PAYMENT': return <Clock className="w-4 h-4" />;
+      case 'CANCELLED':
+      case 'CANCELLED_BY_PATIENT':
+      case 'CANCELLED_BY_CLINIC':
+        return <XCircle className="w-4 h-4" />;
       case 'COMPLETED': return <CheckCircle className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
 
-  const renderDashboardOverview = () => (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-blue-500 rounded-md p-3">
-                <Calendar className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Lịch hẹn hôm nay
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {loading ? '...' : stats.todayAppointments}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-green-500 rounded-md p-3">
-                <CheckCircle className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Đã hoàn thành
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {loading ? '...' : stats.completedAppointments}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-purple-500 rounded-md p-3">
-                <Users className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Tổng bệnh nhân
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {loading ? '...' : stats.totalAppointments}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 bg-red-500 rounded-md p-3">
-                <XCircle className="h-6 w-6 text-white" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Đã hủy
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {loading ? '...' : stats.cancelledAppointments}
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Today's Appointments */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Lịch hẹn hôm nay</h3>
-        </div>
-        <div className="divide-y divide-gray-200">
-          {appointments
-            .filter(apt => new Date(apt.appointmentDate).toDateString() === new Date().toDateString())
-            .slice(0, 5)
-            .map((appointment) => (
-              <div key={appointment.appointmentId} className="px-6 py-4 flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-gray-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">
-                      {appointment.patient?.fullName || 'Bệnh nhân'}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {appointment.appointmentTime} - {appointment.reasonForVisit}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                    {getStatusIcon(appointment.status)}
-                    <span className="ml-1">{appointment.status}</span>
-                  </span>
-                </div>
-              </div>
-            ))}
-          {appointments.filter(apt => new Date(apt.appointmentDate).toDateString() === new Date().toDateString()).length === 0 && (
-            <div className="px-6 py-8 text-center text-gray-500">
-              Không có lịch hẹn nào hôm nay
-            </div>
-          )}
-        </div>
-        {appointments.filter(apt => new Date(apt.appointmentDate).toDateString() === new Date().toDateString()).length > 5 && (
-          <div className="px-6 py-3 border-t border-gray-200">
-            <button
-              onClick={() => setActiveTab('appointments')}
-              className="text-sm text-blue-600 hover:text-blue-500"
-            >
-              Xem tất cả lịch hẹn
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderAppointments = () => (
-    <div className="bg-white shadow rounded-lg">
-      <div className="px-6 py-4 border-b border-gray-200">
-        <h3 className="text-lg font-medium text-gray-900">Tất cả lịch hẹn</h3>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Bệnh nhân
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Ngày giờ
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Lý do khám
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Trạng thái
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Thao tác
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {appointments.map((appointment) => (
-              <tr key={appointment.appointmentId} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-gray-500" />
-                    </div>
-                    <div className="ml-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {appointment.patient?.fullName || 'Bệnh nhân'}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {appointment.patient?.phoneNumber}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <div>
-                    {new Date(appointment.appointmentDate).toLocaleDateString('vi-VN')}
-                  </div>
-                  <div className="text-gray-500">
-                    {appointment.appointmentTime}
-                  </div>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                  {appointment.reasonForVisit || 'Khám tổng quát'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                    {getStatusIcon(appointment.status)}
-                    <span className="ml-1">{appointment.status}</span>
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button className="text-blue-600 hover:text-blue-900 mr-3">
-                    Xem
-                  </button>
-                  <button className="text-green-600 hover:text-green-900">
-                    Cập nhật
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return renderDashboardOverview();
       case 'appointments':
-        return renderAppointments();
-      case 'schedule':
-        return <div className="p-6 bg-white rounded-lg shadow"><h2 className="text-xl font-semibold">Lịch làm việc</h2><p className="text-gray-600 mt-2">Tính năng đang được phát triển...</p></div>;
+        return (
+          <AppointmentManagement 
+            appointments={appointments}
+            stats={stats}
+            setActiveTab={setActiveTab}
+            handleViewAppointmentDetails={handleViewAppointmentDetails}
+          />
+        );
+      case 'schedule':        
+        return (
+          <ScheduleManagement 
+            specialties={specialties}
+            selectedSpecialtyForSchedule={selectedSpecialtyForSchedule}
+            setSelectedSpecialtyForSchedule={setSelectedSpecialtyForSchedule}
+            availabilitySlots={availabilitySlots}
+            loadingSlots={loadingSlots}
+            handleGenerateSlotsFromWorkShifts={handleGenerateSlotsFromWorkShifts}
+            handleToggleSlot={handleToggleSlot}
+            setShowSlotConflictDialog={setShowSlotConflictDialog}
+            setConflictInfo={setConflictInfo}
+            handleCreateNewSlot={handleCreateNewSlot}
+          />
+        );
       case 'patients':
         return <div className="p-6 bg-white rounded-lg shadow"><h2 className="text-xl font-semibold">Quản lý bệnh nhân</h2><p className="text-gray-600 mt-2">Tính năng đang được phát triển...</p></div>;
       case 'articles':
         return <div className="p-6 bg-white rounded-lg shadow"><h2 className="text-xl font-semibold">Quản lý bài viết</h2><p className="text-gray-600 mt-2">Tính năng đang được phát triển...</p></div>;
       case 'profile':
-        return <div className="p-6 bg-white rounded-lg shadow"><h2 className="text-xl font-semibold">Hồ sơ cá nhân</h2><p className="text-gray-600 mt-2">Tính năng đang được phát triển...</p></div>;
+        return <DoctorProfileManagement />;
       default:
-        return renderDashboardOverview();
+        return <DashboardOverview stats={stats} loading={loading} />;
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      {/* <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-gray-900">
-                Bảng điều khiển Bác sĩ
-              </h1>
-            </div>
+    return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {loading && (
+        <div className="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+          <div className="flex flex-col items-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="mt-4 text-gray-600">Đang tải dữ liệu...</p>
+          </div>
+        </div>
+      )}
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Header Welcome */}
+        <div className="mb-6">
+          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
+            <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600">
-                Xin chào, <span className="font-medium">BS. {currentUser?.fullName || 'Doctor'}</span>
-              </span>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                    👋 Chào mừng quay trở lại, {doctorName}!
+                </h1>
+                  <p className="text-gray-600 mt-1">
+                    Hôm nay bạn có <span className="font-semibold text-blue-600">{stats.todayAppointments}</span> lịch hẹn
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4">
+                {/* Clickable Avatar */}
               <button
-                onClick={handleLogout}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-              >
-                <LogOut className="h-4 w-4 mr-1" />
-                Đăng xuất
+                  onClick={() => setActiveTab('profile')}
+                  className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white hover:from-blue-600 hover:to-purple-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                  title="Xem hồ sơ cá nhân"
+                >
+                  <span className="text-lg font-semibold">
+                    {(doctorName.split(' ').map(word => word[0]).join('').slice(0, 2) || 'BS').toUpperCase()}
+                  </span>
               </button>
+                <button
+                  onClick={fetchDashboardData}
+                  disabled={loading}
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
+                  title="Tải lại dữ liệu (Ctrl+R)"
+                >
+                  <Clock className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Làm mới</span>
+                </button>
+                <div className="hidden md:block">
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500">
+                      {new Date().toLocaleDateString('vi-VN', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+            })}
+          </div>
+        </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </header> */}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex space-x-6">
           {/* Sidebar Navigation */}
-          <div className="w-64 flex-shrink-0">
-            <nav className="bg-white shadow rounded-lg p-4">
-              <ul className="space-y-2">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <li key={tab.id}>
-                      <button
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                          activeTab === tab.id
-                            ? 'bg-blue-100 text-blue-700 border-r-2 border-blue-700'
-                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                        }`}
-                      >
-                        <Icon className="h-4 w-4 mr-3" />
-                        {tab.name}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          </div>
+          <DoctorSidebar 
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            stats={stats}
+            availabilitySlots={availabilitySlots}
+            handleLogout={handleLogout}
+          />
 
-          {/* Main Content */}
+      {/* Main Content */}
           <div className="flex-1">
             {renderTabContent()}
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <AppointmentDetailsModal
+        showAppointmentDetails={showAppointmentDetails}
+        selectedAppointment={selectedAppointment}
+        setShowAppointmentDetails={setShowAppointmentDetails}
+        handleUpdateAppointmentStatus={handleUpdateAppointmentStatus}
+        getStatusColor={getStatusColor}
+        getStatusIcon={getStatusIcon}
+      />
+      <SlotConflictModal
+        showSlotConflictDialog={showSlotConflictDialog}
+        conflictInfo={conflictInfo}
+        setShowSlotConflictDialog={setShowSlotConflictDialog}
+        setConflictInfo={setConflictInfo}
+        handleConfirmSlotConflict={handleConfirmSlotConflict}
+      />
+
+      {/* Debug Info (only in development or when needed) */}
+      <DebugInfo 
+        show={showDebug}
+        onToggle={() => setShowDebug(!showDebug)}
+      />
+
     </div>
   );
 };
 
-export default DoctorDashboardNew; 
+export default DoctorDashboardNew;

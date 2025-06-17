@@ -102,12 +102,28 @@ public interface DoctorService {
     Doctor createDoctor(User user, DoctorDTO doctorDTO);
     
     /**
+     * Tạo hồ sơ bác sĩ mới và trả về DTO
+     * @param user Thông tin người dùng
+     * @param doctorDTO Dữ liệu hồ sơ bác sĩ
+     * @return Hồ sơ bác sĩ đã được tạo dạng DTO
+     */
+    DoctorResponseDTO createDoctorReturnDTO(User user, DoctorDTO doctorDTO);
+    
+    /**
      * Cập nhật thông tin bác sĩ
      * @param doctorId ID của bác sĩ
      * @param doctorUpdateDTO Dữ liệu cập nhật
      * @return Thông tin bác sĩ sau khi cập nhật
      */
     Doctor updateDoctor(Long doctorId, DoctorUpdateDTO doctorUpdateDTO);
+    
+    /**
+     * Cập nhật thông tin bác sĩ và trả về DTO
+     * @param doctorId ID của bác sĩ
+     * @param doctorUpdateDTO Dữ liệu cập nhật
+     * @return Thông tin bác sĩ sau khi cập nhật dạng DTO
+     */
+    DoctorResponseDTO updateDoctorReturnDTO(Long doctorId, DoctorUpdateDTO doctorUpdateDTO);
     
     /**
      * Xóa bác sĩ
@@ -154,4 +170,4 @@ public interface DoctorService {
      * @return Danh sách bác sĩ DTO có phân trang
      */
     Page<DoctorResponseDTO> getDoctorsByExperienceDTO(int yearsOfExperience, Pageable pageable);
-} 
+}

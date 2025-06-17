@@ -4,8 +4,12 @@ import {
   Clock, User, Phone, Mail, CheckCircle, XCircle, AlertCircle
 } from 'lucide-react';
 import { adminService, apiService } from '../../services/api';
+import { useNotification } from '../../components/NotificationSystem';
 
 const AppointmentManagement = () => {
+  // Notification system
+  const { showSuccess, showError, showWarning, showInfo } = useNotification();
+  
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,10 +45,12 @@ const AppointmentManagement = () => {
   const handleStatusChange = async (appointmentId, newStatus) => {
     try {
       await adminService.updateAppointmentStatus(appointmentId, { status: newStatus });
-      fetchAppointments();
+      await fetchAppointments();
+      const statusText = statusOptions.find(s => s.value === newStatus)?.label || newStatus;
+      showSuccess(`Trạng thái cuộc hẹn đã được cập nhật thành: ${statusText}`, 'Cập nhật thành công');
     } catch (error) {
       console.error('Error updating appointment status:', error);
-      alert('Lỗi khi cập nhật trạng thái: ' + error.message);
+      showError(error.message, 'Lỗi khi cập nhật trạng thái');
     }
   };
 

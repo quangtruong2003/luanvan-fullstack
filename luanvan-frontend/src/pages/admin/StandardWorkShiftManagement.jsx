@@ -19,7 +19,7 @@ const StandardWorkShiftManagement = () => {
   const [message, setMessage] = useState({ type: '', content: '' });
   const [formData, setFormData] = useState({
     shiftName: '',
-    dayOfWeek: '',
+    daysOfWeek: [],
     startTime: '',
     endTime: '',
     clinicId: '',
@@ -41,6 +41,19 @@ const StandardWorkShiftManagement = () => {
     fetchClinics();
   }, []);
 
+  // Debug useEffect để theo dõi state changes
+  useEffect(() => {
+    console.log('🎯 Shifts state changed:', {
+      count: shifts.length,
+      shifts: shifts.map(s => ({
+        id: s.shiftId,
+        name: s.shiftName,
+        isDefault: s.isDefault,
+        dayOfWeek: s.dayOfWeek
+      }))
+    });
+  }, [shifts]);
+
   const showMessage = (type, content) => {
     setMessage({ type, content });
     setTimeout(() => setMessage({ type: '', content: '' }), 5000);
@@ -49,11 +62,18 @@ const StandardWorkShiftManagement = () => {
   const fetchShifts = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Fetching shifts...');
       const response = await adminService.getAllStandardWorkShifts();
-      const shiftData = response.content || response || [];
+      console.log('📦 Received shifts response:', response);
+      
+      // API /all trả về List<StandardWorkShift> trực tiếp, không có wrapper
+      const shiftData = Array.isArray(response) ? response : [];
+      console.log('✅ Processed shift data:', shiftData);
+      
       setShifts(shiftData);
+      console.log('🎯 Updated shifts state with', shiftData.length, 'items');
     } catch (error) {
-      console.error('Error fetching shifts:', error);
+      console.error('❌ Error fetching shifts:', error);
       showMessage('error', 'Lỗi khi tải danh sách ca làm việc: ' + error.message);
     } finally {
       setLoading(false);
@@ -75,8 +95,8 @@ const StandardWorkShiftManagement = () => {
       showMessage('error', 'Tên ca làm việc không được để trống');
       return false;
     }
-    if (!formData.dayOfWeek) {
-      showMessage('error', 'Vui lòng chọn ngày trong tuần');
+    if (!formData.daysOfWeek || formData.daysOfWeek.length === 0) {
+      showMessage('error', 'Vui lòng chọn ít nhất một ngày trong tuần');
       return false;
     }
     if (!formData.startTime) {
@@ -98,64 +118,88 @@ const StandardWorkShiftManagement = () => {
     return true;
   };
 
-  const handleCreateShift = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-    
+
     try {
       setLoading(true);
-      await adminService.createStandardWorkShift(formData);
-      showMessage('success', 'Tạo ca làm việc thành công!');
-      fetchShifts();
+
+      // Luôn sử dụng API batch để tránh tạo trùng lặp
+      const batchData = {
+        shiftName: formData.shiftName,
+        daysOfWeek: formData.daysOfWeek,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        clinicId: parseInt(formData.clinicId),
+        isDefault: formData.isDefault
+      };
+
+      console.log('📤 Sending batch data:', batchData);
+      const createdShifts = await adminService.createBatchStandardWorkShifts(batchData);
+      
+      console.log('✅ Created shifts:', createdShifts);
+      showMessage('success', `Đã tạo thành công ${createdShifts.length} ca làm việc cho ${formData.daysOfWeek.length} ngày`);
+      
       setShowCreateModal(false);
       resetForm();
+      await fetchShifts();
     } catch (error) {
-      console.error('Error creating shift:', error);
+      console.error('❌ Error creating shifts:', error);
       showMessage('error', 'Lỗi khi tạo ca làm việc: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleUpdateShift = async (e) => {
+  const handleEdit = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
-    
-    const shiftId = selectedShift?.shiftId;
-    if (!shiftId) {
-      showMessage('error', 'Lỗi: Không tìm thấy ID ca làm việc');
-      return;
-    }
-    
+
     try {
       setLoading(true);
-      await adminService.updateStandardWorkShift(shiftId, formData);
-      showMessage('success', 'Cập nhật ca làm việc thành công!');
-      fetchShifts();
+      console.log('🔧 Starting edit process for shift:', selectedShift.shiftId);
+      console.log('📝 Form data:', formData);
+      
+      // Luôn cập nhật ca hiện tại, không xóa và tạo lại
+      const updateData = {
+        shiftName: formData.shiftName,
+        dayOfWeek: formData.daysOfWeek[0], // Chỉ lấy ngày đầu tiên
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+        clinicId: parseInt(formData.clinicId),
+        isDefault: formData.isDefault
+      };
+
+      console.log('📤 Sending update data:', updateData);
+      
+      const updatedShift = await adminService.updateStandardWorkShift(selectedShift.shiftId, updateData);
+      console.log('✅ Received updated shift:', updatedShift);
+      
+      showMessage('success', 'Đã cập nhật ca làm việc thành công');
+      
       setShowEditModal(false);
       resetForm();
+      
+      console.log('🔄 Fetching fresh data...');
+      await fetchShifts();
+      console.log('✨ Edit process completed');
     } catch (error) {
-      console.error('Error updating shift:', error);
+      console.error('❌ Error updating shift:', error);
       showMessage('error', 'Lỗi khi cập nhật ca làm việc: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteShift = async () => {
-    const shiftId = selectedShift?.shiftId;
-    if (!shiftId) {
-      showMessage('error', 'Lỗi: Không tìm thấy ID ca làm việc');
-      return;
-    }
-    
+  const handleDelete = async () => {
     try {
       setLoading(true);
-      await adminService.deleteStandardWorkShift(shiftId);
-      showMessage('success', 'Xóa ca làm việc thành công!');
-      fetchShifts();
+      await adminService.deleteStandardWorkShift(selectedShift.shiftId);
+      showMessage('success', 'Đã xóa ca làm việc thành công');
       setShowDeleteModal(false);
       setSelectedShift(null);
+      await fetchShifts();
     } catch (error) {
       console.error('Error deleting shift:', error);
       showMessage('error', 'Lỗi khi xóa ca làm việc: ' + error.message);
@@ -164,7 +208,7 @@ const StandardWorkShiftManagement = () => {
     }
   };
 
-  const handleToggleDefault = async (shift) => {
+  const toggleDefault = async (shift) => {
     try {
       setLoading(true);
       if (shift.isDefault) {
@@ -174,7 +218,7 @@ const StandardWorkShiftManagement = () => {
         await adminService.setDefaultStandardWorkShift(shift.shiftId);
         showMessage('success', 'Đã đặt ca làm việc mặc định');
       }
-      fetchShifts();
+      await fetchShifts();
     } catch (error) {
       console.error('Error toggling default:', error);
       showMessage('error', 'Lỗi khi thay đổi trạng thái mặc định: ' + error.message);
@@ -186,23 +230,27 @@ const StandardWorkShiftManagement = () => {
   const resetForm = () => {
     setFormData({
       shiftName: '',
-      dayOfWeek: '',
+      daysOfWeek: [],
       startTime: '',
       endTime: '',
       clinicId: '',
       isDefault: false
     });
-    setSelectedShift(null);
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setShowCreateModal(true);
   };
 
   const openEditModal = (shift) => {
     setSelectedShift(shift);
     setFormData({
-      shiftName: shift.shiftName || '',
-      dayOfWeek: shift.dayOfWeek || '',
-      startTime: shift.startTime || '',
-      endTime: shift.endTime || '',
-      clinicId: shift.clinic?.clinicId || '',
+      shiftName: shift.shiftName,
+      daysOfWeek: [shift.dayOfWeek], // Chuyển đổi thành array
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      clinicId: shift.clinic?.clinicId?.toString() || '',
       isDefault: shift.isDefault || false
     });
     setShowEditModal(true);
@@ -223,6 +271,25 @@ const StandardWorkShiftManagement = () => {
     return time.substring(0, 5); // HH:MM format
   };
 
+  // Handler cho việc chọn/bỏ chọn ngày
+  const handleDayToggle = (dayValue) => {
+    setFormData(prev => {
+      const newDaysOfWeek = prev.daysOfWeek.includes(dayValue)
+        ? prev.daysOfWeek.filter(day => day !== dayValue)
+        : [...prev.daysOfWeek, dayValue];
+      return { ...prev, daysOfWeek: newDaysOfWeek };
+    });
+  };
+
+  // Handler cho việc chọn/bỏ chọn tất cả ngày
+  const handleSelectAllDays = () => {
+    const allDays = daysOfWeek.map(day => day.value);
+    setFormData(prev => ({
+      ...prev,
+      daysOfWeek: prev.daysOfWeek.length === allDays.length ? [] : allDays
+    }));
+  };
+
   const filteredShifts = shifts.filter(shift => {
     const matchesSearch = 
       shift.shiftName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -236,6 +303,74 @@ const StandardWorkShiftManagement = () => {
     return matchesSearch && matchesClinic && matchesDay;
   });
 
+  // Component cho checkbox ngày trong tuần (dùng cho Create)
+  const DayCheckboxes = () => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Ngày trong tuần * 
+        <span className="text-xs text-gray-500 ml-2">
+          (Chọn nhiều ngày để tạo ca làm việc cho tất cả các ngày)
+        </span>
+      </label>
+      
+      {/* Nút chọn tất cả */}
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={handleSelectAllDays}
+          className="inline-flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
+        >
+          {formData.daysOfWeek.length === daysOfWeek.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+        </button>
+        {formData.daysOfWeek.length > 0 && (
+          <span className="ml-2 text-sm text-gray-600">
+            Đã chọn {formData.daysOfWeek.length}/7 ngày
+          </span>
+        )}
+      </div>
+
+      {/* Checkbox cho từng ngày */}
+      <div className="grid grid-cols-2 gap-2">
+        {daysOfWeek.map(day => (
+          <label 
+            key={day.value} 
+            className="flex items-center p-2 border rounded-lg hover:bg-gray-50 cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              checked={formData.daysOfWeek.includes(day.value)}
+              onChange={() => handleDayToggle(day.value)}
+              className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="ml-2 text-sm text-gray-700">{day.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Component cho dropdown ngày trong tuần (dùng cho Edit)
+  const DayEditDropdown = () => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        Ngày trong tuần *
+      </label>
+      <select
+        value={formData.daysOfWeek[0] || ''}
+        onChange={(e) => setFormData(prev => ({ ...prev, daysOfWeek: [e.target.value] }))}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        required
+      >
+        <option value="">Chọn ngày trong tuần</option>
+        {daysOfWeek.map(day => (
+          <option key={day.value} value={day.value}>
+            {day.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+
   if (loading && shifts.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -247,226 +382,207 @@ const StandardWorkShiftManagement = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <div className="flex justify-between items-center mb-4">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">Quản lý Ca làm việc tiêu chuẩn (Tập trung)</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Quản lý tất cả ca làm việc của các phòng khám trong hệ thống. 
-              Bạn cũng có thể quản lý ca làm việc trực tiếp tại từng phòng khám trong mục "Quản lý Phòng khám".
-            </p>
-          </div>
-          <div className="flex space-x-3">
-            <button
-              onClick={fetchShifts}
-              disabled={loading}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Làm mới
-            </button>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Thêm ca làm việc
-            </button>
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Quản lý Ca làm việc Tiêu chuẩn</h1>
+          <p className="text-gray-600">Thiết lập ca làm việc cho các phòng khám</p>
+        </div>
+        <button
+          onClick={openCreateModal}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Thêm ca làm việc
+        </button>
+      </div>
+
+      {/* Message */}
+      {message.content && (
+        <div className={`p-4 rounded-md ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          <div className="flex">
+            <div className="flex-shrink-0">
+              {message.type === 'success' ? (
+                <CheckCircle className="h-5 w-5" />
+              ) : (
+                <AlertCircle className="h-5 w-5" />
+              )}
+            </div>
+            <div className="ml-3">
+              <p className="text-sm">{message.content}</p>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Message */}
-        {message.content && (
-          <div className={`mb-4 p-4 rounded-lg flex items-center ${
-            message.type === 'success' 
-              ? 'bg-green-100 text-green-700' 
-              : 'bg-red-100 text-red-700'
-          }`}>
-            {message.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 mr-2" />
-            ) : (
-              <AlertCircle className="h-5 w-5 mr-2" />
-            )}
-            {message.content}
-          </div>
-        )}
-
-        {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm ca làm việc..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-          
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <select
-              value={filterClinic}
-              onChange={(e) => setFilterClinic(e.target.value)}
-              className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Tất cả phòng khám</option>
-              {clinics.map(clinic => (
-                <option key={clinic.clinicId} value={clinic.clinicId}>
-                  {clinic.name}
-                </option>
-              ))}
-            </select>
+      {/* Filters */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tìm kiếm
+            </label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Tìm theo tên ca hoặc phòng khám..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
           </div>
 
-          <select
-            value={filterDay}
-            onChange={(e) => setFilterDay(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="">Tất cả ngày</option>
-            {daysOfWeek.map(day => (
-              <option key={day.value} value={day.value}>
-                {day.label}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Lọc theo phòng khám
+            </label>
+            <div className="relative">
+              <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <select
+                value={filterClinic}
+                onChange={(e) => setFilterClinic(e.target.value)}
+                className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Tất cả phòng khám</option>
+                {clinics.map(clinic => (
+                  <option key={clinic.clinicId} value={clinic.clinicId}>
+                    {clinic.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-          <button
-            onClick={() => {
-              setSearchTerm('');
-              setFilterClinic('');
-              setFilterDay('');
-            }}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Xóa bộ lọc
-          </button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Lọc theo ngày
+            </label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <select
+                value={filterDay}
+                onChange={(e) => setFilterDay(e.target.value)}
+                className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Tất cả ngày</option>
+                {daysOfWeek.map(day => (
+                  <option key={day.value} value={day.value}>
+                    {day.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Shifts Table */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ca làm việc
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ngày trong tuần
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Thời gian
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Phòng khám
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Trạng thái
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Thao tác
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredShifts.map((shift) => (
-                <tr key={shift.shiftId} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 flex-shrink-0 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Clock className="h-6 w-6 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {shift.shiftName}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          ID: {shift.shiftId}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      {getDayLabel(shift.dayOfWeek)}
-                    </div>
-                  </td>
-                  
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
-                    </div>
-                  </td>
-                  
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center text-sm text-gray-900">
-                      <Building className="h-4 w-4 mr-2" />
-                      {shift.clinic?.name || 'N/A'}
-                    </div>
-                  </td>
-                  
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => handleToggleDefault(shift)}
-                      className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-                        shift.isDefault
-                          ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-                      }`}
-                    >
-                      {shift.isDefault ? (
-                        <>
-                          <Star className="h-3 w-3 mr-1" />
-                          Mặc định
-                        </>
-                      ) : (
-                        <>
-                          <StarOff className="h-3 w-3 mr-1" />
-                          Thường
-                        </>
-                      )}
-                    </button>
-                  </td>
-                  
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-2">
-                      <button
-                        onClick={() => openEditModal(shift)}
-                        className="text-blue-600 hover:text-blue-900 p-1"
-                        title="Sửa"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => openDeleteModal(shift)}
-                        className="text-red-600 hover:text-red-900 p-1"
-                        title="Xóa"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900">
+            Danh sách Ca làm việc ({filteredShifts.length})
+          </h3>
         </div>
 
-        {filteredShifts.length === 0 && (
+        {filteredShifts.length === 0 ? (
           <div className="text-center py-12">
             <Clock className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Không có ca làm việc</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || filterClinic || filterDay 
-                ? 'Không tìm thấy ca làm việc phù hợp với bộ lọc.'
-                : 'Bắt đầu bằng cách thêm ca làm việc mới.'}
+              {searchTerm || filterClinic || filterDay ? 'Không tìm thấy ca làm việc phù hợp với bộ lọc.' : 'Bắt đầu bằng cách tạo ca làm việc đầu tiên.'}
             </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tên ca làm việc
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ngày trong tuần
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Thời gian
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Phòng khám
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Mặc định
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Thao tác
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredShifts.map((shift) => (
+                  <tr key={shift.shiftId} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900">
+                        {shift.shiftName}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {getDayLabel(shift.dayOfWeek)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {formatTime(shift.startTime)} - {formatTime(shift.endTime)}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {shift.clinic?.name || 'N/A'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button
+                        onClick={() => toggleDefault(shift)}
+                        className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                          shift.isDefault
+                            ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+                            : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                        }`}
+                      >
+                        {shift.isDefault ? (
+                          <>
+                            <Star className="h-3 w-3 mr-1" />
+                            Mặc định
+                          </>
+                        ) : (
+                          <>
+                            <StarOff className="h-3 w-3 mr-1" />
+                            Thường
+                          </>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          onClick={() => openEditModal(shift)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => openDeleteModal(shift)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -477,7 +593,7 @@ const StandardWorkShiftManagement = () => {
           <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Thêm ca làm việc mới</h3>
-              <form onSubmit={handleCreateShift}>
+              <form onSubmit={handleSubmit}>
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -489,29 +605,12 @@ const StandardWorkShiftManagement = () => {
                       value={formData.shiftName}
                       onChange={(e) => setFormData({...formData, shiftName: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ca sáng, Ca chiều..."
+                      placeholder="Ví dụ: Ca sáng, Ca chiều..."
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Ngày trong tuần *
-                      </label>
-                      <select
-                        required
-                        value={formData.dayOfWeek}
-                        onChange={(e) => setFormData({...formData, dayOfWeek: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Chọn ngày</option>
-                        {daysOfWeek.map(day => (
-                          <option key={day.value} value={day.value}>
-                            {day.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <DayCheckboxes />
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -608,7 +707,7 @@ const StandardWorkShiftManagement = () => {
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 Chỉnh sửa ca làm việc: {selectedShift.shiftName}
               </h3>
-              <form onSubmit={handleUpdateShift}>
+              <form onSubmit={handleEdit}>
                 <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -624,24 +723,7 @@ const StandardWorkShiftManagement = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Ngày trong tuần *
-                      </label>
-                      <select
-                        required
-                        value={formData.dayOfWeek}
-                        onChange={(e) => setFormData({...formData, dayOfWeek: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      >
-                        <option value="">Chọn ngày</option>
-                        {daysOfWeek.map(day => (
-                          <option key={day.value} value={day.value}>
-                            {day.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <DayEditDropdown />
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -730,22 +812,22 @@ const StandardWorkShiftManagement = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       {showDeleteModal && selectedShift && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 lg:w-1/3 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <div className="flex items-center mb-4">
-                <AlertCircle className="h-6 w-6 text-red-600 mr-3" />
-                <h3 className="text-lg font-medium text-gray-900">Xác nhận xóa ca làm việc</h3>
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <Trash2 className="h-6 w-6 text-red-600" />
               </div>
-              
-              <p className="text-sm text-gray-600 mb-4">
-                Bạn có chắc chắn muốn xóa ca làm việc <strong>"{selectedShift.shiftName}"</strong>? 
-                Hành động này không thể hoàn tác.
-              </p>
-
-              <div className="flex justify-end space-x-3">
+              <h3 className="text-lg font-medium text-gray-900 mt-2">Xóa ca làm việc</h3>
+              <div className="mt-2">
+                <p className="text-sm text-gray-500">
+                  Bạn có chắc chắn muốn xóa ca làm việc "{selectedShift.shiftName}"?
+                  Hành động này không thể hoàn tác.
+                </p>
+              </div>
+              <div className="mt-6 flex justify-center space-x-3">
                 <button
                   onClick={() => {
                     setShowDeleteModal(false);
@@ -756,11 +838,11 @@ const StandardWorkShiftManagement = () => {
                   Hủy
                 </button>
                 <button
-                  onClick={handleDeleteShift}
+                  onClick={handleDelete}
                   disabled={loading}
                   className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50"
                 >
-                  {loading ? 'Đang xóa...' : 'Xóa ca làm việc'}
+                  {loading ? 'Đang xóa...' : 'Xóa'}
                 </button>
               </div>
             </div>

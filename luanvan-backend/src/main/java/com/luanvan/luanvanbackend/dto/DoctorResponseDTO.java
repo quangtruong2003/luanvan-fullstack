@@ -34,5 +34,17 @@ public class DoctorResponseDTO {
         private String name;
         private String description;
         private boolean isPrimary;
+        private ClinicDTO clinic;
+    }
+    
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ClinicDTO {
+        private Long clinicId;
+        private String name;
+        private String address;
+        private String phoneNumber;
+        private String email;
     }
 } 

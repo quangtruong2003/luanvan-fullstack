@@ -12,6 +12,16 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Clear authentication data
+  const clearAuthData = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('backendUserId');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    setCurrentUser(null);
+  };
+  
   // Kiểm tra xem người dùng đã đăng nhập chưa khi khởi động ứng dụng
   useEffect(() => {
     const checkAuthStatus = async () => {
@@ -28,17 +38,26 @@ export function AuthProvider({ children }) {
         
         console.log('🔑 Token exists:', !!token);
         console.log('👤 Stored user role:', userRole);
+        console.log('🆔 Stored backend user ID:', backendUserId);
         
-        if (!token) {
-          console.log('❌ No token found, setting user to null');
-          setCurrentUser(null);
+        // Kiểm tra và xóa dữ liệu localStorage cũ có vấn đề
+        if (!backendUserId) {
+          console.log('🧹 Clearing invalid localStorage data - user ID is missing');
+          clearAuthData();
           setLoading(false);
           return;
         }
         
-        // Nếu có đủ thông tin trong localStorage, sử dụng trước
+        if (!token) {
+          console.log('❌ No token found, setting user to null');
+          clearAuthData();
+          setLoading(false);
+          return;
+        }
+        
+        // Nếu có đủ thông tin trong localStorage và backendUserId hợp lệ, sử dụng trước
         if (userRole && backendUserId) {
-          console.log('✅ Found user data in localStorage, setting currentUser');
+          console.log('✅ Found valid user data in localStorage, setting currentUser');
           setCurrentUser({
             id: parseInt(backendUserId),
             fullName: userName || 'User',
@@ -47,26 +66,13 @@ export function AuthProvider({ children }) {
           });
           setLoading(false);
           
-          // Vẫn verify với server trong background
-          authService.getCurrentUser().then(userData => {
-            if (userData) {
-              console.log('✅ Server verification successful');
-              setCurrentUser({
-                id: userData.user_id || userData.id,
-                fullName: userData.full_name || userData.fullName,
-                email: userData.email,
-                phoneNumber: userData.phone_number || userData.phoneNumber,
-                role: userData.role_name || userData.role
-              });
-            }
-          }).catch(err => {
-            console.log('❌ Server verification failed:', err.message);
-            // Nếu server không verify được, vẫn giữ user từ localStorage
-          });
+          // Skip server verification for now to avoid problematic API calls
+          // The localStorage data should be sufficient for most operations
+          console.log('⏭️ Skipping server verification to avoid API conflicts');
           return;
         }
         
-        // Nếu không có thông tin đầy đủ, verify với server
+        // Nếu không có thông tin đầy đủ hoặc hợp lệ, verify với server
         console.log('🔍 Verifying with server...');
         const userData = await authService.getCurrentUser();
         if (userData) {
@@ -80,11 +86,20 @@ export function AuthProvider({ children }) {
           });
         } else {
           console.log('❌ Server returned null user data');
-          setCurrentUser(null);
+          clearAuthData();
         }
       } catch (err) {
         console.error("❌ Error checking auth status:", err);
-        setCurrentUser(null);
+        // Nếu có lỗi authentication, xóa dữ liệu cũ
+        if (err.message.includes('404') || err.message.includes('not found') || 
+            err.message.includes('401') || err.message.includes('unauthorized') ||
+            err.message.includes('User not found with id')) {
+          console.log('🧹 Clearing invalid authentication data due to error');
+          clearAuthData();
+        } else {
+          setCurrentUser(null);
+        }
+        setError('Có lỗi xảy ra khi kiểm tra trạng thái đăng nhập. Vui lòng đăng nhập lại.');
       } finally {
         setLoading(false);
       }

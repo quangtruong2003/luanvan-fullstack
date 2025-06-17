@@ -4,32 +4,93 @@ import com.luanvan.luanvanbackend.dto.ClinicDTO;
 import com.luanvan.luanvanbackend.dto.ClinicResponseDTO;
 import com.luanvan.luanvanbackend.dto.ClinicUpdateDTO;
 import com.luanvan.luanvanbackend.entities.Clinic;
+import com.luanvan.luanvanbackend.entities.Specialty;
+import com.luanvan.luanvanbackend.entities.StandardWorkShift;
+import com.luanvan.luanvanbackend.repositories.DoctorSpecialtyRepository;
+import com.luanvan.luanvanbackend.repositories.SpecialtyRepository;
+import com.luanvan.luanvanbackend.repositories.StandardWorkShiftRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class ClinicMapper {
+
+    @Autowired
+    private SpecialtyRepository specialtyRepository;
+    
+    @Autowired
+    private DoctorSpecialtyRepository doctorSpecialtyRepository;
+    
+    @Autowired
+    private StandardWorkShiftRepository standardWorkShiftRepository;
 
     public ClinicResponseDTO toResponseDTO(Clinic clinic) {
         if (clinic == null) {
             return null;
         }
         
-        return new ClinicResponseDTO(
-                clinic.getClinicId(),
-                clinic.getName(),
-                clinic.getAddress(),
-                clinic.getPhoneNumber(),
-                clinic.getEmail(),
-                clinic.getLogoURL(),
-                clinic.getDescription(),
-                clinic.getWorkingHours(),
-                clinic.getHistory(),
-                clinic.getVision(),
-                clinic.getMission(),
-                clinic.getCoreValues(),
-                clinic.getFacilitiesDescription(),
-                clinic.getEquipmentDescription()
-        );
+        ClinicResponseDTO dto = new ClinicResponseDTO();
+        dto.setClinicId(clinic.getClinicId());
+        dto.setName(clinic.getName());
+        dto.setAddress(clinic.getAddress());
+        dto.setPhoneNumber(clinic.getPhoneNumber());
+        dto.setEmail(clinic.getEmail());
+        dto.setLogoURL(clinic.getLogoURL());
+        dto.setDescription(clinic.getDescription());
+        
+        dto.setHistory(clinic.getHistory());
+        dto.setVision(clinic.getVision());
+        dto.setMission(clinic.getMission());
+        dto.setCoreValues(clinic.getCoreValues());
+        dto.setFacilitiesDescription(clinic.getFacilitiesDescription());
+        dto.setEquipmentDescription(clinic.getEquipmentDescription());
+
+        // Lấy danh sách chuyên khoa
+        List<Specialty> specialties = specialtyRepository.findByClinicClinicId(clinic.getClinicId());
+        List<ClinicResponseDTO.SpecialtyInfo> specialtyInfos = specialties.stream()
+                .map(specialty -> {
+                    long doctorCount = doctorSpecialtyRepository.countBySpecialtySpecialtyId(specialty.getSpecialtyId());
+                    return new ClinicResponseDTO.SpecialtyInfo(
+                            specialty.getSpecialtyId(),
+                            specialty.getName(),
+                            specialty.getDescription(),
+                            doctorCount
+                    );
+                })
+                .collect(Collectors.toList());
+        dto.setSpecialties(specialtyInfos);
+
+        // Lấy danh sách ca làm việc tiêu chuẩn
+        List<StandardWorkShift> standardWorkShifts = standardWorkShiftRepository.findByClinicClinicId(clinic.getClinicId());
+        List<ClinicResponseDTO.StandardWorkShiftInfo> standardWorkShiftInfos = standardWorkShifts.stream()
+                .map(shift -> new ClinicResponseDTO.StandardWorkShiftInfo(
+                        shift.getShiftId(),
+                        shift.getShiftName(),
+                        shift.getDayOfWeek(),
+                        shift.getStartTime(),
+                        shift.getEndTime(),
+                        shift.isDefault()
+                ))
+                .collect(Collectors.toList());
+        dto.setStandardWorkShifts(standardWorkShiftInfos);
+
+        // Convert standard shifts to working hours array format for API compatibility
+        List<ClinicResponseDTO.WorkingHoursInfo> workingHoursArray = standardWorkShifts.stream()
+                .map(shift -> new ClinicResponseDTO.WorkingHoursInfo(
+                        shift.getShiftId(),
+                        shift.getDayOfWeek(),
+                        shift.getStartTime(),
+                        shift.getEndTime(),
+                        shift.isDefault()
+                ))
+                .collect(Collectors.toList());
+        dto.setWorkingHoursArray(workingHoursArray);
+
+        return dto;
     }
 
     public Clinic toEntity(ClinicDTO dto) {
@@ -44,14 +105,14 @@ public class ClinicMapper {
         clinic.setEmail(dto.getEmail());
         clinic.setLogoURL(dto.getLogoURL());
         clinic.setDescription(dto.getDescription());
-        clinic.setWorkingHours(dto.getWorkingHours());
+        
         clinic.setHistory(dto.getHistory());
         clinic.setVision(dto.getVision());
         clinic.setMission(dto.getMission());
         clinic.setCoreValues(dto.getCoreValues());
         clinic.setFacilitiesDescription(dto.getFacilitiesDescription());
         clinic.setEquipmentDescription(dto.getEquipmentDescription());
-        
+
         return clinic;
     }
 
@@ -75,9 +136,7 @@ public class ClinicMapper {
         if (dto.getDescription() != null) {
             clinic.setDescription(dto.getDescription());
         }
-        if (dto.getWorkingHours() != null) {
-            clinic.setWorkingHours(dto.getWorkingHours());
-        }
+        
         if (dto.getHistory() != null) {
             clinic.setHistory(dto.getHistory());
         }

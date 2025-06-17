@@ -3,8 +3,11 @@ package com.luanvan.luanvanbackend.controllers;
 import com.luanvan.luanvanbackend.dto.ClinicDTO;
 import com.luanvan.luanvanbackend.dto.ClinicResponseDTO;
 import com.luanvan.luanvanbackend.dto.ClinicUpdateDTO;
+import com.luanvan.luanvanbackend.dto.SpecialtyDTO;
 import com.luanvan.luanvanbackend.entities.Clinic;
+import com.luanvan.luanvanbackend.entities.Specialty;
 import com.luanvan.luanvanbackend.services.ClinicService;
+import com.luanvan.luanvanbackend.services.SpecialtyService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,6 +26,7 @@ import java.util.List;
 public class ClinicController {
 
     private final ClinicService clinicService;
+    private final SpecialtyService specialtyService;
 
     /**
      * Lấy danh sách tất cả phòng khám (public)
@@ -96,6 +100,84 @@ public class ClinicController {
             return ResponseEntity.ok("Đã xóa phòng khám thành công");
         } else {
             return ResponseEntity.badRequest().body("Không thể xóa phòng khám");
+        }
+    }
+
+    // === SPECIALTY MANAGEMENT FOR CLINIC ===
+
+    /**
+     * Lấy danh sách chuyên khoa của phòng khám
+     */
+    @GetMapping("/{clinicId}/specialties")
+    public ResponseEntity<List<Specialty>> getSpecialtiesByClinic(@PathVariable Long clinicId) {
+        List<Specialty> specialties = specialtyService.getSpecialtiesByClinic(clinicId);
+        return ResponseEntity.ok(specialties);
+    }
+
+    /**
+     * Tạo chuyên khoa mới cho phòng khám (chỉ Admin)
+     */
+    @PostMapping("/{clinicId}/specialties")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Specialty> createSpecialtyForClinic(
+            @PathVariable Long clinicId,
+            @RequestBody SpecialtyDTO specialtyDTO) {
+        // Đặt clinicId từ path parameter TRƯỚC khi validate
+        specialtyDTO.setClinicId(clinicId);
+        
+        // Manual validation để tránh @Valid chạy trước setClinicId
+        if (specialtyDTO.getName() == null || specialtyDTO.getName().trim().isEmpty()) {
+            throw new IllegalArgumentException("Tên chuyên khoa không được để trống");
+        }
+        if (specialtyDTO.getName().length() < 2 || specialtyDTO.getName().length() > 100) {
+            throw new IllegalArgumentException("Tên chuyên khoa phải từ 2-100 ký tự");
+        }
+        if (specialtyDTO.getDescription() != null && specialtyDTO.getDescription().length() > 500) {
+            throw new IllegalArgumentException("Mô tả không được vượt quá 500 ký tự");
+        }
+        
+        Specialty specialty = specialtyService.createSpecialty(specialtyDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(specialty);
+    }
+
+    /**
+     * Cập nhật chuyên khoa của phòng khám (chỉ Admin)
+     */
+    @PutMapping("/{clinicId}/specialties/{specialtyId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Specialty> updateSpecialtyForClinic(
+            @PathVariable Long clinicId,
+            @PathVariable Long specialtyId,
+            @Valid @RequestBody SpecialtyDTO specialtyDTO) {
+        // Đảm bảo specialty thuộc về clinic này
+        Specialty existingSpecialty = specialtyService.getSpecialtyById(specialtyId);
+        if (!existingSpecialty.getClinic().getClinicId().equals(clinicId)) {
+            return ResponseEntity.badRequest().build();
+        }
+        
+        Specialty specialty = specialtyService.updateSpecialty(specialtyId, specialtyDTO);
+        return ResponseEntity.ok(specialty);
+    }
+
+    /**
+     * Xóa chuyên khoa của phòng khám (chỉ Admin)
+     */
+    @DeleteMapping("/{clinicId}/specialties/{specialtyId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> deleteSpecialtyFromClinic(
+            @PathVariable Long clinicId,
+            @PathVariable Long specialtyId) {
+        // Đảm bảo specialty thuộc về clinic này
+        Specialty existingSpecialty = specialtyService.getSpecialtyById(specialtyId);
+        if (!existingSpecialty.getClinic().getClinicId().equals(clinicId)) {
+            return ResponseEntity.badRequest().body("Chuyên khoa không thuộc về phòng khám này");
+        }
+        
+        boolean success = specialtyService.deleteSpecialty(specialtyId);
+        if (success) {
+            return ResponseEntity.ok("Đã xóa chuyên khoa thành công");
+        } else {
+            return ResponseEntity.badRequest().body("Không thể xóa chuyên khoa");
         }
     }
 } 

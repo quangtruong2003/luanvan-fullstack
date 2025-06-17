@@ -21,9 +21,13 @@ public class UserUpdateDTO {
     @JsonAlias("full_name")
     @Size(min = 2, max = 100, message = "Họ tên phải từ 2-100 ký tự")
     private String fullName;
-    
-    @Email(message = "Email không hợp lệ")
+      @Email(message = "Email không hợp lệ")
     private String email;
+    
+    @JsonProperty(value = "phoneNumber", access = JsonProperty.Access.WRITE_ONLY)
+    @JsonAlias("phone_number")
+    @Pattern(regexp = "^[0-9]{10,11}$", message = "Số điện thoại phải có 10-11 chữ số")
+    private String phoneNumber;
     
     @JsonProperty(value = "dateOfBirth", access = JsonProperty.Access.WRITE_ONLY)
     @JsonAlias("date_of_birth")
