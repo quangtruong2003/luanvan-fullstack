@@ -18,7 +18,7 @@ import DebugInfo from './components/DebugInfo';
 
 const DoctorDashboardNew = () => {
   const { logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('appointments'); // Mặc định là tab lịch hẹn nổi bật nhất
+  const [activeTab, setActiveTab] = useState('schedule'); // Mặc định là tab lịch hẹn nổi bật nhất
   const [stats, setStats] = useState({
     todayAppointments: 0,
     totalAppointments: 0,
@@ -61,14 +61,8 @@ const DoctorDashboardNew = () => {
         ...slot,
         // Đảm bảo date có định dạng YYYY-MM-DD
         date: slot.date ? new Date(slot.date).toISOString().split('T')[0] : null,
-        // Đảm bảo start_time và end_time đúng định dạng
-        start_time: slot.start_time ? slot.start_time.toString().split('.')[0] : null,
-        end_time: slot.end_time ? slot.end_time.toString().split('.')[0] : null,
         // Đảm bảo status có giá trị
-        status: slot.status || 'CANCELLED_BY_CLINIC',
-        // Đảm bảo thông tin specialty và clinic được trả về
-        specialty: slot.specialty || null,
-        clinic: slot.clinic || null
+        status: slot.status || 'CANCELLED_BY_CLINIC'
       }));
       
       setAppointments(appointmentList);
@@ -90,17 +84,20 @@ const DoctorDashboardNew = () => {
       if (!selectedSpecialtyForSchedule) {
         if (specialtiesList.length === 1) {
           // Single specialty: auto-select
-          console.log('🎯 Auto-selecting single specialty:', specialtiesList[0]);
-          setSelectedSpecialtyForSchedule(specialtiesList[0].specialty_id);
+          const specialtyId = specialtiesList[0].specialty_id || specialtiesList[0].specialtyId;
+          console.log('🎯 Auto-selecting single specialty:', specialtyId);
+          setSelectedSpecialtyForSchedule(specialtyId);
         } else if (specialtiesList.length > 1) {
           // Multiple specialties: select primary or first
           const primarySpecialty = specialtiesList.find(s => s.is_primary);
           if (primarySpecialty) {
-            console.log('🎯 Auto-selecting primary specialty:', primarySpecialty);
-            setSelectedSpecialtyForSchedule(primarySpecialty.specialty_id);
+            const specialtyId = primarySpecialty.specialty_id || primarySpecialty.specialtyId;
+            console.log('🎯 Auto-selecting primary specialty:', specialtyId);
+            setSelectedSpecialtyForSchedule(specialtyId);
           } else {
-            console.log('🎯 Auto-selecting first specialty:', specialtiesList[0]);
-            setSelectedSpecialtyForSchedule(specialtiesList[0].specialty_id);
+            const specialtyId = specialtiesList[0].specialty_id || specialtiesList[0].specialtyId;
+            console.log('🎯 Auto-selecting first specialty:', specialtyId);
+            setSelectedSpecialtyForSchedule(specialtyId);
           }
         }
       }
@@ -232,32 +229,14 @@ const DoctorDashboardNew = () => {
   };
 
   // Bật/tắt slot và xử lý xung đột
-  const handleToggleSlot = useCallback(async (slotId, currentStatus, slotTime, specialtyName) => {
+  const handleToggleSlot = useCallback(async (slotId, currentStatus, slotTime) => {
     try {
-      const newStatus = currentStatus === 'AVAILABLE' ? 'UNAVAILABLE' : 'AVAILABLE';
+      setLoadingSlots(true);
+      const newStatus = currentStatus === 'AVAILABLE' ? 'CANCELLED_BY_CLINIC' : 'AVAILABLE';
       
-      if (newStatus === 'AVAILABLE') {
-        // Kiểm tra xung đột trước khi bật slot
-        const conflictCheck = await doctorService.checkSlotConflicts(slotId);
-        
-        if (conflictCheck.hasConflict) {
-          // Hiển thị dialog xung đột
-          setConflictInfo({
-            slotId,
-            slotTime,
-            currentSpecialty: specialtyName,
-            conflictSpecialty: conflictCheck.conflictSpecialty,
-            conflictClinic: conflictCheck.conflictClinic
-          });
-          setShowSlotConflictDialog(true);
-          return;
-        }
-      }
+      await doctorService.updateMyAvailabilitySlot(slotId, { status: newStatus });
       
-      // Không có xung đột, toggle bình thường
-      await doctorService.toggleSlotAvailability(slotId, newStatus);
-      
-      // Refresh slots
+      // Refresh data
       const slotsRes = await doctorService.getMyAvailabilitySlots();
       setAvailabilitySlots(slotsRes.content || slotsRes || []);
       
@@ -265,6 +244,8 @@ const DoctorDashboardNew = () => {
     } catch (error) {
       console.error('Error toggling slot:', error);
       showError('Không thể cập nhật slot. Vui lòng thử lại!');
+    } finally {
+      setLoadingSlots(false);
     }
   }, [showSuccess, showError]);
 
@@ -324,41 +305,41 @@ const DoctorDashboardNew = () => {
     try {
       setLoadingSlots(true);
       
-      // Kiểm tra xem slot đã tồn tại chưa
-      const existingSlot = availabilitySlots.find(slot => 
-        slot.date === slotData.date && 
-        slot.start_time === slotData.startTime &&
-        slot.specialty?.specialty_id === slotData.specialty_id
-      );
+      const doctorInfo = await doctorService.getMyProfile();
       
-      if (existingSlot) {
-        showWarning('Slot đã tồn tại cho chuyên khoa này', 'Không thể tạo mới');
-        return;
-      }
+      const payload = {
+        ...slotData,
+        doctorId: doctorInfo.doctorId || doctorInfo.doctor_id,
+        status: 'AVAILABLE'
+      };
       
-      // Gọi API để tạo slot mới
-      await doctorService.createAvailabilitySlot({
-        doctorId: null, // API sẽ sử dụng ID của bác sĩ hiện tại từ token
-        date: slotData.date,
-        startTime: slotData.startTime,
-        endTime: slotData.endTime,
-        status: slotData.status || 'AVAILABLE',
-        clinic_id: slotData.clinic_id,
-        specialty_id: slotData.specialty_id
-      });
+      console.log('Creating new slot with payload:', payload);
+
+      // Backend DTO uses camelCase, so we ensure it here.
+      const apiPayload = {
+        date: payload.date,
+        startTime: payload.startTime,
+        endTime: payload.endTime,
+        status: payload.status,
+        doctorId: payload.doctorId,
+        clinicId: payload.clinic_id,
+        specialtyId: payload.specialty_id
+      };
+
+      await doctorService.createMyAvailabilitySlot(apiPayload);
       
       // Refresh slots
       const slotsRes = await doctorService.getMyAvailabilitySlots();
       setAvailabilitySlots(slotsRes.content || slotsRes || []);
-      showSuccess('Đã tạo slot thành công!');
+      showSuccess('Đã tạo slot mới thành công!');
       
     } catch (error) {
       console.error('Error creating new slot:', error);
-      showError('Không thể tạo slot mới. Vui lòng thử lại!');
+      showError('Không thể tạo slot mới. Vui lòng thử lại!', 'Lỗi');
     } finally {
       setLoadingSlots(false);
     }
-  }, [availabilitySlots, showSuccess, showError, showWarning]);
+  }, [showSuccess, showError]);
 
   const getStatusColor = (status) => {
     switch (status) {

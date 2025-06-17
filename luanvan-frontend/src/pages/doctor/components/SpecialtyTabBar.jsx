@@ -8,18 +8,23 @@ const SpecialtyTabBar = ({
   specialties = [], 
   selectedSpecialty, 
   onSpecialtyChange,
-  slotCounts = {},
+  availabilitySlots = [],
   loading = false 
 }) => {
   // Get slot counts for a specialty
   const getSlotStats = (specialtyId) => {
-    const counts = slotCounts[specialtyId] || {
-      total: 0,
-      available: 0,
-      booked: 0,
-      cancelled: 0
+    const specialtySlots = availabilitySlots.filter(slot => 
+      (slot.specialty_id || slot.specialty?.specialtyId) === specialtyId
+    );
+    const today = new Date().toISOString().split('T')[0];
+    const todaySlots = specialtySlots.filter(slot => slot.date === today);
+    
+    return {
+      total: todaySlots.length,
+      available: todaySlots.filter(slot => slot.status === 'AVAILABLE').length,
+      booked: todaySlots.filter(slot => slot.status === 'BOOKED').length,
+      cancelled: todaySlots.filter(slot => slot.status === 'CANCELLED_BY_CLINIC').length
     };
-    return counts;
   };
 
   // Get status color for specialty tab
@@ -48,9 +53,9 @@ const SpecialtyTabBar = ({
   // Single specialty - show info card instead of tabs
   if (specialties.length === 1) {
     const specialty = specialties[0];
-    const stats = getSlotStats(specialty.specialty_id);
+    const specialtyId = specialty.specialty_id || specialty.specialtyId;
+    const stats = getSlotStats(specialtyId);
     
-    // Handle different data structures from backend
     const specialtyName = specialty.name || 'Chưa có tên';
     const clinicName = specialty.clinic?.name || 'Chưa có phòng khám';
     const clinicAddress = specialty.clinic?.address || '';
@@ -106,11 +111,10 @@ const SpecialtyTabBar = ({
       <div className="border-b border-gray-200">
         <nav className="flex overflow-x-auto">
           {specialties.map((specialty) => {
-            const specialtyId = specialty.specialty_id;
+            const specialtyId = specialty.specialty_id || specialty.specialtyId;
             const stats = getSlotStats(specialtyId);
             const isSelected = selectedSpecialty === specialtyId;
             
-            // Handle different data structures from backend
             const specialtyName = specialty.name || 'Chưa có tên';
             const clinicName = specialty.clinic?.name || 'Chưa có phòng khám';
             
@@ -174,12 +178,11 @@ const SpecialtyTabBar = ({
       {selectedSpecialty && (
         <div className="p-4 bg-gray-50">
           {(() => {
-            const selectedSpec = specialties.find(s => s.specialty_id === selectedSpecialty);
+            const selectedSpec = specialties.find(s => (s.specialty_id || s.specialtyId) === selectedSpecialty);
             const stats = getSlotStats(selectedSpecialty);
             
             if (!selectedSpec) return null;
             
-            // Handle different data structures from backend
             const specialtyName = selectedSpec.name || 'Chưa có tên';
             const clinicName = selectedSpec.clinic?.name || 'Chưa có phòng khám';
             const clinicAddress = selectedSpec.clinic?.address || '';

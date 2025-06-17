@@ -1,3 +1,4 @@
+import Menubar from "./components/Menubar"
 import ClerkAuthHandler from "./components/ClerkAuthHandler"
 import Home from "./pages/Home"
 import BookAppointment from "./pages/BookAppointment"
@@ -21,7 +22,7 @@ function App() {
     <NotificationProvider>
       <div className="min-h-screen bg-gray-50">
         <ClerkAuthHandler />
-        {/* Tạm thời bỏ Menubar vì file không tồn tại */}
+        {!isLoginPage && <Menubar />}
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Home />} />

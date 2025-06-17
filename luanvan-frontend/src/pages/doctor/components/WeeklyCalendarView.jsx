@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { 
-  Calendar, Clock, Power, PowerOff, Eye, EyeOff,
-  ChevronLeft, ChevronRight, RotateCcw, Zap,
-  AlertCircle, CheckCircle, Building, Plus
+  Calendar, Clock, Power, PowerOff, User,
+  ChevronLeft, ChevronRight, Plus, Check, RotateCw, X
 } from 'lucide-react';
 import { useNotification } from '../../../components/NotificationSystem';
 
@@ -11,21 +10,21 @@ const WeeklyCalendarView = ({
   workShifts = [], 
   selectedSpecialty,
   onSlotToggle,
-  onBulkToggle,
+  onBulkToggle, // This can be used for bulk enabling/disabling
   loading = false,
   specialties = [],
-  onCreateNewSlot
+  onCreateNewSlot,
+  refetchData
 }) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSlots, setSelectedSlots] = useState(new Set());
-  const [viewMode, setViewMode] = useState('week'); // 'week' | 'day'
-  const { showWarning } = useNotification();
+  const [hoveredSlot, setHoveredSlot] = useState(null);
+  const { showInfo } = useNotification();
 
-  // Tính toán tuần hiện tại
   const weekDates = useMemo(() => {
     const start = new Date(currentWeek);
     const day = start.getDay();
-    const diff = start.getDate() - day + (day === 0 ? -6 : 1); // Điều chỉnh để Thứ 2 là ngày đầu tuần
+    const diff = start.getDate() - day + (day === 0 ? -6 : 1);
     start.setDate(diff);
 
     return Array.from({ length: 7 }, (_, i) => {
@@ -35,346 +34,240 @@ const WeeklyCalendarView = ({
     });
   }, [currentWeek]);
 
-  // Lấy specialty hiện tại
-  const currentSpecialty = useMemo(() => {
-    return specialties.find(s => s.specialty_id === selectedSpecialty);
-  }, [specialties, selectedSpecialty]);
-
-  // Tạo time slots từ work shifts
   const timeSlots = useMemo(() => {
-    // Tạo Set để lưu các time slots duy nhất
     const slotsSet = new Set();
-    
     if (workShifts && workShifts.length > 0) {
-      // Sử dụng workShifts để tạo slots
       workShifts.forEach(shift => {
-        const start = new Date(`2000-01-01T${shift.start_time}`);
-        const end = new Date(`2000-01-01T${shift.end_time}`);
-        
-        const current = new Date(start);
+        const start = new Date(`1970-01-01T${shift.startTime}`);
+        const end = new Date(`1970-01-01T${shift.endTime}`);
+        let current = start;
         while (current < end) {
-          const timeStr = `${current.getHours().toString().padStart(2, '0')}:${current.getMinutes().toString().padStart(2, '0')}`;
-          slotsSet.add(timeStr);
+          slotsSet.add(current.toTimeString().substring(0, 5));
           current.setMinutes(current.getMinutes() + 30);
         }
       });
     } else {
-      // Default time slots nếu không có work shifts
-      for (let hour = 8; hour <= 17; hour++) {
-        for (let minute = 0; minute < 60; minute += 30) {
-          const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-          slotsSet.add(timeStr);
-        }
+      for (let hour = 7; hour < 22; hour++) {
+        slotsSet.add(`${String(hour).padStart(2, '0')}:00`);
+        slotsSet.add(`${String(hour).padStart(2, '0')}:30`);
       }
     }
-    
-    // Chuyển thành mảng và sắp xếp
     return Array.from(slotsSet).sort();
   }, [workShifts]);
 
-  // Group slots by date and time
   const slotsByDateTime = useMemo(() => {
     const grouped = {};
+    if (!slots) return grouped;
     slots.forEach(slot => {
-      // Chuẩn hóa định dạng ngày từ database
-      const dateKey = slot.date; // Database lưu dưới dạng "YYYY-MM-DD"
-      
-      // Chuẩn hóa định dạng thời gian từ database
-      // Database có thể lưu dưới dạng "HH:mm:ss" hoặc "HH:mm:ss.SSSSSS"
-      const timeKey = slot.start_time.split('.')[0]; // Lấy phần "HH:mm:ss" 
-      
-      if (!grouped[dateKey]) grouped[dateKey] = {};
+      const dateKey = slot.date;
+      if (!dateKey || !slot.startTime) return;
+      const timeKey = slot.startTime.substring(0, 5);
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = {};
+      }
       grouped[dateKey][timeKey] = slot;
     });
     return grouped;
   }, [slots]);
 
-  // Điều hướng tuần
   const navigateWeek = (direction) => {
     const newWeek = new Date(currentWeek);
     newWeek.setDate(currentWeek.getDate() + (direction * 7));
     setCurrentWeek(newWeek);
   };
 
-  // Toggle slot - Đã tối ưu để tạo mới slot khi click vào slot chưa tồn tại
-  const handleSlotToggle = async (date, time, currentSlot) => {
+  const handleSlotClick = (date, time, currentSlot) => {
     if (loading) return;
-
-    const dateStr = date.toISOString().split('T')[0];
     
     if (currentSlot) {
-      // Slot đã tồn tại, toggle status
-      await onSlotToggle(
-        currentSlot.slot_id, 
-        currentSlot.status, 
-        `${dateStr} ${time}`,
-        currentSpecialty?.name,
-        currentSpecialty?.clinic?.name
-      );
-    } else if (currentSpecialty && onCreateNewSlot) {
-      // Kiểm tra xem slot đã tồn tại chưa trong toàn bộ availabilitySlots
-      const existingSlot = slots.find(slot => 
-        slot.date === dateStr && 
-        slot.start_time === time &&
-        slot.specialty?.specialty_id === selectedSpecialty
-      );
-
-      if (existingSlot) {
-        showWarning('Slot đã tồn tại cho chuyên khoa này', 'Không thể tạo mới');
-        return;
-      }
-
-      // Slot chưa tồn tại, tạo mới
-      const [hours, minutes] = time.split(':');
-      const startTime = time;
+      onSlotToggle(currentSlot.slotId || currentSlot.slot_id, currentSlot.status, `${date.toISOString().split('T')[0]}T${time}`);
+    } else if (onCreateNewSlot && canCreateNewSlot(date, time)) {
+      const [hours, minutes] = time.split(':').map(Number);
+      const startTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
       
-      // Tính thời gian kết thúc (mặc định +30 phút)
-      const endTimeDate = new Date(date);
-      endTimeDate.setHours(parseInt(hours, 10), parseInt(minutes, 10) + 30, 0, 0);
-      const endTime = `${endTimeDate.getHours().toString().padStart(2, '0')}:${endTimeDate.getMinutes().toString().padStart(2, '0')}`;
-      
-      await onCreateNewSlot({
-        date: dateStr,
-        startTime,
-        endTime,
-        specialty_id: currentSpecialty.specialty_id,
-        clinic_id: currentSpecialty.clinic?.clinic_id,
-        status: 'AVAILABLE'
+      const endDate = new Date(date);
+      endDate.setHours(hours, minutes + 30);
+      const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+      onCreateNewSlot({
+        date: date.toISOString().split('T')[0],
+        startTime: startTime,
+        endTime: endTime
       });
     }
   };
 
-  // Bulk operations
-  const handleBulkToggle = async (action) => {
-    if (selectedSlots.size === 0) return;
-    
-    const slotIds = Array.from(selectedSlots);
-    await onBulkToggle(action, slotIds);
-    setSelectedSlots(new Set());
-  };
-
-  // Select/deselect slot
-  const toggleSlotSelection = (slotId) => {
-    const newSelected = new Set(selectedSlots);
-    if (newSelected.has(slotId)) {
-      newSelected.delete(slotId);
+  const handleSlotSelection = (slotId, e) => {
+    if (e.shiftKey) {
+      showInfo('Chức năng chọn hàng loạt đang được phát triển.');
     } else {
-      newSelected.add(slotId);
-    }
-    setSelectedSlots(newSelected);
-  };
-
-  // Get slot status color
-  const getSlotStatusColor = (slot) => {
-    if (!slot) return 'bg-gray-100 text-gray-400 border-gray-200';
-    
-    switch (slot.status) {
-      case 'AVAILABLE':
-        return 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200';
-      case 'BOOKED':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'CANCELLED_BY_CLINIC':
-        return 'bg-red-100 text-red-800 border-red-300';
-      case 'ON_LEAVE':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      default:
-        return 'bg-gray-100 text-gray-600 border-gray-200';
+      const newSelected = new Set(selectedSlots);
+      if (newSelected.has(slotId)) {
+        newSelected.delete(slotId);
+      } else {
+        newSelected.add(slotId);
+      }
+      setSelectedSlots(newSelected);
     }
   };
 
-  // Format date
-  const formatDate = (date) => {
-    const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-    return {
-      day: days[date.getDay()],
-      date: date.getDate(),
-      month: date.getMonth() + 1
-    };
-  };
-
-  // Check if date is today
-  const isToday = (date) => {
+  const isPast = (date, time) => {
     const today = new Date();
-    return date.toDateString() === today.toDateString();
+    const slotDateTime = new Date(date);
+    const [hours, minutes] = time.split(':');
+    slotDateTime.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+    return slotDateTime < today;
   };
 
-  // Check if date is past
-  const isPast = (date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date < today;
-  };
+  const currentSpecialtyInfo = useMemo(() => {
+    return specialties.find(s => (s.specialtyId || s.specialty_id) === selectedSpecialty);
+  }, [specialties, selectedSpecialty]);
 
-  // Kiểm tra xem có thể tạo slot mới hay không
-  const canCreateNewSlot = useCallback((date) => {
-    if (!currentSpecialty) return false;
-    if (isPast(date)) return false;
-    return true;
-  }, [currentSpecialty]);
+  const canCreateNewSlot = useCallback((date, time) => {
+    if (!currentSpecialtyInfo) return false;
+    return !isPast(date, time);
+  }, [currentSpecialtyInfo]);
+
+  const getDayLabel = (date) => ({
+    day: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][date.getDay()],
+    date: date.getDate(),
+    isToday: date.toDateString() === new Date().toDateString()
+  });
+
+  if (!selectedSpecialty) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8 text-center min-h-[500px] flex flex-col justify-center items-center">
+        <Calendar className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-800">Chọn một chuyên khoa</h3>
+        <p className="text-gray-500 mt-2 max-w-sm">
+          Vui lòng chọn một chuyên khoa từ thanh bên trên để xem và quản lý lịch làm việc.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <Calendar className="w-8 h-8" />
-            <div>
-              <h3 className="text-2xl font-bold">Lịch làm việc</h3>
-              <p className="text-blue-100">
-                {currentSpecialty ? 
-                  `${currentSpecialty.name || 'Chưa có tên'} - ${currentSpecialty.clinic?.name || 'Chưa có phòng khám'}` : 
-                  'Chọn chuyên khoa để xem lịch'}
-              </p>
-            </div>
-          </div>
-          
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setViewMode(viewMode === 'week' ? 'day' : 'week')}
-              className="px-3 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
-            >
-              {viewMode === 'week' ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
-            </button>
-            
-            <div className="flex items-center space-x-1 bg-white/20 rounded-lg p-1">
-              <button
-                onClick={() => navigateWeek(-1)}
-                className="p-2 hover:bg-white/20 rounded-md transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              
-              <button
-                onClick={() => setCurrentWeek(new Date())}
-                className="px-3 py-2 hover:bg-white/20 rounded-md transition-colors text-sm font-medium"
-              >
-                Hôm nay
-              </button>
-              
-              <button
-                onClick={() => navigateWeek(1)}
-                className="p-2 hover:bg-white/20 rounded-md transition-colors"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
+            <button onClick={() => navigateWeek(-1)} className="p-2 rounded-full hover:bg-gray-100"><ChevronLeft className="w-5 h-5" /></button>
+            <button onClick={() => setCurrentWeek(new Date())} className="px-3 py-1.5 text-sm font-medium rounded-lg hover:bg-gray-100">Hôm nay</button>
+            <button onClick={() => navigateWeek(1)} className="p-2 rounded-full hover:bg-gray-100"><ChevronRight className="w-5 h-5" /></button>
           </div>
-        </div>
-
-        {/* Week range display */}
-        <div className="text-center">
-          <span className="text-lg font-semibold">
-            {formatDate(weekDates[0]).date}/{formatDate(weekDates[0]).month} - {formatDate(weekDates[6]).date}/{formatDate(weekDates[6]).month}
-          </span>
-        </div>
-
-        {/* Bulk operations */}
-        {selectedSlots.size > 0 && (
-          <div className="mt-4 flex items-center justify-between bg-white/20 rounded-lg p-3">
-            <span className="text-sm font-medium">
-              Đã chọn {selectedSlots.size} slot
-            </span>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => handleBulkToggle('enable')}
-                className="px-3 py-1 bg-green-500 hover:bg-green-600 rounded text-xs font-medium transition-colors"
-              >
-                <Power className="w-3 h-3 inline mr-1" />
-                Bật tất cả
-              </button>
-              <button
-                onClick={() => handleBulkToggle('disable')}
-                className="px-3 py-1 bg-red-500 hover:bg-red-600 rounded text-xs font-medium transition-colors"
-              >
-                <PowerOff className="w-3 h-3 inline mr-1" />
-                Tắt tất cả
-              </button>
-              <button
-                onClick={() => setSelectedSlots(new Set())}
-                className="px-3 py-1 bg-gray-500 hover:bg-gray-600 rounded text-xs font-medium transition-colors"
-              >
-                Hủy chọn
-              </button>
-            </div>
+          <div className="text-sm font-semibold text-gray-800 hidden sm:block">
+            Tuần: {new Date(weekDates[0]).toLocaleDateString('vi-VN')} - {new Date(weekDates[6]).toLocaleDateString('vi-VN')}
           </div>
-        )}
+          <button onClick={refetchData} className="p-2 rounded-full hover:bg-gray-100" title="Tải lại lịch">
+            <RotateCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
-
-      {/* Calendar grid */}
-      <div className="overflow-auto max-h-96">
-        <div className="min-w-full">
-          {/* Day headers */}
-          <div className="grid grid-cols-8 border-b border-gray-200 bg-gray-50">
-            <div className="p-3 text-sm font-medium text-gray-600 border-r border-gray-200">
-              Giờ
-            </div>
-            {weekDates.map((date, index) => {
-              const dateInfo = formatDate(date);
+      
+      <div className="overflow-x-auto">
+        <div className="min-w-max">
+          <div className="grid grid-cols-8 sticky top-0 bg-white z-10">
+            <div className="p-2 text-center text-xs font-medium text-gray-500 border-r border-b bg-gray-50">Giờ</div>
+            {weekDates.map(date => {
+              const { day, date: dayNum, isToday } = getDayLabel(date);
               return (
-                <div 
-                  key={index}
-                  className={`p-3 text-center border-r border-gray-200 ${
-                    isToday(date) ? 'bg-blue-50 text-blue-700 font-bold' : 'text-gray-700'
-                  } ${isPast(date) ? 'opacity-60' : ''}`}
-                >
-                  <div className="text-xs font-medium">{dateInfo.day}</div>
-                  <div className="text-sm">{dateInfo.date}/{dateInfo.month}</div>
+                <div key={date.toISOString()} className={`p-2 text-center border-r border-b ${isToday ? 'bg-blue-50 text-blue-600' : 'bg-gray-50'}`}>
+                  <div className="font-semibold text-xs">{day}</div>
+                  <div className="text-sm">{dayNum}</div>
                 </div>
               );
             })}
           </div>
 
-          {/* Time slots */}
-          {timeSlots.map((timeSlot) => (
-            <div key={timeSlot} className="grid grid-cols-8 border-b border-gray-100 hover:bg-gray-50">
-              {/* Time label */}
-              <div className="p-2 text-sm font-medium text-gray-600 border-r border-gray-200 bg-gray-50 flex items-center">
-                <Clock className="w-4 h-4 mr-1" />
-                {timeSlot}
-              </div>
-
-              {/* Slots for each day */}
+          {timeSlots.map((time) => (
+            <div key={time} className="grid grid-cols-8">
+              <div className="p-2 text-center text-xs font-medium text-gray-500 border-r border-t bg-gray-50 flex items-center justify-center">{time}</div>
               {weekDates.map((date, dayIndex) => {
                 const dateStr = date.toISOString().split('T')[0];
-                const currentSlot = slotsByDateTime[dateStr]?.[timeSlot];
-                const isSelected = currentSlot && selectedSlots.has(currentSlot.slot_id);
-                const isPastDate = isPast(date);
-                const canCreate = canCreateNewSlot(date);
-                
+                const currentSlot = slotsByDateTime[dateStr]?.[time];
+                const past = isPast(date, time);
+                const canCreate = !past && !!currentSpecialtyInfo;
+                const isSelected = selectedSlots.has(currentSlot?.slotId);
+
+                let bgColor = 'bg-gray-50';
+                let textColor = 'text-gray-400';
+                let borderColor = 'border-gray-200';
+                let hoverBgColor = 'hover:bg-gray-100';
+                let content = <Plus className="w-4 h-4" />;
+                let title = 'Click để tạo slot mới';
+                let isDisabled = past || loading;
+
+                if (currentSlot) {
+                  switch (currentSlot.status) {
+                    case 'AVAILABLE':
+                      bgColor = 'bg-green-100';
+                      textColor = 'text-green-700';
+                      borderColor = 'border-green-300';
+                      hoverBgColor = 'hover:bg-green-200';
+                      content = <Power className="w-4 h-4" />;
+                      title = 'Slot có sẵn. Click để tắt.';
+                      break;
+                    case 'BOOKED':
+                      bgColor = 'bg-blue-100';
+                      textColor = 'text-blue-700';
+                      borderColor = 'border-blue-300';
+                      hoverBgColor = ''; // No hover effect for booked slots
+                      content = <User className="w-4 h-4" />;
+                      title = `Đã đặt bởi: ${currentSlot.patient?.fullName || 'Bệnh nhân'}`;
+                      isDisabled = true; // Cannot toggle booked slots directly
+                      break;
+                    case 'CANCELLED_BY_CLINIC':
+                      bgColor = 'bg-red-100';
+                      textColor = 'text-red-700';
+                      borderColor = 'border-red-300';
+                      hoverBgColor = 'hover:bg-red-200';
+                      content = <PowerOff className="w-4 h-4" />;
+                      title = 'Slot đã bị tắt. Click để bật.';
+                      break;
+                    default:
+                      bgColor = 'bg-gray-100';
+                      textColor = 'text-gray-500';
+                      borderColor = 'border-gray-300';
+                      hoverBgColor = '';
+                      content = 'N/A';
+                  }
+                } else {
+                  if (!canCreate) {
+                    bgColor = 'bg-gray-50';
+                    textColor = 'text-gray-300';
+                    borderColor = 'border-gray-100';
+                    content = <div className="w-4 h-4" />;
+                    title = 'Không thể tạo slot';
+                    isDisabled = true;
+                  } else {
+                     title = 'Click để tạo slot mới';
+                  }
+                }
+
+                if (past) {
+                  bgColor = 'bg-gray-50';
+                  textColor = 'text-gray-300';
+                  borderColor = 'border-gray-100';
+                  hoverBgColor = '';
+                }
+
                 return (
-                  <div 
-                    key={dayIndex}
-                    className="p-1 border-r border-gray-100 h-12 flex items-center justify-center"
-                  >
+                  <div key={dateStr} className="p-1 border-r border-t h-12 flex items-center justify-center">
                     <button
-                      onClick={() => !isPastDate && handleSlotToggle(date, timeSlot, currentSlot)}
-                      onDoubleClick={() => currentSlot && toggleSlotSelection(currentSlot.slot_id)}
-                      disabled={loading || isPastDate}
-                      className={`w-full h-full rounded-md border-2 transition-all duration-200 text-xs font-medium
-                        ${getSlotStatusColor(currentSlot)}
-                        ${isSelected ? 'ring-2 ring-blue-400 ring-offset-1' : ''}
-                        ${isPastDate ? 'opacity-50 cursor-not-allowed' : ''}
-                        ${!currentSlot && !isPastDate && canCreate ? 'hover:bg-blue-50 hover:border-blue-300 border-dashed' : ''}
-                        ${!currentSlot && !isPastDate && !canCreate ? 'opacity-50 cursor-not-allowed' : ''}
-                        disabled:opacity-50 disabled:cursor-not-allowed
+                      title={title}
+                      disabled={isDisabled}
+                      onClick={() => handleSlotClick(date, time, currentSlot)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        if (currentSlot) handleSlotSelection(currentSlot.slotId || currentSlot.slot_id, e);
+                      }}
+                      className={`w-full h-full rounded-md border-2 transition-all duration-150 flex items-center justify-center
+                        ${bgColor} ${textColor} ${borderColor} ${hoverBgColor}
+                        ${isSelected ? 'ring-2 ring-offset-1 ring-indigo-500' : ''}
+                        ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                       `}
                     >
-                      {currentSlot ? (
-                        <div className="flex items-center justify-center h-full">
-                          {currentSlot.status === 'AVAILABLE' ? (
-                            <Power className="w-3 h-3" />
-                          ) : currentSlot.status === 'BOOKED' ? (
-                            <CheckCircle className="w-3 h-3" />
-                          ) : (
-                            <AlertCircle className="w-3 h-3" />
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center h-full opacity-50">
-                          {canCreate ? <Plus className="w-3 h-3" /> : <PowerOff className="w-3 h-3" />}
-                        </div>
-                      )}
+                      {content}
                     </button>
                   </div>
                 );
@@ -383,41 +276,31 @@ const WeeklyCalendarView = ({
           ))}
         </div>
       </div>
-
-      {/* Legend */}
-      <div className="p-4 bg-gray-50 border-t border-gray-200">
+      
+      <div className="p-4 bg-gray-50 border-t">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-4">
-            <div className="text-sm font-medium text-gray-700">Trạng thái:</div>
-            <div className="flex items-center space-x-1">
-              <div className="w-4 h-4 bg-green-100 border border-green-300 rounded"></div>
-              <span className="text-xs text-gray-600">Có thể đặt</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <div className="w-4 h-4 bg-blue-100 border border-blue-300 rounded"></div>
-              <span className="text-xs text-gray-600">Đã đặt</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <div className="w-4 h-4 bg-red-100 border border-red-300 rounded"></div>
-              <span className="text-xs text-gray-600">Đã hủy</span>
-            </div>
-            <div className="flex items-center space-x-1">
-              <div className="w-4 h-4 bg-gray-100 border border-gray-200 rounded border-dashed"></div>
-              <span className="text-xs text-gray-600">Chưa tạo</span>
-            </div>
+            <div className="flex items-center space-x-1"><div className="w-3 h-3 rounded-sm bg-green-100 border border-green-300"></div><span className="text-xs">Có thể đặt</span></div>
+            <div className="flex items-center space-x-1"><div className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-300"></div><span className="text-xs">Đã đặt</span></div>
+            <div className="flex items-center space-x-1"><div className="w-3 h-3 rounded-sm bg-red-100 border-red-300"></div><span className="text-xs">Đã tắt</span></div>
+            <div className="flex items-center space-x-1"><div className="w-3 h-3 rounded-sm bg-gray-100 border-gray-200 border-dashed"></div><span className="text-xs">Chưa tạo</span></div>
           </div>
           
-          <div className="text-xs text-gray-500">
-            <span className="font-medium">Thao tác:</span> Click để bật/tắt/tạo mới | Double-click để chọn nhiều
-          </div>
+          {selectedSlots.size > 0 && (
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium">{selectedSlots.size} slot đã chọn</span>
+              <button onClick={() => onBulkToggle('enable', Array.from(selectedSlots))} className="px-2 py-1 text-xs bg-green-500 text-white rounded">Bật</button>
+              <button onClick={() => onBulkToggle('disable', Array.from(selectedSlots))} className="px-2 py-1 text-xs bg-red-500 text-white rounded">Tắt</button>
+              <button onClick={() => setSelectedSlots(new Set())} className="p-1 text-gray-500 hover:text-gray-700"><X className="w-4 h-4" /></button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Loading overlay */}
       {loading && (
-        <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+        <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-20">
           <div className="flex items-center space-x-3">
-            <RotateCcw className="w-6 h-6 animate-spin text-blue-600" />
+            <RotateCw className="w-6 h-6 animate-spin text-blue-600" />
             <span className="text-lg font-medium text-gray-700">Đang cập nhật lịch...</span>
           </div>
         </div>
