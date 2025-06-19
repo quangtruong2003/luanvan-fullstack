@@ -13,14 +13,12 @@ import com.luanvan.luanvanbackend.services.DoctorService;
 import com.luanvan.luanvanbackend.services.SpecialtyService;
 import com.luanvan.luanvanbackend.services.StandardWorkShiftService;
 import com.luanvan.luanvanbackend.services.UserService;
-import com.luanvan.luanvanbackend.entities.DoctorSpecialty; // Added import
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -30,7 +28,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -252,22 +249,38 @@ public class DoctorScheduleController {
     public ResponseEntity<Map<String, Object>> createBulkSlotsFromWorkShifts(
             Authentication auth,
             @RequestBody Map<String, Object> request) {
-        
-        try {
+          try {
             User currentUser = getCurrentUserFromAuth(auth);
             Doctor doctor = doctorService.getDoctorByUserId(currentUser.getUserId());
             
-            // Enhanced validation và parsing
+            // Enhanced validation và parsing with null checks
+            if (request.get("specialtyId") == null) {
+                throw new IllegalArgumentException("specialtyId là bắt buộc");
+            }
+            if (request.get("clinicId") == null) {
+                throw new IllegalArgumentException("clinicId là bắt buộc");
+            }
+            
             Long specialtyId = Long.valueOf(request.get("specialtyId").toString());
             Long clinicId = Long.valueOf(request.get("clinicId").toString());
-            LocalDate startDate = LocalDate.parse(request.get("startDate").toString());
-            LocalDate endDate = LocalDate.parse(request.get("endDate").toString());
-            Integer slotDurationMinutes = 30; // Default 30 minutes
-            Boolean overwrite = Boolean.valueOf(request.getOrDefault("overwrite", false).toString());
             
-            if (request.containsKey("slotDurationMinutes")) {
+            // Set default date range if not provided
+            LocalDate startDate = LocalDate.now();
+            LocalDate endDate = startDate.plusDays(30);
+            
+            if (request.get("startDate") != null) {
+                startDate = LocalDate.parse(request.get("startDate").toString());
+            }
+            if (request.get("endDate") != null) {
+                endDate = LocalDate.parse(request.get("endDate").toString());
+            }
+            
+            Integer slotDurationMinutes = 30; // Default 30 minutes
+            if (request.containsKey("slotDurationMinutes") && request.get("slotDurationMinutes") != null) {
                 slotDurationMinutes = Integer.valueOf(request.get("slotDurationMinutes").toString());
             }
+            
+            Boolean overwrite = Boolean.valueOf(request.getOrDefault("overwrite", false).toString());
             
             // Validation
             if (startDate.isAfter(endDate)) {
@@ -420,13 +433,22 @@ public class DoctorScheduleController {
     public ResponseEntity<Map<String, Object>> checkSlotConflicts(
             Authentication auth,
             @RequestBody Map<String, Object> request) {
-        
-        try {
+          try {
             User currentUser = getCurrentUserFromAuth(auth);
             Doctor doctor = doctorService.getDoctorByUserId(currentUser.getUserId());
             
-            String slotTimeStr = request.get("slotTime").toString();
-            Long currentSpecialtyId = Long.valueOf(request.get("currentSpecialtyId").toString());
+            // Validate required fields
+            if (request.get("slotTime") == null) {
+                throw new IllegalArgumentException("slotTime là bắt buộc");
+            }
+              String slotTimeStr = request.get("slotTime").toString();
+            final Long currentSpecialtyId;
+            
+            if (request.get("currentSpecialtyId") != null) {
+                currentSpecialtyId = Long.valueOf(request.get("currentSpecialtyId").toString());
+            } else {
+                currentSpecialtyId = null;
+            }
             
             // Parse slot time (format: "2024-01-15T10:00:00")
             LocalDateTime slotDateTime = LocalDateTime.parse(slotTimeStr);
@@ -440,12 +462,15 @@ public class DoctorScheduleController {
                 .filter(slot -> slot.getStartTime().equals(slotTime) && 
                                slot.getStatus() == AvailabilitySlot.SlotStatus.AVAILABLE)
                 .toList();
-            
-            // Filter out slots from current specialty
+              // Filter out slots from current specialty
             List<AvailabilitySlot> conflictingSlots = allSlotsAtTime.stream()
                 .filter(slot -> {
-                    // TODO: Filter by specialty when entity relationship is ready
-                    // For now, assume conflict if any available slot exists at same time
+                    // Filter by specialty if currentSpecialtyId is provided
+                    if (currentSpecialtyId != null && slot.getSpecialty() != null) {
+                        // Only consider as conflict if it's a different specialty
+                        return !slot.getSpecialty().getSpecialtyId().equals(currentSpecialtyId);
+                    }
+                    // If no specialty filter, assume conflict if any available slot exists at same time
                     return true;
                 })
                 .toList();

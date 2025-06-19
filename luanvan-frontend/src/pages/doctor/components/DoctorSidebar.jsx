@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Home, Calendar, Users, FileText, UserCog, 
-  Clock, User, LogOut
+  Clock, User
 } from 'lucide-react';
 
 const DoctorSidebar = ({ 
@@ -9,7 +9,7 @@ const DoctorSidebar = ({
   setActiveTab, 
   stats, 
   availabilitySlots, 
-  handleLogout 
+  doctorName // Thêm prop doctorName
 }) => {
   const tabs = [
     { id: 'dashboard', name: 'Tổng quan', icon: Home },
@@ -22,12 +22,11 @@ const DoctorSidebar = ({
 
   return (
     <div className="w-64 flex-shrink-0">
-      <nav className="bg-white shadow-xl rounded-xl p-4 border border-gray-200">
-        <div className="mb-4 text-center">
+      <nav className="bg-white shadow-xl rounded-xl p-4 border border-gray-200">        <div className="mb-4 text-center">
           <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-2">
             <User className="w-6 h-6 text-white" />
           </div>
-          <p className="text-sm font-medium text-gray-700">Bảng điều khiển</p>
+          <p className="text-sm font-medium text-gray-700">{doctorName || 'Bác sĩ'}</p>
         </div>
         
         {/* Navigation Items */}
@@ -109,19 +108,7 @@ const DoctorSidebar = ({
               </span>
             </div>
           </div>
-        </div>
-        
-        {/* Logout Button */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center px-4 py-3 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200"
-          >
-            <LogOut className="h-5 w-5 mr-3" />
-            <span>Đăng xuất</span>
-          </button>
-        </div>
-        
+        </div>        
         {/* Keyboard Shortcuts Help */}
         <div className="mt-4 p-3 bg-gray-50 rounded-lg">
           <div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">

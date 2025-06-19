@@ -17,12 +17,13 @@ import About from './pages/About'
 function App() {
   const location = useLocation();
   const isLoginPage = location.pathname === "/login";
+  const isDoctorDashboard = location.pathname === "/doctor/dashboard";
 
   return (
     <NotificationProvider>
       <div className="min-h-screen bg-gray-50">
         <ClerkAuthHandler />
-        {!isLoginPage && <Menubar />}
+        {!isLoginPage && !isDoctorDashboard && <Menubar />}
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<Home />} />

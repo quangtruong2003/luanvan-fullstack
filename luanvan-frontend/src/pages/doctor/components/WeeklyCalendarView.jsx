@@ -18,7 +18,9 @@ const WeeklyCalendarView = ({
 }) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSlots, setSelectedSlots] = useState(new Set());
-  const [hoveredSlot, setHoveredSlot] = useState(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+  const [previewSlotId, setPreviewSlotId] = useState(null);
   const { showInfo } = useNotification();
 
   const weekDates = useMemo(() => {
@@ -80,8 +82,23 @@ const WeeklyCalendarView = ({
     if (loading) return;
     
     if (currentSlot) {
-      onSlotToggle(currentSlot.slotId || currentSlot.slot_id, currentSlot.status, `${date.toISOString().split('T')[0]}T${time}`);
+      // Prepare toggle action for existing slot
+      const action = {
+        type: 'toggle',
+        slotId: currentSlot.slotId || currentSlot.slot_id,
+        currentStatus: currentSlot.status,
+        timeString: `${date.toISOString().split('T')[0]}T${time}`,
+        displayInfo: {
+          date: date.toLocaleDateString('vi-VN'),
+          time: time,
+          currentStatus: currentSlot.status
+        }
+      };
+      setPendingAction(action);
+      setPreviewSlotId(currentSlot.slotId || currentSlot.slot_id);
+      setShowConfirmDialog(true);
     } else if (onCreateNewSlot && canCreateNewSlot(date, time)) {
+      // Prepare create action for new slot
       const [hours, minutes] = time.split(':').map(Number);
       const startTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
       
@@ -89,12 +106,48 @@ const WeeklyCalendarView = ({
       endDate.setHours(hours, minutes + 30);
       const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
 
-      onCreateNewSlot({
-        date: date.toISOString().split('T')[0],
-        startTime: startTime,
-        endTime: endTime
-      });
+      const action = {
+        type: 'create',
+        slotData: {
+          date: date.toISOString().split('T')[0],
+          startTime: startTime,
+          endTime: endTime
+        },
+        displayInfo: {
+          date: date.toLocaleDateString('vi-VN'),
+          time: time
+        }
+      };
+      setPendingAction(action);
+      setPreviewSlotId(`preview-${date.toISOString().split('T')[0]}-${time}`);
+      setShowConfirmDialog(true);
     }
+  };
+
+  // Execute the confirmed action
+  const handleConfirmAction = () => {
+    if (!pendingAction) return;
+    
+    if (pendingAction.type === 'toggle') {
+      onSlotToggle(
+        pendingAction.slotId, 
+        pendingAction.currentStatus
+      );
+    } else if (pendingAction.type === 'create') {
+      onCreateNewSlot(pendingAction.slotData);
+    }
+    
+    // Reset states
+    setShowConfirmDialog(false);
+    setPendingAction(null);
+    setPreviewSlotId(null);
+  };
+
+  // Cancel the action
+  const handleCancelAction = () => {
+    setShowConfirmDialog(false);
+    setPendingAction(null);
+    setPreviewSlotId(null);
   };
 
   const handleSlotSelection = (slotId, e) => {
@@ -182,12 +235,14 @@ const WeeklyCalendarView = ({
           {timeSlots.map((time) => (
             <div key={time} className="grid grid-cols-8">
               <div className="p-2 text-center text-xs font-medium text-gray-500 border-r border-t bg-gray-50 flex items-center justify-center">{time}</div>
-              {weekDates.map((date, dayIndex) => {
+              {weekDates.map((date) => {
                 const dateStr = date.toISOString().split('T')[0];
                 const currentSlot = slotsByDateTime[dateStr]?.[time];
                 const past = isPast(date, time);
                 const canCreate = !past && !!currentSpecialtyInfo;
                 const isSelected = selectedSlots.has(currentSlot?.slotId);
+                const isPreview = previewSlotId === (currentSlot?.slotId || currentSlot?.slot_id) || 
+                                previewSlotId === `preview-${dateStr}-${time}`;
 
                 let bgColor = 'bg-gray-50';
                 let textColor = 'text-gray-400';
@@ -197,7 +252,30 @@ const WeeklyCalendarView = ({
                 let title = 'Click để tạo slot mới';
                 let isDisabled = past || loading;
 
-                if (currentSlot) {
+                // Handle preview state
+                if (isPreview && pendingAction) {
+                  if (pendingAction.type === 'create') {
+                    bgColor = 'bg-yellow-100';
+                    textColor = 'text-yellow-700';
+                    borderColor = 'border-yellow-300';
+                    content = <Plus className="w-4 h-4" />;
+                    title = 'Sẽ tạo slot mới - Chờ xác nhận';
+                  } else if (pendingAction.type === 'toggle') {
+                    if (currentSlot?.status === 'AVAILABLE') {
+                      bgColor = 'bg-red-200';
+                      textColor = 'text-red-800';
+                      borderColor = 'border-red-400';
+                      content = <PowerOff className="w-4 h-4" />;
+                      title = 'Sẽ tắt slot - Chờ xác nhận';
+                    } else {
+                      bgColor = 'bg-green-200';
+                      textColor = 'text-green-800';
+                      borderColor = 'border-green-400';
+                      content = <Power className="w-4 h-4" />;
+                      title = 'Sẽ bật slot - Chờ xác nhận';
+                    }
+                  }
+                } else if (currentSlot) {
                   switch (currentSlot.status) {
                     case 'AVAILABLE':
                       bgColor = 'bg-green-100';
@@ -284,6 +362,7 @@ const WeeklyCalendarView = ({
             <div className="flex items-center space-x-1"><div className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-300"></div><span className="text-xs">Đã đặt</span></div>
             <div className="flex items-center space-x-1"><div className="w-3 h-3 rounded-sm bg-red-100 border-red-300"></div><span className="text-xs">Đã tắt</span></div>
             <div className="flex items-center space-x-1"><div className="w-3 h-3 rounded-sm bg-gray-100 border-gray-200 border-dashed"></div><span className="text-xs">Chưa tạo</span></div>
+            <div className="flex items-center space-x-1"><div className="w-3 h-3 rounded-sm bg-yellow-100 border border-yellow-300"></div><span className="text-xs">Chờ xác nhận</span></div>
           </div>
           
           {selectedSlots.size > 0 && (
@@ -302,6 +381,79 @@ const WeeklyCalendarView = ({
           <div className="flex items-center space-x-3">
             <RotateCw className="w-6 h-6 animate-spin text-blue-600" />
             <span className="text-lg font-medium text-gray-700">Đang cập nhật lịch...</span>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      {showConfirmDialog && pendingAction && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 shadow-2xl max-w-md w-full mx-4">
+            <div className="text-center">
+              <div className="mb-4">
+                {pendingAction.type === 'create' ? (
+                  <div className="w-16 h-16 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-3">
+                    <Plus className="w-8 h-8 text-yellow-600" />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                    {pendingAction.currentStatus === 'AVAILABLE' ? (
+                      <PowerOff className="w-8 h-8 text-red-600" />
+                    ) : (
+                      <Power className="w-8 h-8 text-green-600" />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {pendingAction.type === 'create' 
+                  ? 'Xác nhận tạo slot mới' 
+                  : 'Xác nhận thay đổi slot'}
+              </h3>
+
+              <div className="text-sm text-gray-600 mb-6">
+                <p className="mb-1">
+                  <strong>Ngày:</strong> {pendingAction.displayInfo.date}
+                </p>
+                <p className="mb-3">
+                  <strong>Giờ:</strong> {pendingAction.displayInfo.time}
+                </p>
+                
+                {pendingAction.type === 'create' ? (
+                  <p className="text-blue-600">
+                    Slot mới sẽ được tạo và có thể đặt lịch.
+                  </p>
+                ) : (
+                  <p className={pendingAction.currentStatus === 'AVAILABLE' ? 'text-red-600' : 'text-green-600'}>
+                    {pendingAction.currentStatus === 'AVAILABLE' 
+                      ? 'Slot sẽ bị tắt và không thể đặt lịch.'
+                      : 'Slot sẽ được bật và có thể đặt lịch.'}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleCancelAction}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleConfirmAction}
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors ${
+                    pendingAction.type === 'create' 
+                      ? 'bg-yellow-600 hover:bg-yellow-700'
+                      : pendingAction.currentStatus === 'AVAILABLE'
+                        ? 'bg-red-600 hover:bg-red-700'
+                        : 'bg-green-600 hover:bg-green-700'
+                  }`}
+                >
+                  Xác nhận
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Clock, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, LogOut } from 'lucide-react';
 import { doctorService } from '../../services/api';
 import { useNotification } from '../../components/NotificationSystem';
 
@@ -39,7 +39,7 @@ const DoctorDashboardNew = () => {
   const [doctorName, setDoctorName] = useState('Bác sĩ');
   const [showDebug, setShowDebug] = useState(false);
 
-  const { showSuccess, showError, showWarning } = useNotification();
+  const { showSuccess, showError } = useNotification();
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -227,20 +227,19 @@ const DoctorDashboardNew = () => {
       showError(errorMessage);
     }
   };
-
   // Bật/tắt slot và xử lý xung đột
-  const handleToggleSlot = useCallback(async (slotId, currentStatus, slotTime) => {
+  const handleToggleSlot = useCallback(async (slotId, currentStatus) => {
     try {
       setLoadingSlots(true);
-      const newStatus = currentStatus === 'AVAILABLE' ? 'CANCELLED_BY_CLINIC' : 'AVAILABLE';
+      const isAvailable = currentStatus !== 'AVAILABLE';
       
-      await doctorService.updateMyAvailabilitySlot(slotId, { status: newStatus });
+      await doctorService.toggleSlotAvailability(slotId, isAvailable);
       
       // Refresh data
       const slotsRes = await doctorService.getMyAvailabilitySlots();
       setAvailabilitySlots(slotsRes.content || slotsRes || []);
       
-      showSuccess(`Đã ${newStatus === 'AVAILABLE' ? 'bật' : 'tắt'} slot thành công!`);
+      showSuccess(`Đã ${isAvailable ? 'bật' : 'tắt'} slot thành công!`);
     } catch (error) {
       console.error('Error toggling slot:', error);
       showError('Không thể cập nhật slot. Vui lòng thử lại!');
@@ -299,7 +298,6 @@ const DoctorDashboardNew = () => {
       setLoadingSlots(false);
     }
   }, [showSuccess, showError]);
-
   // Hàm mới để tạo slot mới khi click vào ô trống
   const handleCreateNewSlot = useCallback(async (slotData) => {
     try {
@@ -307,26 +305,35 @@ const DoctorDashboardNew = () => {
       
       const doctorInfo = await doctorService.getMyProfile();
       
+      // Get current selected specialty info
+      const currentSpecialty = specialties.find(s => 
+        (s.specialtyId || s.specialty_id) === selectedSpecialtyForSchedule
+      );
+      
+      if (!currentSpecialty) {
+        showError('Vui lòng chọn chuyên khoa trước khi tạo slot.');
+        return;
+      }
+      
+      const clinicId = currentSpecialty.clinic?.clinicId || currentSpecialty.clinic?.clinic_id;
+      const specialtyId = currentSpecialty.specialtyId || currentSpecialty.specialty_id;
+      
+      if (!clinicId) {
+        showError('Không tìm thấy thông tin phòng khám cho chuyên khoa này.');
+        return;
+      }
+      
       const payload = {
         ...slotData,
         doctorId: doctorInfo.doctorId || doctorInfo.doctor_id,
+        clinicId: clinicId,
+        specialtyId: specialtyId,
         status: 'AVAILABLE'
       };
       
       console.log('Creating new slot with payload:', payload);
 
-      // Backend DTO uses camelCase, so we ensure it here.
-      const apiPayload = {
-        date: payload.date,
-        startTime: payload.startTime,
-        endTime: payload.endTime,
-        status: payload.status,
-        doctorId: payload.doctorId,
-        clinicId: payload.clinic_id,
-        specialtyId: payload.specialty_id
-      };
-
-      await doctorService.createMyAvailabilitySlot(apiPayload);
+      await doctorService.createMyAvailabilitySlot(payload);
       
       // Refresh slots
       const slotsRes = await doctorService.getMyAvailabilitySlots();
@@ -339,7 +346,7 @@ const DoctorDashboardNew = () => {
     } finally {
       setLoadingSlots(false);
     }
-  }, [showSuccess, showError]);
+  }, [showSuccess, showError, specialties, selectedSpecialtyForSchedule]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -414,67 +421,47 @@ const DoctorDashboardNew = () => {
           </div>
         </div>
       )}
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Header Welcome */}
-        <div className="mb-6">
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-blue-500">
-            <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Header */}
+        <header className="bg-white shadow rounded-lg mb-6">
+          <div className="px-6 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center">
                 <h1 className="text-2xl font-bold text-gray-900">
-                    👋 Chào mừng quay trở lại, {doctorName}!
+                  Bảng điều khiển Bác sĩ
                 </h1>
-                  <p className="text-gray-600 mt-1">
-                    Hôm nay bạn có <span className="font-semibold text-blue-600">{stats.todayAppointments}</span> lịch hẹn
-                  </p>
-                </div>
               </div>
               <div className="flex items-center space-x-4">
-                {/* Clickable Avatar */}
-              <button
-                  onClick={() => setActiveTab('profile')}
-                  className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white hover:from-blue-600 hover:to-purple-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-                  title="Xem hồ sơ cá nhân"
-                >
-                  <span className="text-lg font-semibold">
-                    {(doctorName.split(' ').map(word => word[0]).join('').slice(0, 2) || 'BS').toUpperCase()}
-                  </span>
-              </button>
+                <span className="text-sm text-gray-600">
+                  Xin chào, <span className="font-medium">{doctorName}</span>
+                </span>
                 <button
                   onClick={fetchDashboardData}
                   disabled={loading}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 disabled:opacity-50"
+                  className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100 transition-colors duration-200 disabled:opacity-50"
                   title="Tải lại dữ liệu (Ctrl+R)"
                 >
                   <Clock className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
                   <span className="hidden sm:inline">Làm mới</span>
+                </button>                <button
+                  onClick={handleLogout}
+                  className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                >
+                  <LogOut className="h-4 w-4 mr-1" />
+                  Đăng xuất
                 </button>
-                <div className="hidden md:block">
-                  <div className="text-right">
-                    <div className="text-sm text-gray-500">
-                      {new Date().toLocaleDateString('vi-VN', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-            })}
-          </div>
-        </div>
-                </div>
               </div>
             </div>
           </div>
-        </div>
+        </header>
 
         <div className="flex space-x-6">
-          {/* Sidebar Navigation */}
-          <DoctorSidebar 
+          {/* Sidebar Navigation */}          <DoctorSidebar 
             activeTab={activeTab}
             setActiveTab={setActiveTab}
             stats={stats}
             availabilitySlots={availabilitySlots}
-            handleLogout={handleLogout}
+            doctorName={doctorName}
           />
 
       {/* Main Content */}

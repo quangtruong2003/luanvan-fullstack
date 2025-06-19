@@ -105,15 +105,13 @@ const DashboardOverview = ({ stats, loading }) => {
             </span>
           </div>
         </div>
-      </div>
-
-      {/* Quick Actions */}
+      </div>      {/* Quick Actions */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-5">
           <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
             Thao tác nhanh
           </h3>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-1">
             <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
               <div className="flex-shrink-0">
                 <Calendar className="h-10 w-10 text-blue-500" />
@@ -122,17 +120,6 @@ const DashboardOverview = ({ stats, loading }) => {
                 <span className="absolute inset-0" aria-hidden="true" />
                 <p className="text-sm font-medium text-gray-900">Xem lịch hẹn</p>
                 <p className="text-sm text-gray-500">Quản lý và xem chi tiết lịch hẹn</p>
-              </div>
-            </div>
-
-            <div className="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm flex items-center space-x-3 hover:border-gray-400 focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-              <div className="flex-shrink-0">
-                <Clock className="h-10 w-10 text-green-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className="absolute inset-0" aria-hidden="true" />
-                <p className="text-sm font-medium text-gray-900">Quản lý lịch làm việc</p>
-                <p className="text-sm text-gray-500">Tạo và quản lý slot thời gian</p>
               </div>
             </div>
           </div>

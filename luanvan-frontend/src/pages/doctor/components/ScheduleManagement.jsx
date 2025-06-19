@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
-  Calendar, CheckCircle, Clock, FileText, Info,
+  Calendar, CheckCircle, FileText, Info,
   Building, MapPin, Power, PowerOff, AlertTriangle,
   Zap, Users, RefreshCw, Play, Settings
 } from 'lucide-react';
@@ -152,8 +152,7 @@ const ScheduleManagement = ({
     
     setAutoGenerating(true);
     try {
-      await handleGenerateSlotsFromWorkShifts(selectedSpecialtyForSchedule, clinicId, settings);
-    } catch (error) {
+      await handleGenerateSlotsFromWorkShifts(selectedSpecialtyForSchedule, clinicId, settings);    } catch {
       // Error is handled in the parent component
     } finally {
       setAutoGenerating(false);
@@ -162,41 +161,6 @@ const ScheduleManagement = ({
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-emerald-600 to-green-700 rounded-xl p-8 text-white shadow-2xl">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-3xl font-bold mb-2">⏰ Quản lý lịch làm việc</h2>
-            <p className="text-emerald-100 text-lg">
-              Xem và tạo lịch khám cho từng chuyên khoa
-            </p>
-          </div>
-          
-          <div className="hidden md:block">
-            <Clock className="w-16 h-16 text-emerald-200" />
-          </div>
-        </div>
-        
-        <div className="bg-white/20 backdrop-blur-sm rounded-lg p-4 border border-white/30">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold mb-1">🚀 Tính năng thông minh</h3>
-              <p className="text-sm text-emerald-100">
-                {specialties.length > 1 
-                  ? "Tự động xử lý xung đột lịch làm việc giữa các chuyên khoa" 
-                  : "Dễ dàng tạo lịch dựa trên ca làm việc của phòng khám"}
-              </p>
-            </div>
-            {specialties.length > 1 && (
-              <div className="bg-orange-500/20 px-3 py-1 rounded-full border border-orange-300">
-                <span className="text-xs font-medium">
-                  <Users className="w-3 h-3 inline mr-1" />
-                  {specialties.length} chuyên khoa
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       <SpecialtyTabBar 
         specialties={specialties}
