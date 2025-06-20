@@ -27,11 +27,37 @@ const BookAppointmentDetails = () => {
     patientEmail: '',
     depositAmount: 0,
     isDepositPaid: false
-  });
-  const [loading, setLoading] = useState(false);
+  });  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [specialtyId, setSpecialtyId] = useState(null);
-    // Lấy thông tin người dùng từ localStorage hoặc currentUser  useEffect(() => {
+  
+  // Hàm lấy thông tin người dùng từ API
+  const fetchUserInfoFromAPI = async () => {
+    try {
+      const userData = await apiService.getCurrentUser();
+      if (userData) {
+        console.log('Fetched user data from API:', userData);
+        const userDataFormatted = {
+          user_id: userData.user_id || userData.id,
+          full_name: userData.full_name || userData.fullName || '',
+          email: userData.email || '',
+          phone_number: userData.phone_number || userData.phoneNumber || ''
+        };
+        setUserInfo(userDataFormatted);
+        setFormData(prev => ({
+          ...prev,
+          patientName: userDataFormatted.full_name,
+          patientPhone: userDataFormatted.phone_number,
+          patientEmail: userDataFormatted.email
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching user info from API:', err);
+    }
+  };
+  
+  // Lấy thông tin người dùng từ localStorage hoặc currentUser  
+  useEffect(() => {
     console.log('Checking user info sources...');
     
     // Lấy từ currentUser trước
@@ -80,36 +106,10 @@ const BookAppointmentDetails = () => {
           console.log('Attempting to fetch user info from API...');
           fetchUserInfoFromAPI();
         }
-      }
-    }
+      }    }
   }, [currentUser]);
   
-  // Hàm lấy thông tin người dùng từ API
-  const fetchUserInfoFromAPI = async () => {
-    try {
-      const userData = await apiService.getCurrentUser();
-      if (userData) {
-        console.log('Fetched user data from API:', userData);
-        const userDataFormatted = {
-          user_id: userData.user_id || userData.id,
-          full_name: userData.full_name || userData.fullName || '',
-          email: userData.email || '',
-          phone_number: userData.phone_number || userData.phoneNumber || ''
-        };
-        setUserInfo(userDataFormatted);
-        setFormData(prev => ({
-          ...prev,
-          patientName: userDataFormatted.full_name,
-          patientPhone: userDataFormatted.phone_number,
-          patientEmail: userDataFormatted.email
-        }));
-      }
-    } catch (err) {
-      console.error('Error fetching user info from API:', err);
-    }
-  };
-  
-    // Lấy specialtyId từ slot nếu có
+  // Lấy specialtyId từ slot nếu có
   useEffect(() => {
     if (slotData?.specialty?.specialtyId) {
       setSpecialtyId(slotData.specialty.specialtyId);
