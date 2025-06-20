@@ -2,6 +2,7 @@ import Menubar from "./components/Menubar"
 import ClerkAuthHandler from "./components/ClerkAuthHandler"
 import Home from "./pages/Home"
 import BookAppointment from "./pages/BookAppointment"
+import BookAppointmentDetails from "./pages/BookAppointmentDetails"
 import MyAppointments from "./pages/MyAppointments"
 import Dashboard from "./pages/Dashboard"
 import Login from "./pages/Login"
@@ -29,9 +30,9 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/pr" element={<About />} />
-          
-          {/* Patient routes (với Clerk authentication) */}
+            {/* Patient routes (với Clerk authentication) */}
           <Route path="/book-appointment" element={<BookAppointment />} />
+          <Route path="/book-appointment-details" element={<BookAppointmentDetails />} />
           <Route path="/book-appointment/doctor/:doctorId" element={<DoctorSchedule />} />
           <Route path="/book-appointment/specialty/:specialtyId" element={<SpecialtyDoctors />} />
           <Route path="/my-appointments" element={<MyAppointments />} />

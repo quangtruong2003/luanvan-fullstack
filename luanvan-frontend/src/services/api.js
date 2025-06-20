@@ -1,5 +1,5 @@
 // API Base URL - cập nhật theo backend của bạn
-const API_BASE_URL = 'http://localhost:9090/api';
+export const API_BASE_URL = 'http://localhost:9090/api';
 
 // Notification service for user feedback
 export const notificationService = {
@@ -43,6 +43,8 @@ export const notificationService = {
 // Helper function để thêm token vào headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
+  console.log(token);
+  
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` })
@@ -177,6 +179,8 @@ const apiRequest = async (url, options = {}) => {
 export const authService = {
   // Đăng nhập với email/password
   async loginWithCredentials(credentials) {
+    console.log(credentials);
+    
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
@@ -185,15 +189,17 @@ export const authService = {
         },
         body: JSON.stringify(credentials)
       });
-
+      console.log(response);
+      
       const data = await handleResponse(response);
+      console.log(data);
+      
       return data;
     } catch (error) {
       console.error('Login error:', error);
       throw error;
     }
   },
-
   // Lấy thông tin user hiện tại
   // Get current user (use localStorage data instead of problematic API)
   async getCurrentUser() {
@@ -223,19 +229,44 @@ export const authService = {
           full_name: userName || 'User',
           fullName: userName || 'User',
           email: userEmail,
+          phone_number: '', // Will be fetched from API if needed
+          phoneNumber: '', // Will be fetched from API if needed
           role_name: userRole,
           role: userRole
         };
       }
 
-      // If no localStorage data, try API as fallback but handle errors gracefully
+      // If no localStorage data, try API as fallback and handle errors gracefully
       try {
         console.log('🔄 Attempting fallback API call to /users/me');
         const data = await apiRequest(`${API_BASE_URL}/users/me`);
-        return data;
+        console.log('✅ Successfully fetched from /users/me:', data);
+        
+        // Format the response to include both snake_case and camelCase fields
+        return {
+          user_id: data.userId || data.user_id,
+          id: data.userId || data.user_id,
+          full_name: data.fullName || data.full_name,
+          fullName: data.fullName || data.full_name,
+          email: data.email,
+          phone_number: data.phoneNumber || data.phone_number || '',
+          phoneNumber: data.phoneNumber || data.phone_number || '',
+          role_name: data.role?.roleName || userRole,
+          role: data.role?.roleName || userRole
+        };
       } catch (apiError) {
         console.warn('API /users/me failed, using localStorage fallback:', apiError.message);
-        return null;
+        return {
+          user_id: backendUserId ? parseInt(backendUserId) : null,
+          id: backendUserId ? parseInt(backendUserId) : null,
+          full_name: userName || '',
+          fullName: userName || '',
+          email: userEmail || '',
+          phone_number: '',
+          phoneNumber: '',
+          role_name: userRole || '',
+          role: userRole || ''
+        };
       }
     } catch (error) {
       console.error('Get current user error:', error);
@@ -281,6 +312,8 @@ export const authService = {
 
   // Đồng bộ user với Clerk
   async syncClerkUser(userData) {
+    console.log(userData);
+    
     try {
       console.log('🔄 Calling syncClerkUser API with data:', userData);
       const requestUrl = `${API_BASE_URL}/auth/clerk-sync`;
@@ -729,6 +762,20 @@ export const apiService = {
     }
   },
 
+  // Lấy tất cả slot (bao gồm đã đặt) theo bác sĩ và ngày (chỉ Admin)
+  async getAllSlotsByDoctorAndDate(doctorId, date) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/availability/admin/slots/doctor/${doctorId}/date/${date}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Get all slots by doctor and date error:', error);
+      throw error;
+    }
+  },
+
   // Doctor APIs
   async getDoctors(params = {}) {
     try {
@@ -758,9 +805,18 @@ export const apiService = {
     }
   },
 
-  async searchDoctorsByName(name) {
+  async searchDoctorsByName(name, params = {}) {
+    console.log('handleSearch called', name);
     try {
-      return await apiRequest(`${API_BASE_URL}/doctors/search?name=${encodeURIComponent(name)}`);
+      const queryParams = new URLSearchParams({ name, ...params });
+      const response = await fetch(`${API_BASE_URL}/doctors/search?${queryParams}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      console.log('Doctor search response:', response);
+      console.log('Doctors in state:', response.content);
+      console.log('API searchDoctorsByName called');
+      return handleResponse(response);
     } catch (error) {
       console.error('Search doctors by name error:', error);
       throw error;
@@ -777,12 +833,18 @@ export const apiService = {
   },
 
   // Specialty APIs  
-  async getSpecialties(params = {}) {
+  async getSpecialties() {
     try {
-      const queryParams = new URLSearchParams(params);
-      return await apiRequest(`${API_BASE_URL}/specialties?${queryParams}`);
+      const response = await fetch(`${API_BASE_URL}/specialties`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      const data = await response.json();
+      return data;
     } catch (error) {
-      console.error('Get specialties error:', error);
+      console.error('Error fetching specialties:', error);
       throw error;
     }
   },
@@ -808,10 +870,29 @@ export const apiService = {
 
   async createAppointment(appointmentData) {
     try {
-      return await apiRequest(`${API_BASE_URL}/appointments`, {
+      console.log('DEBUG: createAppointment với dữ liệu:', appointmentData);
+      const response = await fetch(`${API_BASE_URL}/appointments`, {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: JSON.stringify(appointmentData)
       });
+      
+      // Log chi tiết lỗi nếu có
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', response.status, errorText);
+        
+        try {
+          // Thử phân tích lỗi dạng JSON nếu có
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.message || `Lỗi ${response.status}: ${errorText}`);
+        } catch (e) {
+          // Nếu không phải JSON, trả về lỗi dạng text
+          throw new Error(`Lỗi ${response.status}: ${errorText}`);
+        }
+      }
+      
+      return handleResponse(response);
     } catch (error) {
       console.error('Create appointment error:', error);
       throw error;
@@ -871,7 +952,126 @@ export const apiService = {
       console.error('Delete clinic specialty error:', error);
       throw error;
     }
-  }
+  },
+
+  // Lấy slot khả dụng theo bác sĩ và ngày
+  async getAvailableSlots(doctorId, date) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/availability/slots/doctor/${doctorId}/date/${date}`
+      );
+      const data = await response.json();
+      console.log('DEBUG data from getAvailableSlots:', data);
+      return data;
+    } catch (error) {
+      console.error('Get available slots error:', error);
+      throw error;
+    }
+  },
+
+  // Lấy ca làm việc tiêu chuẩn theo phòng khám
+  async getStandardShifts(clinicId) {
+    try {
+      console.log('DEBUG getStandardShifts - clinicId nhận vào:', clinicId);
+      
+      // Kiểm tra nếu clinicId là một object (có thể là clinic object) 
+      // thì lấy id từ clinicId.id hoặc clinicId.clinicId
+      const actualClinicId = typeof clinicId === 'object' 
+        ? (clinicId.id || clinicId.clinicId) 
+        : clinicId;
+        
+      console.log('DEBUG getStandardShifts - actualClinicId sau khi xử lý:', actualClinicId);
+      
+      if (!actualClinicId) {
+        throw new Error('Invalid clinic ID');
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/workshift/standard/clinic/${actualClinicId}`, {
+        headers: getAuthHeaders()
+      });
+      return handleResponse(response);
+    } catch (error) {
+      console.error('Get standard shifts error:', error);
+      throw error;
+    }
+  },
+
+  // Lấy thông tin phòng khám theo ID
+  async getClinicById(clinicId) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/clinics/${clinicId}`);
+      return await response.json();
+    } catch (error) {
+      console.error('Get clinic error:', error);
+      throw error;
+    }
+  },
+
+  // Lấy thông tin bác sĩ theo user ID
+  async getDoctorByUserId(doctorId) {
+    try {
+      console.log('Gọi API getDoctorByUserId với doctorId:', doctorId);
+      const response = await fetch(`${API_BASE_URL}/doctors/${doctorId}`, {
+        headers: getAuthHeaders()
+      });
+      
+      // Kiểm tra nếu response không ok
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', response.status, errorText);
+        throw new Error(`Lỗi ${response.status}: ${errorText}`);
+      }
+      
+      // Lấy dữ liệu
+      const data = await handleResponse(response);
+      console.log('Dữ liệu bác sĩ nhận được từ API:', data);
+      
+      // Trả về dữ liệu ngay nếu không cần xử lý thêm
+      if (!data || !data.clinic_id) {
+        console.log('Không tìm thấy clinic_id trong dữ liệu bác sĩ, hoặc dữ liệu rỗng');
+        return data;
+      }
+      
+      // Nếu đã có clinic object thì trả về ngay
+      if (data.clinic && typeof data.clinic === 'object') {
+        console.log('Đã có clinic object trong dữ liệu bác sĩ');
+        return data;
+      }
+      
+      // Nếu API chỉ trả về clinic_id và không có clinic object
+      try {
+        console.log('Gọi API lấy thông tin phòng khám với clinic_id:', data.clinic_id);
+        // Gọi API lấy thông tin clinic
+        const clinicResponse = await fetch(`${API_BASE_URL}/clinics/${data.clinic_id}`, {
+          headers: getAuthHeaders()
+        });
+        
+        // Xử lý lỗi nếu API trả về không thành công
+        if (!clinicResponse.ok) {
+          throw new Error(`Không thể lấy thông tin phòng khám (status: ${clinicResponse.status})`);
+        }
+        
+        const clinicData = await handleResponse(clinicResponse);
+        console.log('Dữ liệu phòng khám nhận được:', clinicData);
+        
+        if (!clinicData) {
+          throw new Error('API trả về dữ liệu phòng khám rỗng');
+        }
+        
+        // Gán thông tin clinic vào dữ liệu bác sĩ
+        data.clinic = clinicData;
+        console.log('Đã gán dữ liệu phòng khám vào dữ liệu bác sĩ');
+      } catch (clinicError) {
+        console.warn('Không thể lấy thông tin phòng khám:', clinicError);
+        // Không throw lỗi, để tiếp tục xử lý bên UI
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Get doctor error:', error);
+      throw error;
+    }
+  },
 };
 
 // Doctor Service

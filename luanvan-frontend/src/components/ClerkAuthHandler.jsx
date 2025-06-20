@@ -60,16 +60,17 @@ const ClerkAuthHandler = () => {
           setSyncStatus('error');
           return;
         }
-        
-        if (response && response.success) {
+          if (response && response.success) {
           console.log('User synced successfully with backend:', response)
           
           // Kiểm tra và lưu thông tin user vào localStorage một cách an toàn
-          if (response.userId != null) {
-            localStorage.setItem('backendUserId', String(response.userId))
-            console.log('✅ Saved backendUserId:', response.userId);
+          // API trả về user_id hoặc userId
+          const userId = response.user_id || response.userId;
+          if (userId != null) {
+            localStorage.setItem('backendUserId', String(userId))
+            console.log('✅ Saved backendUserId:', userId);
           } else {
-            console.warn('⚠️ API response missing userId field');
+            console.warn('⚠️ API response missing user_id/userId field');
           }
           
           // Lưu role từ response hoặc mặc định là PATIENT
@@ -77,14 +78,23 @@ const ClerkAuthHandler = () => {
           localStorage.setItem('userRole', userRole)
           console.log('✅ Saved userRole:', userRole);
           
-          // Lưu thông tin khác
+          // Lưu thông tin khác - API trả về full_name hoặc fullName
           if (response.email) {
             localStorage.setItem('userEmail', response.email)
             console.log('✅ Saved userEmail:', response.email);
           }
-          if (response.fullName) {
-            localStorage.setItem('userName', response.fullName)
-            console.log('✅ Saved userName:', response.fullName);
+          
+          const fullName = response.full_name || response.fullName;
+          if (fullName) {
+            localStorage.setItem('userName', fullName)
+            console.log('✅ Saved userName:', fullName);
+          }
+          
+          // Lưu phone number nếu có
+          const phoneNumber = response.phone_number || response.phoneNumber;
+          if (phoneNumber) {
+            localStorage.setItem('userPhone', phoneNumber)
+            console.log('✅ Saved userPhone:', phoneNumber);
           }
           
           // Lưu JWT token nếu có

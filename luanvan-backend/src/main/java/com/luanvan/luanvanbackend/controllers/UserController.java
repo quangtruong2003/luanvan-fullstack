@@ -5,6 +5,7 @@ import com.luanvan.luanvanbackend.dto.UserResponseDTO;
 import com.luanvan.luanvanbackend.dto.UserUpdateDTO;
 import com.luanvan.luanvanbackend.entities.User;
 import com.luanvan.luanvanbackend.exception.MissingContactInfoException;
+import com.luanvan.luanvanbackend.repositories.UserRepository;
 import com.luanvan.luanvanbackend.services.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,12 +14,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/users")
@@ -26,17 +29,37 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
-
-    /**
+    private final UserRepository userRepository;/**
      * Lấy thông tin người dùng hiện tại
      */
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<User> getCurrentUser(Principal principal) {
-        // Giả sử trong JWT có chứa userId
-        Long userId = extractUserIdFromPrincipal(principal);
-        User user = userService.getUserById(userId);
-        return ResponseEntity.ok(user);
+    public ResponseEntity<User> getCurrentUser(Authentication authentication) {
+        String identifier = authentication.getName();
+        
+        // Thử tìm theo email trước (admin/doctor)
+        try {
+            User user = userService.getUserByEmail(identifier);
+            return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            // Nếu không tìm thấy theo email, thử phone number (patient)
+            try {
+                User user = userService.getUserByPhoneNumber(identifier);
+                return ResponseEntity.ok(user);
+            } catch (Exception ex) {
+                // Thử tìm theo Clerk User ID 
+                try {
+                    Optional<User> userByClerkId = userRepository.findByClerkUserId(identifier);
+                    if (userByClerkId.isPresent()) {
+                        return ResponseEntity.ok(userByClerkId.get());
+                    }
+                } catch (Exception clerkEx) {
+                    // Log error but continue
+                }
+                
+                throw new RuntimeException("Không tìm thấy người dùng với identifier: " + identifier);
+            }
+        }
     }
 
     /**
@@ -153,22 +176,11 @@ public class UserController {
      * Thay đổi vai trò của người dùng (chỉ Admin)
      */
     @PutMapping("/{userId}/role/{roleId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<User> changeUserRole(
+    @PreAuthorize("hasRole('ADMIN')")    public ResponseEntity<User> changeUserRole(
             @PathVariable Long userId,
             @PathVariable Long roleId) {
         User user = userService.changeUserRole(userId, roleId);
         return ResponseEntity.ok(user);
-    }
-
-    /**
-     * Helper method để extract userId từ Principal
-     * (Tùy thuộc vào cách implement JWT authentication)
-     */
-    private Long extractUserIdFromPrincipal(Principal principal) {
-        // Có thể cần adjust tùy theo cách implement authentication
-        // Ví dụ: nếu username là email, có thể cần query để lấy userId
-        return Long.parseLong(principal.getName());
     }
 
     /**
@@ -182,4 +194,4 @@ public class UserController {
         }
         return false;
     }
-} 
+}
