@@ -8,6 +8,17 @@
             "mainClass": "com.luanvan.luanvanbackend.LuanvanBackendApplication",
             "projectName": "luanvan-backend",
             "args": "",
+            "envFile": "${workspaceFolder}/.env",
+            "vmArgs": " -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.port=61052 -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dspring.jmx.enabled=true -Djava.rmi.server.hostname=localhost -Dspring.application.admin.enabled=true -Dspring.boot.project.name=luanvan-backend"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-PasswordGenerator<luanvan-backend>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.luanvan.luanvanbackend.utils.PasswordGenerator",
+            "projectName": "luanvan-backend",
+            "args": "",
             "envFile": "${workspaceFolder}/.env"
         }
     ]
