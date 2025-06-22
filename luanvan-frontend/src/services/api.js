@@ -858,10 +858,19 @@ export const apiService = {
     }
   },
 
-  // Appointment APIs
+  // Appointment APIs  
   async getMyAppointments() {
     try {
-      return await apiRequest(`${API_BASE_URL}/appointments/my`);
+      // Lấy patient ID từ localStorage
+      const backendUserId = localStorage.getItem('backendUserId');
+      if (!backendUserId) {
+        throw new Error('Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.');
+      }
+      
+      console.log('🔄 Getting appointments for patient ID:', backendUserId);
+      
+      // Sử dụng endpoint /appointments/patient/{patientId}
+      return await apiRequest(`${API_BASE_URL}/appointments/patient/${backendUserId}`);
     } catch (error) {
       console.error('Get my appointments error:', error);
       throw error;
@@ -871,10 +880,21 @@ export const apiService = {
   async createAppointment(appointmentData) {
     try {
       console.log('DEBUG: createAppointment với dữ liệu:', appointmentData);
+      
+      const requestBody = JSON.stringify(appointmentData);
+      const headers = getAuthHeaders();
+      
+      console.log('🚀 REQUEST DETAILS:');
+      console.log('  - URL:', `${API_BASE_URL}/appointments`);
+      console.log('  - Method: POST');
+      console.log('  - Headers:', headers);
+      console.log('  - Body (JSON):', requestBody);
+      console.log('  - Body (parsed):', JSON.parse(requestBody));
+      
       const response = await fetch(`${API_BASE_URL}/appointments`, {
         method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(appointmentData)
+        headers: headers,
+        body: requestBody
       });
       
       // Log chi tiết lỗi nếu có
