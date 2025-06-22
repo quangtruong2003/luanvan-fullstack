@@ -81,7 +81,6 @@ const DoctorSchedule = () => {
   const { openSignIn } = useClerk();
   const [minimumAdvanceBookingDays, setMinimumAdvanceBookingDays] = useState(1);
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
 
   // Load admin settings to get minimum advance booking days
   useEffect(() => {
@@ -265,17 +264,6 @@ const DoctorSchedule = () => {
       }
     });
   };
-
-  useEffect(() => {
-    const pendingBooking = localStorage.getItem('pendingBooking');
-    if (pendingBooking && isAuthenticated) {
-      const bookingData = JSON.parse(pendingBooking);
-      localStorage.removeItem('pendingBooking');
-      navigate(`/book-appointment/doctor/${bookingData.doctorId}`, {
-        state: { bookingData }
-      });
-    }
-  }, [isAuthenticated, navigate]);
 
   // Modern tile class name with better styling
   const getTileClassName = ({ date, view }) => {
