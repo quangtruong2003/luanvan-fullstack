@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { CreditCard } from 'lucide-react';
 import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -708,29 +709,108 @@ const BookAppointmentDetails = () => {
       //   }
       // }
 
-      // === BƯỚC 11: TẠO APPOINTMENT ===
-      console.log('🚀 Creating appointment...');
-      const response = await apiService.createAppointment(appointmentData);
-      console.log('✅ Appointment created successfully:', response);
+      // === BƯỚC 11: KIỂM TRA PAYMENT CONFIG VÀ CHUYỂN HƯỚNG ===
+      console.log('🚀 Checking payment configuration...');
       
-      // Hiển thị thông báo thành công với thông tin clinic đầy đủ
+      // Chuẩn bị thông tin để hiển thị trong trang thanh toán
       const clinicName = clinicData?.name || 
+                        clinicData?.clinic_name ||
                         slotData?.clinic?.name || 
+                        slotData?.clinic?.clinic_name ||
                         doctorData?.clinic?.name ||
+                        doctorData?.clinic?.clinic_name ||
                         doctorData?.specialties?.[0]?.clinic?.name ||
-                        'N/A';
-                        
-      const successMessage = '🎉 Đặt lịch khám thành công!\n\n' +
-            `📅 Ngày: ${appointmentDateTime.split('T')[0]}\n` +
-            `🕒 Giờ: ${appointmentDateTime.split('T')[1]}\n` +
-            `👨‍⚕️ Bác sĩ: ${doctorData.user?.full_name || doctorData.user?.fullName}\n` +
-            `🏥 Phòng khám: ${clinicName}\n\n` +
-            'Cảm ơn bạn đã sử dụng dịch vụ. Vui lòng đến đúng giờ hẹn.';
+                        doctorData?.specialties?.[0]?.clinic?.clinic_name ||
+                        'Phòng khám mặc định';
+
+      const doctorName = doctorData?.user?.full_name || 
+                        doctorData?.user?.fullName || 
+                        doctorData?.user?.name ||
+                        doctorData?.fullName ||
+                        doctorData?.full_name ||
+                        doctorData?.name ||
+                        'Bác sĩ không xác định';
+
+      const specialtyName = doctorData?.specialties?.map(s => s.name || s.specialty_name).join(', ') || 
+                           doctorData?.specialty?.name ||
+                           doctorData?.specialty?.specialty_name ||
+                           slotData?.specialty?.name ||
+                           slotData?.specialty?.specialty_name ||
+                           'Chuyên khoa chung';
+
+      const appointmentInfo = {
+        patientName: formData.patientName || userInfo.full_name,
+        patientPhone: formData.patientPhone,
+        patientEmail: formData.patientEmail || userInfo.email,
+        doctorName: doctorName,
+        specialtyName: specialtyName,
+        clinicName: clinicName,
+        appointmentDateTime: appointmentDateTime,
+        reasonForVisit: formData.reasonForVisit
+      };
       
-      alert(successMessage);
+      console.log('📋 Appointment info for payment:', appointmentInfo);
+      console.log('📋 Appointment data for payment:', appointmentData);
       
-      // Chuyển hướng đến trang lịch hẹn
-      navigate('/my-appointments');
+      // Check payment configuration
+      let paymentConfig = {
+        enableMomo: true,
+        enableVNPay: true,
+        depositAmount: 50000
+      };
+
+      try {
+        const savedSettings = localStorage.getItem('adminSettings');
+        if (savedSettings) {
+          const adminSettings = JSON.parse(savedSettings);
+          if (adminSettings.payment) {
+            paymentConfig = { ...paymentConfig, ...adminSettings.payment };
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to load payment config:', error);
+      }
+
+      console.log('💰 Payment config check:', paymentConfig);
+
+      // If no payment methods enabled, create free appointment directly
+      if (!paymentConfig.enableMomo && !paymentConfig.enableVNPay) {
+        console.log('🆓 No payment methods enabled - Creating free appointment...');
+        
+        const freeAppointmentData = {
+          ...appointmentData,
+          depositAmount: 0.0,
+          isDepositPaid: false,
+          isDepositNonRefundable: false
+        };
+
+        try {
+          const response = await apiService.createAppointment(freeAppointmentData);
+          console.log('✅ Free appointment created successfully:', response);
+          
+          navigate('/booking-success', {
+            state: {
+              appointment: response,
+              paymentMethod: 'free',
+              paymentStatus: 'completed'
+            }
+          });
+          return;
+          
+        } catch (freeError) {
+          console.error('❌ Free appointment error:', freeError);
+          setError('Có lỗi xảy ra khi đặt lịch miễn phí: ' + freeError.message);
+          return;
+        }
+      }
+      
+      // Normal payment flow - redirect to payment page
+      navigate('/payment', {
+        state: {
+          appointmentData: appointmentData,
+          appointmentInfo: appointmentInfo
+        }
+      });
       
     } catch (err) {
       console.error('❌ Create appointment error:', err);
@@ -1003,7 +1083,12 @@ const BookAppointmentDetails = () => {
                       </svg>
                       Đang xử lý...
                     </span>
-                  ) : 'Xác nhận đặt lịch'}
+                  ) : (
+                    <span className="flex items-center">
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Tiếp tục thanh toán
+                    </span>
+                  )}
                 </button>
               </div>
             </form>

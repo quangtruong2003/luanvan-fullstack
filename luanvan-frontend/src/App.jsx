@@ -3,6 +3,8 @@ import ClerkAuthHandler from "./components/ClerkAuthHandler"
 import Home from "./pages/Home"
 import BookAppointment from "./pages/BookAppointment"
 import BookAppointmentDetails from "./pages/BookAppointmentDetails"
+import PaymentPage from "./pages/PaymentPage"
+import BookingSuccess from "./pages/BookingSuccess"
 import MyAppointments from "./pages/MyAppointments"
 import Dashboard from "./pages/Dashboard"
 import Login from "./pages/Login"
@@ -33,6 +35,8 @@ function App() {
             {/* Patient routes (với Clerk authentication) */}
           <Route path="/book-appointment" element={<BookAppointment />} />
           <Route path="/book-appointment-details" element={<BookAppointmentDetails />} />
+          <Route path="/payment" element={<PaymentPage />} />
+          <Route path="/booking-success" element={<BookingSuccess />} />
           <Route path="/book-appointment/doctor/:doctorId" element={<DoctorSchedule />} />
           <Route path="/book-appointment/specialty/:specialtyId" element={<SpecialtyDoctors />} />
           <Route path="/my-appointments" element={<MyAppointments />} />
