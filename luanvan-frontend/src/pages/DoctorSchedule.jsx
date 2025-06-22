@@ -256,11 +256,17 @@ const DoctorSchedule = () => {
       return;
     }
 
+    // FIX: Format date locally to avoid timezone shift from toISOString()
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const correctDateString = `${year}-${month}-${day}`;
+
     navigate('/book-appointment-details', {
       state: {
         slotData: slot,
         doctorData: doctor,
-        date: selectedDate.toISOString().split('T')[0]
+        date: correctDateString,
       }
     });
   };
