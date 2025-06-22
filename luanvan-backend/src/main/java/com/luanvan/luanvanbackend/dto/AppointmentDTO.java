@@ -2,6 +2,7 @@ package com.luanvan.luanvanbackend.dto;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotNull;
@@ -41,6 +42,7 @@ public class AppointmentDTO {
     @NotNull(message = "Thời gian hẹn không được để trống")
     @Future(message = "Thời gian hẹn phải là thời điểm trong tương lai")
     @JsonAlias("appointment_date_time")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
     private LocalDateTime appointmentDateTime;
     
     @Size(max = 500, message = "Lý do khám không được vượt quá 500 ký tự")

@@ -135,6 +135,12 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     @Transactional
     public Appointment createAppointment(AppointmentDTO appointmentDTO) {
+        // Debug log cho datetime
+        System.out.println("🕐 DEBUG DATETIME RECEIVED:");
+        System.out.println("  - appointmentDateTime: " + appointmentDTO.getAppointmentDateTime());
+        System.out.println("  - current timezone: " + java.util.TimeZone.getDefault().getID());
+        System.out.println("  - current server time: " + LocalDateTime.now());
+        
         // Kiểm tra bệnh nhân
         User patient = userRepository.findById(appointmentDTO.getPatientId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bệnh nhân với ID: " + appointmentDTO.getPatientId()));
@@ -198,6 +204,11 @@ public class AppointmentServiceImpl implements AppointmentService {
         
         // Lưu appointment
         Appointment savedAppointment = appointmentRepository.save(appointment);
+        
+        // Debug log cho saved appointment
+        System.out.println("💾 DEBUG DATETIME SAVED:");
+        System.out.println("  - appointmentDateTime trong DB: " + savedAppointment.getAppointmentDateTime());
+        System.out.println("  - bookingTimestamp trong DB: " + savedAppointment.getBookingTimestamp());
         
         // Gửi email chào mừng nếu đây là lần đầu đặt lịch
         try {

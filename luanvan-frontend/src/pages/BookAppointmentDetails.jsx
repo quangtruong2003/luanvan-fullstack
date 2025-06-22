@@ -419,7 +419,7 @@ const BookAppointmentDetails = () => {
       }
       
       // Thử lấy từ doctor's specialties
-      if (!actualSpecialtyId && doctorData.specialties && doctorData.specialties.length > 0) {
+    if (!actualSpecialtyId && doctorData.specialties && doctorData.specialties.length > 0) {
         const firstSpecialty = doctorData.specialties[0];
         for (const field of possibleSpecialtyIdFields) {
           if (firstSpecialty[field] != null && !isNaN(parseInt(firstSpecialty[field]))) {
@@ -544,24 +544,86 @@ const BookAppointmentDetails = () => {
       return;
     }
 
-    // === BƯỚC 7: TẠO APPOINTMENT DATETIME ===
+    // === BƯỚC 7: VALIDATION NGÀY VÀ TẠO APPOINTMENT DATETIME ===
     let appointmentDateTime;
     const startTime = slotData.start_time || slotData.startTime || '08:00:00';
     
     try {
-      // Đảm bảo date format đúng (YYYY-MM-DD)
-      let appointmentDate;
+      // Load admin settings để lấy minimum advance booking days
+      let minimumAdvanceBookingDays = 1; // default
+      
+      try {
+        const savedSettings = localStorage.getItem('adminSettings');
+        if (savedSettings) {
+          const adminSettings = JSON.parse(savedSettings);
+          if (adminSettings.general?.minimumAdvanceBookingDays !== undefined) {
+            minimumAdvanceBookingDays = adminSettings.general.minimumAdvanceBookingDays;
+          }
+        }
+      } catch (settingsError) {
+        console.warn('Failed to load admin settings for date validation:', settingsError);
+      }
+
+      console.log('📅 Minimum advance booking days:', minimumAdvanceBookingDays);
+
+      // Parse ngày đã chọn (tránh timezone issues)
+      let formattedDate;
       if (typeof date === 'string') {
-        appointmentDate = new Date(date + 'T00:00:00'); // Ensure UTC parsing
+        // Nếu date là string format YYYY-MM-DD, sử dụng trực tiếp
+        if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          formattedDate = date;
+        } else {
+          // Parse date string khác
+          const appointmentDate = new Date(date);
+          if (isNaN(appointmentDate.getTime())) {
+            throw new Error('Invalid date format: ' + date);
+          }
+          // Sử dụng local date string để tránh timezone issues
+          const year = appointmentDate.getFullYear();
+          const month = String(appointmentDate.getMonth() + 1).padStart(2, '0');
+          const day = String(appointmentDate.getDate()).padStart(2, '0');
+          formattedDate = `${year}-${month}-${day}`;
+        }
       } else {
-        appointmentDate = new Date(date);
+        // date là Date object
+        const appointmentDate = new Date(date);
+        if (isNaN(appointmentDate.getTime())) {
+          throw new Error('Invalid date object: ' + date);
+        }
+        // Sử dụng local date để tránh timezone conversion
+        const year = appointmentDate.getFullYear();
+        const month = String(appointmentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(appointmentDate.getDate()).padStart(2, '0');
+        formattedDate = `${year}-${month}-${day}`;
       }
+
+      console.log('📅 Original date input:', date);
+      console.log('📅 Formatted date (should match selected):', formattedDate);
+
+      // Validate minimum advance booking
+      const selectedDate = new Date(formattedDate + 'T00:00:00');
+      const today = new Date();
+      // Reset time để so sánh chỉ ngày
+      today.setHours(0, 0, 0, 0);
+      selectedDate.setHours(0, 0, 0, 0);
       
-      if (isNaN(appointmentDate.getTime())) {
-        throw new Error('Invalid date format: ' + date);
+      const daysDifference = Math.ceil((selectedDate - today) / (1000 * 60 * 60 * 24));
+      
+      console.log('📅 Date validation:', {
+        today: today.toDateString(),
+        selectedDate: selectedDate.toDateString(),
+        daysDifference,
+        minimumRequired: minimumAdvanceBookingDays,
+        isValid: daysDifference >= minimumAdvanceBookingDays
+      });
+
+      if (daysDifference < minimumAdvanceBookingDays) {
+        const message = minimumAdvanceBookingDays === 0 
+          ? 'Không thể đặt lịch cho ngày trong quá khứ.'
+          : `Vui lòng đặt lịch trước ít nhất ${minimumAdvanceBookingDays} ngày. Ngày sớm nhất có thể đặt là ${new Date(today.getTime() + minimumAdvanceBookingDays * 24 * 60 * 60 * 1000).toLocaleDateString('vi-VN')}.`;
+        setError(message);
+        return;
       }
-      
-      const formattedDate = appointmentDate.toISOString().split('T')[0]; // YYYY-MM-DD
       
       // Đảm bảo time format đúng (HH:mm:ss)
       let formattedTime = startTime;
@@ -574,20 +636,33 @@ const BookAppointmentDetails = () => {
       // Backend expects format: YYYY-MM-DDTHH:mm:ss (LocalDateTime format)
       appointmentDateTime = `${formattedDate}T${formattedTime}`;
       
-      // Validate future date for backend @Future constraint
+      // Final validation: ensure appointment datetime is in future (for backend @Future constraint)
       const appointmentDateTimeObj = new Date(appointmentDateTime);
       const now = new Date();
       
-      console.log('🕒 DateTime validation:', {
-        now: now.toISOString(),
+      console.log('🕒 Final DateTime validation:', {
+        originalDate: date,
+        formattedDate: formattedDate,
+        formattedTime: formattedTime,
         appointmentDateTime: appointmentDateTime,
+        now: now.toISOString(),
         appointmentDateTimeObj: appointmentDateTimeObj.toISOString(),
-        isFuture: appointmentDateTimeObj > now
+        isFuture: appointmentDateTimeObj > now,
+        clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timezoneOffset: now.getTimezoneOffset()
       });
       
-      if (appointmentDateTimeObj <= now) {
-        console.warn('⚠️ Appointment time is not in future, backend might reject it');
-        // Don't block here since user might be testing, but log warning
+      // More strict validation for time on same day
+      if (daysDifference === 0) {
+        // If booking for today, check if time is still available
+        const nowTime = now.getHours() * 60 + now.getMinutes();
+        const [appointmentHour, appointmentMinute] = formattedTime.split(':').map(Number);
+        const appointmentTimeMinutes = appointmentHour * 60 + appointmentMinute;
+        
+        if (appointmentTimeMinutes <= nowTime + 30) { // 30 minutes buffer
+          setError('Không thể đặt lịch cho giờ đã qua hoặc quá gần hiện tại. Vui lòng chọn giờ ít nhất 30 phút sau.');
+          return;
+        }
       }
       
       console.log('🕒 DateTime formatting:', {
@@ -847,7 +922,7 @@ const BookAppointmentDetails = () => {
             }
           } catch {
             // Use original error message if parsing fails
-            errorMessage = err.message;
+          errorMessage = err.message;
           }
         }
       }

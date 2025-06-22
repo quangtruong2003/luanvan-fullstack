@@ -160,6 +160,7 @@ const handleResponse = async (response) => {
 // Simple fetch wrapper
 const apiRequest = async (url, options = {}) => {
   try {
+    console.log('🚀 API Request:', url, options.method || 'GET');
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -174,6 +175,39 @@ const apiRequest = async (url, options = {}) => {
     throw error;
   }
 };
+
+// Debug helper functions - expose to window for testing
+if (typeof window !== 'undefined') {
+  window.testApiService = {
+    async testWorkShifts(clinicId) {
+      console.log('🧪 Testing work shifts API for clinic:', clinicId);
+      try {
+        const url = `${API_BASE_URL}/standard-work-shifts/clinic/${clinicId}`;
+        console.log('🧪 Testing URL:', url);
+        const result = await apiRequest(url);
+        console.log('🧪 Test result:', result);
+        return result;
+      } catch (error) {
+        console.error('🧪 Test failed:', error);
+        throw error;
+      }
+    },
+    async testDoctorInfo(doctorId) {
+      console.log('🧪 Testing doctor info API for doctor:', doctorId);
+      try {
+        const url = `${API_BASE_URL}/doctors/user/${doctorId}`;
+        console.log('🧪 Testing URL:', url);
+        const result = await apiRequest(url);
+        console.log('🧪 Test result:', result);
+        return result;
+      } catch (error) {
+        console.error('🧪 Test failed:', error);
+        throw error;
+      }
+    },
+    getApiBaseUrl: () => API_BASE_URL
+  };
+}
 
 // Auth Service
 export const authService = {
@@ -906,7 +940,7 @@ export const apiService = {
           // Thử phân tích lỗi dạng JSON nếu có
           const errorJson = JSON.parse(errorText);
           throw new Error(errorJson.message || `Lỗi ${response.status}: ${errorText}`);
-        } catch (e) {
+        } catch (_parseError) {
           // Nếu không phải JSON, trả về lỗi dạng text
           throw new Error(`Lỗi ${response.status}: ${errorText}`);
         }
@@ -974,121 +1008,67 @@ export const apiService = {
     }
   },
 
-  // Lấy slot khả dụng theo bác sĩ và ngày
-  async getAvailableSlots(doctorId, date) {
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/availability/slots/doctor/${doctorId}/date/${date}`
-      );
-      const data = await response.json();
-      console.log('DEBUG data from getAvailableSlots:', data);
-      return data;
-    } catch (error) {
-      console.error('Get available slots error:', error);
-      throw error;
-    }
-  },
-
-  // Lấy ca làm việc tiêu chuẩn theo phòng khám
-  async getStandardShifts(clinicId) {
-    try {
-      console.log('DEBUG getStandardShifts - clinicId nhận vào:', clinicId);
-      
-      // Kiểm tra nếu clinicId là một object (có thể là clinic object) 
-      // thì lấy id từ clinicId.id hoặc clinicId.clinicId
-      const actualClinicId = typeof clinicId === 'object' 
-        ? (clinicId.id || clinicId.clinicId) 
-        : clinicId;
-        
-      console.log('DEBUG getStandardShifts - actualClinicId sau khi xử lý:', actualClinicId);
-      
-      if (!actualClinicId) {
-        throw new Error('Invalid clinic ID');
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/workshift/standard/clinic/${actualClinicId}`, {
-        headers: getAuthHeaders()
-      });
-      return handleResponse(response);
-    } catch (error) {
-      console.error('Get standard shifts error:', error);
-      throw error;
-    }
-  },
-
   // Lấy thông tin phòng khám theo ID
   async getClinicById(clinicId) {
     try {
-      const response = await fetch(`${API_BASE_URL}/clinics/${clinicId}`);
-      return await response.json();
+      return await apiRequest(`${API_BASE_URL}/clinics/${clinicId}`);
     } catch (error) {
       console.error('Get clinic error:', error);
       throw error;
     }
   },
 
-  // Lấy thông tin bác sĩ theo user ID
+  // Lấy thôngtin bác sĩ theo user ID
   async getDoctorByUserId(doctorId) {
     try {
       console.log('Gọi API getDoctorByUserId với doctorId:', doctorId);
-      const response = await fetch(`${API_BASE_URL}/doctors/${doctorId}`, {
-        headers: getAuthHeaders()
-      });
-      
-      // Kiểm tra nếu response không ok
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', response.status, errorText);
-        throw new Error(`Lỗi ${response.status}: ${errorText}`);
-      }
-      
-      // Lấy dữ liệu
-      const data = await handleResponse(response);
+      const data = await apiRequest(`${API_BASE_URL}/doctors/${doctorId}`);
       console.log('Dữ liệu bác sĩ nhận được từ API:', data);
       
-      // Trả về dữ liệu ngay nếu không cần xử lý thêm
-      if (!data || !data.clinic_id) {
-        console.log('Không tìm thấy clinic_id trong dữ liệu bác sĩ, hoặc dữ liệu rỗng');
-        return data;
-      }
-      
       // Nếu đã có clinic object thì trả về ngay
-      if (data.clinic && typeof data.clinic === 'object') {
+      if (data && data.clinic && typeof data.clinic === 'object') {
         console.log('Đã có clinic object trong dữ liệu bác sĩ');
         return data;
       }
       
       // Nếu API chỉ trả về clinic_id và không có clinic object
-      try {
-        console.log('Gọi API lấy thông tin phòng khám với clinic_id:', data.clinic_id);
-        // Gọi API lấy thông tin clinic
-        const clinicResponse = await fetch(`${API_BASE_URL}/clinics/${data.clinic_id}`, {
-          headers: getAuthHeaders()
-        });
-        
-        // Xử lý lỗi nếu API trả về không thành công
-        if (!clinicResponse.ok) {
-          throw new Error(`Không thể lấy thông tin phòng khám (status: ${clinicResponse.status})`);
+      if (data && (data.clinicId || data.clinic_id)) {
+        try {
+          const clinicId = data.clinicId || data.clinic_id;
+          console.log('Gọi API lấy thông tin phòng khám với clinic_id:', clinicId);
+          const clinicData = await this.getClinicById(clinicId);
+          console.log('Dữ liệu phòng khám nhận được:', clinicData);
+          data.clinic = clinicData;
+        } catch (clinicError) {
+          console.warn('Không thể lấy thông tin phòng khám:', clinicError);
         }
-        
-        const clinicData = await handleResponse(clinicResponse);
-        console.log('Dữ liệu phòng khám nhận được:', clinicData);
-        
-        if (!clinicData) {
-          throw new Error('API trả về dữ liệu phòng khám rỗng');
-        }
-        
-        // Gán thông tin clinic vào dữ liệu bác sĩ
-        data.clinic = clinicData;
-        console.log('Đã gán dữ liệu phòng khám vào dữ liệu bác sĩ');
-      } catch (clinicError) {
-        console.warn('Không thể lấy thông tin phòng khám:', clinicError);
-        // Không throw lỗi, để tiếp tục xử lý bên UI
       }
       
       return data;
     } catch (error) {
       console.error('Get doctor error:', error);
+      throw error;
+    }
+  },
+
+  async getStandardWorkShiftsByClinic(clinicId) {
+    try {
+      console.log(`📡 Fetching standard work shifts for clinic ID: ${clinicId}`);
+      // This is the correct endpoint based on StandardWorkShiftController.java
+      return await apiRequest(`${API_BASE_URL}/standard-work-shifts/clinic/${clinicId}`);
+    } catch (error) {
+      console.error('Get standard work shifts by clinic error:', error);
+      throw error;
+    }
+  },
+
+  // Lấy slot khả dụng theo bác sĩ và ngày
+  async getAvailableSlots(doctorId, date) {
+    try {
+      console.log(`📡 Fetching available slots for doctor ID: ${doctorId} and date: ${date}`);
+      return await apiRequest(`${API_BASE_URL}/availability/slots/doctor/${doctorId}/date/${date}`);
+    } catch (error) {
+      console.error('Get available slots error:', error);
       throw error;
     }
   },
