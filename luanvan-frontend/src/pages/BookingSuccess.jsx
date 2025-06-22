@@ -13,6 +13,11 @@ const BookingSuccess = () => {
   const paymentMethod = location.state?.paymentMethod;
   const paymentStatus = location.state?.paymentStatus;
 
+  // Debug appointment data structure
+  console.log('🎉 BookingSuccess - Appointment data:', appointment);
+  console.log('🎉 BookingSuccess - Payment method:', paymentMethod);
+  console.log('🎉 BookingSuccess - Payment status:', paymentStatus);
+
   const formatDateTime = (dateTime) => {
     if (!dateTime) return 'N/A';
     const date = new Date(dateTime);
@@ -83,7 +88,15 @@ const BookingSuccess = () => {
     );
   }
 
-  const dateTime = formatDateTime(appointment.appointmentDateTime);
+  const appointmentDateTime = appointment.appointmentDateTime || appointment.appointment_date_time;
+  const dateTime = formatDateTime(appointmentDateTime);
+  
+  console.log('📅 DateTime value:', appointmentDateTime);
+  console.log('📅 Formatted dateTime:', dateTime);
+  console.log('👨‍⚕️ Doctor object:', appointment?.doctor);
+  console.log('🏥 Clinic object:', appointment?.clinic);
+  console.log('🩺 Specialty object:', appointment?.specialty);
+  console.log('📝 Reason for visit:', appointment?.reasonForVisit || appointment?.reason_for_visit);
   const paymentInfo = getPaymentMethodInfo(paymentMethod);
 
   return (
@@ -110,7 +123,9 @@ const BookingSuccess = () => {
                 <User className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
                 <div>
                   <p className="font-medium text-gray-900">Mã lịch hẹn</p>
-                  <p className="text-gray-600 font-mono">#{appointment.appointmentId}</p>
+                  <p className="text-gray-600 font-mono">
+                    #{appointment.appointmentId || appointment.appointment_id || appointment.id || 'N/A'}
+                  </p>
                 </div>
               </div>
 
@@ -136,8 +151,19 @@ const BookingSuccess = () => {
                 <Stethoscope className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
                 <div>
                   <p className="font-medium text-gray-900">Bác sĩ</p>
-                  <p className="text-gray-600">{appointment.doctor?.fullName || appointment.doctor?.name || 'N/A'}</p>
-                  <p className="text-sm text-gray-500">{appointment.specialty?.name || 'N/A'}</p>
+                  <p className="text-gray-600">
+                    {appointment.doctor?.user?.fullName || 
+                     appointment.doctor?.user?.full_name ||
+                     appointment.doctor?.fullName || 
+                     appointment.doctor?.full_name ||
+                     appointment.doctor?.name ||
+                     'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {appointment.specialty?.name || 
+                     appointment.specialty?.specialty_name ||
+                     'N/A'}
+                  </p>
                 </div>
               </div>
 
@@ -145,19 +171,29 @@ const BookingSuccess = () => {
                 <Building className="h-5 w-5 text-indigo-500 mt-0.5 mr-3 flex-shrink-0" />
                 <div>
                   <p className="font-medium text-gray-900">Phòng khám</p>
-                  <p className="text-gray-600">{appointment.clinic?.name || 'N/A'}</p>
-                  <p className="text-sm text-gray-500">{appointment.clinic?.address || 'N/A'}</p>
+                  <p className="text-gray-600">
+                    {appointment.clinic?.name || 
+                     appointment.clinic?.clinic_name ||
+                     'N/A'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {appointment.clinic?.address || 
+                     appointment.clinic?.clinic_address ||
+                     'N/A'}
+                  </p>
                 </div>
               </div>
 
-              {appointment.reasonForVisit && (
+              {(appointment.reasonForVisit || appointment.reason_for_visit) && (
                 <div className="flex items-start">
                   <div className="h-5 w-5 bg-yellow-100 rounded-full flex items-center justify-center mt-0.5 mr-3 flex-shrink-0">
                     <span className="text-yellow-600 text-xs">!</span>
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">Lý do khám</p>
-                    <p className="text-gray-600">{appointment.reasonForVisit}</p>
+                    <p className="text-gray-600">
+                      {appointment.reasonForVisit || appointment.reason_for_visit}
+                    </p>
                   </div>
                 </div>
               )}
@@ -188,7 +224,10 @@ const BookingSuccess = () => {
               
               <div className="text-right">
                 <p className="text-lg font-semibold text-gray-900">
-                  {paymentMethod === 'free' ? 'Miễn phí' : formatCurrency(250000)}
+                  {paymentMethod === 'free' ? 'Miễn phí' : formatCurrency(
+                    (appointment.depositAmount || appointment.deposit_amount || 0) + 
+                    (appointment.examinationFee || appointment.examination_fee || 200000)
+                  )}
                 </p>
                 <p className="text-sm text-gray-500">
                   {paymentMethod === 'free' ? 'Không tính phí' : 'Tổng thanh toán'}
