@@ -67,7 +67,7 @@ const DoctorProfileManagement = () => {
         // Clear localStorage and redirect
         localStorage.clear();
         setTimeout(() => {
-          window.location.href = '/login';
+          window.location.href = '/';
         }, 2000);
         return;
       }

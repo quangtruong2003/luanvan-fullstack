@@ -95,10 +95,10 @@ const handleAuthError = (error, response) => {
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userName');
     
-    // Trigger page reload to redirect to login
-    setTimeout(() => {
-      window.location.href = '/login';
-    }, 1000);
+    // Vô hiệu hóa chuyển hướng cứng để Clerk xử lý
+    // setTimeout(() => {
+    //   window.location.href = '/login';
+    // }, 1000);
     
     throw new Error('Session expired. Please login again.');
   }

@@ -898,7 +898,7 @@ const BookAppointmentDetails = () => {
           errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin và thử lại.';
         } else if (err.message.includes('401') || err.message.includes('403')) {
           errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
-          setTimeout(() => navigate('/login'), 2000);
+          setTimeout(() => navigate('/'), 2000);
         } else if (err.message.includes('404')) {
           errorMessage = 'Không tìm thấy thông tin lịch khám hoặc bác sĩ. Vui lòng chọn lại.';
         } else if (err.message.includes('409') || err.message.includes('conflict')) {
