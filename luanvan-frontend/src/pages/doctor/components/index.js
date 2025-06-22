@@ -12,4 +12,6 @@ export { default as DoctorProfileManagement } from './DoctorProfileManagement';
 export { default as WeeklyCalendarView } from './WeeklyCalendarView';
 export { default as SpecialtyTabBar } from './SpecialtyTabBar';
 export { default as EnhancedSlotConflictDialog } from './EnhancedSlotConflictDialog';
+export { default as ConflictResolutionDialog } from './ConflictResolutionDialog';
+export { default as BulkConflictDialog } from './BulkConflictDialog';
 export { default as AutoGenerationPanel } from './AutoGenerationPanel';

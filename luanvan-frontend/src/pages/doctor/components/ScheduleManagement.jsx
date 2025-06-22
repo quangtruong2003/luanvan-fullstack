@@ -10,6 +10,8 @@ import InfoTooltip from './InfoTooltip';
 import WeeklyCalendarView from './WeeklyCalendarView';
 import SpecialtyTabBar from './SpecialtyTabBar';
 import EnhancedSlotConflictDialog from './EnhancedSlotConflictDialog';
+import ConflictResolutionDialog from './ConflictResolutionDialog';
+import BulkConflictDialog from './BulkConflictDialog';
 import AutoGenerationPanel from './AutoGenerationPanel';
 
 const ScheduleManagement = ({ 
@@ -28,32 +30,38 @@ const ScheduleManagement = ({
   const [autoGenerating, setAutoGenerating] = useState(false);
   const [showEnhancedConflictDialog, setShowEnhancedConflictDialog] = useState(false);
   const [enhancedConflictInfo, setEnhancedConflictInfo] = useState(null);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
+  const [conflictInfo, setConflictInfo] = useState(null);
+  const [conflictLoading, setConflictLoading] = useState(false);
+  const [showBulkConflictDialog, setShowBulkConflictDialog] = useState(false);
+  const [bulkConflictInfo, setBulkConflictInfo] = useState(null);
   
-  const { showError, showWarning } = useNotification();
+  const { showError, showWarning, showSuccess } = useNotification();
   const doctorId = localStorage.getItem('backendUserId');
   
+  // Tách function để có thể gọi từ component con
+  const fetchAvailabilitySlots = useCallback(async () => {
+    if (!doctorId) {
+      showError("Không tìm thấy ID bác sĩ để tải lịch làm việc.");
+      return;
+    }
+    setInternalLoadingSlots(true);
+    try {
+      const response = await doctorService.getMyAvailabilitySlots();
+      // The API returns an array of slots directly
+      setAvailabilitySlots(response || []); 
+    } catch (error) {
+      console.error('Error fetching availability slots:', error);
+      showError('Không thể tải lịch làm việc của bác sĩ.');
+      setAvailabilitySlots([]);
+    } finally {
+      setInternalLoadingSlots(false);
+    }
+  }, [doctorId, showError]);
+  
   useEffect(() => {
-    const fetchSlots = async () => {
-      if (!doctorId) {
-        showError("Không tìm thấy ID bác sĩ để tải lịch làm việc.");
-        return;
-      }
-      setInternalLoadingSlots(true);
-      try {
-        const response = await doctorService.getAvailabilitySlots(doctorId, 0, 1000);
-        // The new endpoint returns a map with a 'slots' array
-        setAvailabilitySlots(response.slots || []); 
-      } catch (error) {
-        console.error('Error fetching availability slots:', error);
-        showError('Không thể tải lịch làm việc của bác sĩ.');
-        setAvailabilitySlots([]);
-      } finally {
-        setInternalLoadingSlots(false);
-      }
-    };
-
-    fetchSlots();
-  }, [doctorId, showError, refetchData]); 
+    fetchAvailabilitySlots();
+  }, [fetchAvailabilitySlots, refetchData]); 
 
   // Load work shifts when specialty is selected
   useEffect(() => {
@@ -91,51 +99,215 @@ const ScheduleManagement = ({
   const handleAdvancedToggleSlot = useCallback(async (slotId, currentStatus, slotTime, specialtyName, clinicName) => {
     if (internalLoadingSlots) return;
 
-    // Check for conflicts only if we are enabling a slot and doctor has multiple specialties
-    if (currentStatus !== 'AVAILABLE' && specialties.length > 1) {
+    // Nếu đang tắt slot (currentStatus === 'AVAILABLE'), thực hiện trực tiếp
+    if (currentStatus === 'AVAILABLE') {
       try {
-        setLoadingWorkShifts(true); // Reuse loading state for conflict check
-        const conflictCheck = await doctorService.checkSlotConflicts(slotTime, selectedSpecialtyForSchedule);
-        
-        if (conflictCheck?.hasConflict) {
-          setEnhancedConflictInfo({
-            slotId,
-            slotTime,
-            currentSpecialty: specialtyName,
-            currentClinic: clinicName,
-            conflictSpecialty: conflictCheck.conflicts[0]?.specialtyName || 'Chuyên khoa khác',
-            conflictClinic: conflictCheck.conflicts[0]?.clinicName || 'Phòng khám khác',
-            conflictDetails: conflictCheck.message
-          });
-          setShowEnhancedConflictDialog(true);
-          return;
-        }
+        await handleToggleSlot(slotId, currentStatus, slotTime);
+        await fetchAvailabilitySlots();
+        showSuccess('Đã tắt slot thành công!');
       } catch (error) {
-        console.error('Error checking conflicts:', error);
-        showWarning('Không thể kiểm tra xung đột lịch. Thao tác vẫn sẽ được thực hiện.');
-      } finally {
-        setLoadingWorkShifts(false);
+        console.error('Error toggling slot:', error);
+        showError('Không thể cập nhật slot. Vui lòng thử lại.');
+      }
+      return;
+    }
+
+    // Nếu đang bật slot (currentStatus !== 'AVAILABLE'), kiểm tra xung đột
+    try {
+      const slotDateTime = new Date(slotTime).toISOString();
+      
+      console.log('🔍 Checking slot conflicts:', {
+        slotId,
+        currentStatus,
+        slotTime,
+        slotDateTime,
+        selectedSpecialtyForSchedule,
+        specialtyName,
+        clinicName
+      });
+      
+      const conflictResponse = await doctorService.checkSlotConflicts(
+        slotDateTime, 
+        selectedSpecialtyForSchedule
+      );
+
+      console.log('🔍 Conflict response:', conflictResponse);
+
+      if (conflictResponse.hasConflict) {
+        console.log('⚠️ Conflicts detected, showing dialog');
+        // Hiển thị dialog xung đột
+        setConflictInfo({
+          ...conflictResponse,
+          slotId,
+          slotTime: slotDateTime,
+          targetSpecialtyId: selectedSpecialtyForSchedule
+        });
+        setShowConflictDialog(true);
+      } else {
+        console.log('✅ No conflicts, toggling slot directly');
+        // Không có xung đột, thực hiện toggle trực tiếp
+        await handleToggleSlot(slotId, currentStatus, slotTime);
+        await fetchAvailabilitySlots();
+        showSuccess('Đã bật slot thành công!');
+      }
+    } catch (error) {
+      console.error('Error checking conflicts:', error);
+      // Nếu lỗi khi kiểm tra xung đột, vẫn thực hiện toggle
+      try {
+        await handleToggleSlot(slotId, currentStatus, slotTime);
+        await fetchAvailabilitySlots();
+        showSuccess('Đã bật slot thành công!');
+      } catch (toggleError) {
+        console.error('Error toggling slot:', toggleError);
+        showError('Không thể cập nhật slot. Vui lòng thử lại.');
       }
     }
-    
-    // Proceed with toggling if no conflict or not applicable
-    await handleToggleSlot(slotId, currentStatus, slotTime);
-  }, [internalLoadingSlots, specialties.length, selectedSpecialtyForSchedule, handleToggleSlot, showWarning]);
+  }, [internalLoadingSlots, handleToggleSlot, fetchAvailabilitySlots, showSuccess, showError, selectedSpecialtyForSchedule]);
+  
+  // Enhanced create new slot with automatic conflict resolution
+  const handleAdvancedCreateNewSlot = useCallback(async (slotData) => {
+    if (internalLoadingSlots) return;
+
+    try {
+      // Kiểm tra xung đột trước khi tạo slot
+      const slotDateTime = new Date(`${slotData.date}T${slotData.startTime}`).toISOString();
+      
+      console.log('🔍 Checking conflicts for new slot:', {
+        slotData,
+        slotDateTime,
+        selectedSpecialtyForSchedule
+      });
+      
+      const conflictResponse = await doctorService.checkSlotConflicts(
+        slotDateTime, 
+        selectedSpecialtyForSchedule
+      );
+
+      console.log('🔍 New slot conflict response:', conflictResponse);
+
+      if (conflictResponse.hasConflict) {
+        console.log('⚠️ Conflicts detected for new slot, showing dialog');
+        // Hiển thị dialog xung đột
+        setConflictInfo({
+          ...conflictResponse,
+          slotData,
+          slotTime: slotDateTime,
+          targetSpecialtyId: selectedSpecialtyForSchedule,
+          isCreateNew: true
+        });
+        setShowConflictDialog(true);
+      } else {
+        console.log('✅ No conflicts for new slot, creating directly');
+        // Không có xung đột, tạo slot trực tiếp
+        await handleCreateNewSlot(slotData);
+        await fetchAvailabilitySlots();
+        showSuccess('Đã tạo slot mới thành công!');
+      }
+    } catch (error) {
+      console.error('Error checking conflicts for new slot:', error);
+      // Nếu lỗi khi kiểm tra xung đột, vẫn thực hiện tạo slot
+      try {
+        await handleCreateNewSlot(slotData);
+        await fetchAvailabilitySlots();
+        showSuccess('Đã tạo slot mới thành công!');
+      } catch (createError) {
+        console.error('Error creating new slot:', createError);
+        showError('Không thể tạo slot mới. Vui lòng thử lại.');
+      }
+    }
+  }, [internalLoadingSlots, handleCreateNewSlot, fetchAvailabilitySlots, showError, showSuccess, selectedSpecialtyForSchedule]);
   
   // Handle conflict resolution from the dialog
   const handleEnhancedConflictResolve = useCallback(async (resolution, conflictInfo) => {
     // For now, we only implement the 'switch' logic as it's the most common
     try {
       await handleToggleSlot(conflictInfo.slotId, 'CANCELLED_BY_CLINIC', conflictInfo.slotTime);
+      // Refetch data để cập nhật real-time
+      await fetchAvailabilitySlots();
     } catch (error) {
       console.error('Error resolving conflict:', error);
       showError('Không thể giải quyết xung đột. Vui lòng thử lại.');
     } finally {
       setShowEnhancedConflictDialog(false);
     }
-  }, [handleToggleSlot, showError]);
+  }, [handleToggleSlot, showError, fetchAvailabilitySlots]);
 
-  // Handle auto-generation request from the panel
+  // Handle conflict resolution for new dialog
+  const handleConflictResolve = useCallback(async (action) => {
+    if (!conflictInfo) return;
+    
+    console.log('🔧 Resolving conflict:', { action, conflictInfo });
+    
+    setConflictLoading(true);
+    try {
+      // Resolve conflicts first
+      const resolveResponse = await doctorService.resolveSlotConflicts(
+        action, 
+        conflictInfo.slotTime, 
+        conflictInfo.targetSpecialtyId
+      );
+      
+      console.log('🔧 Conflict resolution response:', resolveResponse);
+      
+      // Create detailed success message
+      let successMessage = '';
+      let conflictDetails = '';
+      
+      if (resolveResponse && resolveResponse.success) {
+        const { disabledCount, skippedCount, disabledSlots } = resolveResponse;
+        
+        if (disabledCount > 0) {
+          conflictDetails = `Đã tắt ${disabledCount} slot xung đột`;
+          if (skippedCount > 0) {
+            conflictDetails += `, bỏ qua ${skippedCount} slot đã có bệnh nhân đặt`;
+          }
+          conflictDetails += ': ' + disabledSlots.join(', ');
+        }
+      }
+      
+      // Then perform the original action
+      if (conflictInfo.isCreateNew && conflictInfo.slotData) {
+        console.log('🔧 Creating new slot after conflict resolution');
+        await handleCreateNewSlot(conflictInfo.slotData);
+        
+        successMessage = 'Đã tạo slot mới thành công!';
+        if (conflictDetails) {
+          successMessage += '\n' + conflictDetails;
+        }
+        showSuccess(successMessage);
+      } else if (conflictInfo.slotId) {
+        console.log('🔧 Toggling slot after conflict resolution');
+        // Convert slotTime back to Date object for handleToggleSlot
+        const slotTimeDate = new Date(conflictInfo.slotTime);
+        
+        // Find the current slot to get its current status
+        const currentSlot = availabilitySlots.find(slot => 
+          (slot.slotId || slot.slot_id) === conflictInfo.slotId
+        );
+        const currentStatus = currentSlot?.status || 'CANCELLED_BY_CLINIC';
+        
+        console.log('🔧 Current slot status:', currentStatus);
+        await handleToggleSlot(conflictInfo.slotId, currentStatus, slotTimeDate);
+        
+        successMessage = 'Đã bật slot thành công!';
+        if (conflictDetails) {
+          successMessage += '\n' + conflictDetails;
+        }
+        showSuccess(successMessage);
+      }
+      
+      await fetchAvailabilitySlots();
+    } catch (error) {
+      console.error('Error resolving conflict:', error);
+      showError('Không thể xử lý xung đột. Vui lòng thử lại.');
+    } finally {
+      setConflictLoading(false);
+      setShowConflictDialog(false);
+      setConflictInfo(null);
+    }
+  }, [conflictInfo, handleCreateNewSlot, handleToggleSlot, fetchAvailabilitySlots, showSuccess, showError]);
+
+  // Handle auto-generation request from the panel with work shift filtering
   const handleAutoGenerate = async (settings) => {
     if (!selectedSpecialtyForSchedule) {
       showWarning('Vui lòng chọn một chuyên khoa để tạo lịch.');
@@ -149,13 +321,59 @@ const ScheduleManagement = ({
       showError('Chuyên khoa này không liên kết với phòng khám nào.');
       return;
     }
-    
+
+    // Hiển thị dialog xác nhận trước khi tạo lịch
+    setBulkConflictInfo({
+      settings,
+      specialty: currentSpecialty,
+      clinicId,
+      totalConflicts: 0 // Sẽ được tính sau
+    });
+    setShowBulkConflictDialog(true);
+  };
+
+  // Handle bulk conflict resolution after user confirms
+  const handleBulkConflictConfirm = async () => {
+    if (!bulkConflictInfo) return;
+
     setAutoGenerating(true);
     try {
-      await handleGenerateSlotsFromWorkShifts(selectedSpecialtyForSchedule, clinicId, settings);    } catch {
-      // Error is handled in the parent component
+      // Tạo payload với thông tin lọc ca làm việc
+      const generationPayload = {
+        specialtyId: selectedSpecialtyForSchedule,
+        clinicId: bulkConflictInfo.clinicId,
+        startDate: bulkConflictInfo.settings.startDate,
+        endDate: bulkConflictInfo.settings.endDate,
+        slotDuration: bulkConflictInfo.settings.slotDuration || 30,
+        overwrite: true, // Luôn ghi đè để tránh conflict
+        workShiftFilter: bulkConflictInfo.settings.workShiftFilter || 'all'
+      };
+
+      console.log('🚀 Generating bulk slots with payload:', generationPayload);
+
+      const result = await handleGenerateSlotsFromWorkShifts(generationPayload);
+      
+      // Refetch data để cập nhật real-time
+      await fetchAvailabilitySlots();
+      
+      // Hiển thị thông báo với thông tin chi tiết
+      if (result && result.success) {
+        let message = `Đã tạo ${result.createdSlotsCount} slots thành công`;
+        if (result.skippedCount > 0) {
+          message += `, bỏ qua ${result.skippedCount} slots đã được bệnh nhân đặt`;
+        }
+        if (result.hasErrors && result.errors) {
+          message += `\nCó ${result.errors.length} lỗi nhỏ trong quá trình tạo`;
+        }
+        showSuccess(message);
+      }
+    } catch (error) {
+      console.error('Error generating slots:', error);
+      showError('Không thể tạo slots tự động. Vui lòng thử lại.');
     } finally {
       setAutoGenerating(false);
+      setShowBulkConflictDialog(false);
+      setBulkConflictInfo(null);
     }
   };
 
@@ -165,7 +383,7 @@ const ScheduleManagement = ({
       <SpecialtyTabBar 
         specialties={specialties}
         selectedSpecialty={selectedSpecialtyForSchedule}
-        onSelectSpecialty={setSelectedSpecialtyForSchedule}
+        onSpecialtyChange={setSelectedSpecialtyForSchedule}
         loadingWorkShifts={loadingWorkShifts}
       />
       
@@ -179,7 +397,7 @@ const ScheduleManagement = ({
             onSlotToggle={handleAdvancedToggleSlot}
             onBulkToggle={handleToggleSlot} 
             loading={internalLoadingSlots || loadingWorkShifts || autoGenerating}
-            onCreateNewSlot={handleCreateNewSlot}
+            onCreateNewSlot={handleAdvancedCreateNewSlot}
             refetchData={refetchData}
           />
         </div>
@@ -191,6 +409,7 @@ const ScheduleManagement = ({
             specialties={specialties}
             onGenerate={handleAutoGenerate}
             loading={autoGenerating}
+            loadingWorkShifts={loadingWorkShifts}
           />
         </div>
       </div>
@@ -201,6 +420,28 @@ const ScheduleManagement = ({
         conflictInfo={enhancedConflictInfo}
         onResolve={handleEnhancedConflictResolve}
         onCancel={() => setShowEnhancedConflictDialog(false)}
+      />
+
+      <ConflictResolutionDialog
+        isOpen={showConflictDialog}
+        onClose={() => {
+          setShowConflictDialog(false);
+          setConflictInfo(null);
+        }}
+        conflictInfo={conflictInfo}
+        onResolve={handleConflictResolve}
+        loading={conflictLoading}
+      />
+
+      <BulkConflictDialog
+        isOpen={showBulkConflictDialog}
+        onClose={() => {
+          setShowBulkConflictDialog(false);
+          setBulkConflictInfo(null);
+        }}
+        conflictInfo={bulkConflictInfo}
+        onConfirm={handleBulkConflictConfirm}
+        loading={autoGenerating}
       />
 
       {(autoGenerating || loadingWorkShifts || internalLoadingSlots) && (

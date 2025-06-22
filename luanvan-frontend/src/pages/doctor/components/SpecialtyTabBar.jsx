@@ -16,14 +16,13 @@ const SpecialtyTabBar = ({
     const specialtySlots = availabilitySlots.filter(slot => 
       (slot.specialty_id || slot.specialty?.specialtyId) === specialtyId
     );
-    const today = new Date().toISOString().split('T')[0];
-    const todaySlots = specialtySlots.filter(slot => slot.date === today);
     
     return {
-      total: todaySlots.length,
-      available: todaySlots.filter(slot => slot.status === 'AVAILABLE').length,
-      booked: todaySlots.filter(slot => slot.status === 'BOOKED').length,
-      cancelled: todaySlots.filter(slot => slot.status === 'CANCELLED_BY_CLINIC').length
+      total: specialtySlots.length,
+      available: specialtySlots.filter(slot => slot.status === 'AVAILABLE').length,
+      booked: specialtySlots.filter(slot => slot.status === 'BOOKED').length,
+      cancelled: specialtySlots.filter(slot => slot.status === 'CANCELLED_BY_CLINIC').length,
+      pending: specialtySlots.filter(slot => slot.status === 'PENDING').length
     };
   };
 
@@ -76,21 +75,7 @@ const SpecialtyTabBar = ({
             </div>
           </div>
           
-          <div className="text-right">
-            <div className="text-sm text-gray-500 mb-1">Slots hôm nay</div>
-            <div className="flex items-center space-x-4 text-sm">
-              <div className="flex items-center space-x-1">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span className="font-medium">{stats.available}</span>
-                <span className="text-gray-500">khả dụng</span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="font-medium">{stats.booked}</span>
-                <span className="text-gray-500">đã đặt</span>
-              </div>
-            </div>
-          </div>
+
         </div>
         
         {clinicAddress && (
@@ -205,26 +190,7 @@ const SpecialtyTabBar = ({
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-6 text-sm">
-                  {/* Availability stats */}
-                  <div className="flex items-center space-x-1">
-                    <Power className="w-4 h-4 text-green-600" />
-                    <span className="font-medium text-green-700">{stats.available}</span>
-                    <span className="text-gray-500">khả dụng</span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-1">
-                    <CheckCircle className="w-4 h-4 text-blue-600" />
-                    <span className="font-medium text-blue-700">{stats.booked}</span>
-                    <span className="text-gray-500">đã đặt</span>
-                  </div>
-                  
-                  <div className="flex items-center space-x-1">
-                    <Calendar className="w-4 h-4 text-gray-600" />
-                    <span className="font-medium text-gray-700">{stats.total}</span>
-                    <span className="text-gray-500">tổng cộng</span>
-                  </div>
-                </div>
+
               </div>
             );
           })()}

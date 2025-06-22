@@ -1525,6 +1525,26 @@ export const doctorService = {
     }
   },
 
+  // Resolve slot conflicts by disabling conflicting slots
+  async resolveSlotConflicts(action, slotTime, targetSpecialtyId) {
+    try {
+      const payload = {
+        action: action,
+        slotTime: slotTime,
+        targetSpecialtyId: targetSpecialtyId
+      };
+
+      console.log('🔧 Resolving slot conflicts:', payload);
+      return await apiRequest(`${API_BASE_URL}/doctor-schedules/resolve-conflicts`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+    } catch (error) {
+      console.error('Resolve slot conflicts error:', error);
+      throw handleApiError(error, 'resolveSlotConflicts');
+    }
+  },
+
   // Batch slot toggle with conflict resolution
   async batchToggleSlots(slotUpdates) {
     try {

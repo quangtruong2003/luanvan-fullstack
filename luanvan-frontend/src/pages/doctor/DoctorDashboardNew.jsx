@@ -228,16 +228,17 @@ const DoctorDashboardNew = () => {
     }
   };
   // Bật/tắt slot và xử lý xung đột
-  const handleToggleSlot = useCallback(async (slotId, currentStatus) => {
+  const handleToggleSlot = useCallback(async (slotId, currentStatus, slotTime = null) => {
     try {
       setLoadingSlots(true);
       const isAvailable = currentStatus !== 'AVAILABLE';
       
+      console.log('🔄 Toggling slot:', { slotId, currentStatus, slotTime, isAvailable });
+      
       await doctorService.toggleSlotAvailability(slotId, isAvailable);
       
       // Refresh data
-      const slotsRes = await doctorService.getMyAvailabilitySlots();
-      setAvailabilitySlots(slotsRes.content || slotsRes || []);
+      await fetchDashboardData();
       
       showSuccess(`Đã ${isAvailable ? 'bật' : 'tắt'} slot thành công!`);
     } catch (error) {
@@ -246,7 +247,7 @@ const DoctorDashboardNew = () => {
     } finally {
       setLoadingSlots(false);
     }
-  }, [showSuccess, showError]);
+  }, [showSuccess, showError, fetchDashboardData]);
 
   // Xử lý xác nhận conflict
   const handleConfirmSlotConflict = useCallback(async () => {
@@ -257,8 +258,7 @@ const DoctorDashboardNew = () => {
       await doctorService.toggleSlotAvailability(conflictInfo.slotId, true);
       
       // Refresh slots to reflect changes
-      const slotsRes = await doctorService.getMyAvailabilitySlots();
-      setAvailabilitySlots(slotsRes.content || slotsRes || []);
+      await fetchDashboardData();
       
       setShowSlotConflictDialog(false);
       setConflictInfo(null);
@@ -272,23 +272,43 @@ const DoctorDashboardNew = () => {
   }, [conflictInfo, showSuccess, showError]);
 
   // Tạo slots từ work shifts
-  const handleGenerateSlotsFromWorkShifts = useCallback(async (specialtyId, clinicId, dateRange) => {
+  const handleGenerateSlotsFromWorkShifts = useCallback(async (payload) => {
     try {
       setLoadingSlots(true);
       
-      console.log('Generating slots with specialtyId:', specialtyId);
+      // Xử lý cả format cũ và mới
+      let requestData;
+      if (typeof payload === 'object' && payload.specialtyId) {
+        // Format mới: payload là object hoàn chỉnh
+        requestData = {
+          specialtyId: payload.specialtyId,
+          clinicId: payload.clinicId,
+          startDate: payload.startDate,
+          endDate: payload.endDate,
+          slotDurationMinutes: payload.slotDuration || 30,
+          overwrite: payload.overwrite || true,
+          workShiftFilter: payload.workShiftFilter || 'all'
+        };
+      } else {
+        // Format cũ: legacy support
+        const [specialtyId, clinicId, dateRange] = arguments;
+        requestData = {
+          specialtyId: specialtyId,
+          clinicId: clinicId,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+          slotDurationMinutes: dateRange.slotDuration || 30,
+          overwrite: true,
+          workShiftFilter: 'all'
+        };
+      }
       
-      await doctorService.createBulkSlotsFromWorkShifts({
-        specialtyId: specialtyId,
-        clinicId: clinicId,
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-        slotDurationMinutes: dateRange.slotDuration || 30
-      });
+      console.log('🚀 Generating slots with payload:', requestData);
+      
+      await doctorService.generateSlotsFromWorkShifts(requestData);
       
       // Refresh data
-      const slotsRes = await doctorService.getMyAvailabilitySlots();
-      setAvailabilitySlots(slotsRes.content || slotsRes || []);
+      await fetchDashboardData();
       
       showSuccess('Tạo lịch làm việc thành công!');
     } catch (error) {
@@ -333,11 +353,11 @@ const DoctorDashboardNew = () => {
       
       console.log('Creating new slot with payload:', payload);
 
+      // Ghi đè tuyệt đối: Tạo slot trước, server sẽ tự động xử lý conflict
       await doctorService.createMyAvailabilitySlot(payload);
       
       // Refresh slots
-      const slotsRes = await doctorService.getMyAvailabilitySlots();
-      setAvailabilitySlots(slotsRes.content || slotsRes || []);
+      await fetchDashboardData();
       showSuccess('Đã tạo slot mới thành công!');
       
     } catch (error) {
@@ -391,13 +411,10 @@ const DoctorDashboardNew = () => {
             specialties={specialties}
             selectedSpecialtyForSchedule={selectedSpecialtyForSchedule}
             setSelectedSpecialtyForSchedule={setSelectedSpecialtyForSchedule}
-            availabilitySlots={availabilitySlots}
-            loadingSlots={loadingSlots}
             handleGenerateSlotsFromWorkShifts={handleGenerateSlotsFromWorkShifts}
             handleToggleSlot={handleToggleSlot}
-            setShowSlotConflictDialog={setShowSlotConflictDialog}
-            setConflictInfo={setConflictInfo}
             handleCreateNewSlot={handleCreateNewSlot}
+            refetchData={fetchDashboardData}
           />
         );
       case 'patients':

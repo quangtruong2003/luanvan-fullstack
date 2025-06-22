@@ -43,6 +43,8 @@ public class AvailabilitySlotDTO {
     @JsonAlias({"clinic_id", "clinicId"})
     private Long clinicId;
     
+    @JsonProperty("specialtyId")
+    @JsonAlias({"specialty_id", "specialtyId"})
     private Long specialtyId;
     
     public AvailabilitySlotDTO() {

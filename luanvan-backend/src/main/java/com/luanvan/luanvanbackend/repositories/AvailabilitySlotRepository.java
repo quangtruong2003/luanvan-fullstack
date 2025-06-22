@@ -127,4 +127,7 @@ public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySl
         @Param("endDate") LocalDate endDate);
     
     List<AvailabilitySlot> findByDoctorDoctorIdAndDateAndStartTimeAndEndTime(Long doctorId, LocalDate date, LocalTime startTime, LocalTime endTime);
+    
+    // Tìm slot theo doctor, date và startTime (cho ghi đè tuyệt đối)
+    List<AvailabilitySlot> findByDoctorDoctorIdAndDateAndStartTime(Long doctorId, LocalDate date, LocalTime startTime);
 }

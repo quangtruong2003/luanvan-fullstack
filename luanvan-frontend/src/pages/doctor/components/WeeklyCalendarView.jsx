@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { 
   Calendar, Clock, Power, PowerOff, User,
   ChevronLeft, ChevronRight, Plus, Check, RotateCw, X
@@ -18,9 +18,7 @@ const WeeklyCalendarView = ({
 }) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSlots, setSelectedSlots] = useState(new Set());
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pendingAction, setPendingAction] = useState(null);
-  const [previewSlotId, setPreviewSlotId] = useState(null);
+  const [hasAutoNavigated, setHasAutoNavigated] = useState(false);
   const { showInfo } = useNotification();
 
   const weekDates = useMemo(() => {
@@ -72,33 +70,104 @@ const WeeklyCalendarView = ({
     return grouped;
   }, [slots]);
 
+  // Check if current week has any slots
+  const currentWeekHasSlots = useMemo(() => {
+    if (!slots || slots.length === 0) return false;
+    
+    const weekStart = new Date(currentWeek);
+    const day = weekStart.getDay();
+    const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
+    weekStart.setDate(diff);
+    
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    
+    return slots.some(slot => {
+      const slotDate = new Date(slot.date);
+      return slotDate >= weekStart && slotDate <= weekEnd;
+    });
+  }, [slots, currentWeek]);
+
+  // Auto-navigate to nearest week with slots
+  useEffect(() => {
+    if (!slots || slots.length === 0 || hasAutoNavigated || currentWeekHasSlots) {
+      return;
+    }
+
+    // Find the nearest week with slots
+    const findNearestWeekWithSlots = () => {
+      const today = new Date();
+      const sortedSlots = [...slots]
+        .filter(slot => new Date(slot.date) >= today) // Only future slots
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      if (sortedSlots.length === 0) {
+        // If no future slots, check past slots
+        const pastSlots = [...slots]
+          .filter(slot => new Date(slot.date) < today)
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        if (pastSlots.length > 0) {
+          return new Date(pastSlots[0].date);
+        }
+        return null;
+      }
+
+      return new Date(sortedSlots[0].date);
+    };
+
+    const nearestSlotDate = findNearestWeekWithSlots();
+    if (nearestSlotDate) {
+      // Navigate to the week containing the nearest slot
+      const targetWeek = new Date(nearestSlotDate);
+      const dayOfWeek = targetWeek.getDay();
+      const diff = targetWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      targetWeek.setDate(diff);
+      
+      setCurrentWeek(targetWeek);
+      setHasAutoNavigated(true);
+      
+      showInfo(`Đã chuyển đến tuần có lịch khám gần nhất (${nearestSlotDate.toLocaleDateString('vi-VN')})`);
+    }
+  }, [slots, currentWeekHasSlots, hasAutoNavigated, showInfo]);
+
   const navigateWeek = (direction) => {
     const newWeek = new Date(currentWeek);
     newWeek.setDate(currentWeek.getDate() + (direction * 7));
     setCurrentWeek(newWeek);
+    // Reset auto-navigation flag when user manually navigates
+    setHasAutoNavigated(false);
   };
+
+  // Reset auto-navigation when specialty changes
+  useEffect(() => {
+    setHasAutoNavigated(false);
+  }, [selectedSpecialty]);
 
   const handleSlotClick = (date, time, currentSlot) => {
     if (loading) return;
     
     if (currentSlot) {
-      // Prepare toggle action for existing slot
-      const action = {
-        type: 'toggle',
-        slotId: currentSlot.slotId || currentSlot.slot_id,
-        currentStatus: currentSlot.status,
-        timeString: `${date.toISOString().split('T')[0]}T${time}`,
-        displayInfo: {
-          date: date.toLocaleDateString('vi-VN'),
-          time: time,
-          currentStatus: currentSlot.status
-        }
-      };
-      setPendingAction(action);
-      setPreviewSlotId(currentSlot.slotId || currentSlot.slot_id);
-      setShowConfirmDialog(true);
+      // Tạo datetime object để truyền vào handleAdvancedToggleSlot
+      const slotDateTime = new Date(date);
+      const [hours, minutes] = time.split(':').map(Number);
+      slotDateTime.setHours(hours, minutes, 0, 0);
+      
+      // Get specialty and clinic names for display
+      const specialty = specialties.find(s => (s.specialtyId || s.specialty_id) === selectedSpecialty);
+      const specialtyName = specialty?.name || 'Chuyên khoa không xác định';
+      const clinicName = specialty?.clinic?.name || 'Phòng khám không xác định';
+      
+      // Gọi với đầy đủ tham số
+      onSlotToggle(
+        currentSlot.slotId || currentSlot.slot_id, 
+        currentSlot.status,
+        slotDateTime,
+        specialtyName,
+        clinicName
+      );
     } else if (onCreateNewSlot && canCreateNewSlot(date, time)) {
-      // Prepare create action for new slot
+      // Thực hiện tạo slot ngay lập tức - ghi đè tuyệt đối
       const [hours, minutes] = time.split(':').map(Number);
       const startTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
       
@@ -106,48 +175,15 @@ const WeeklyCalendarView = ({
       endDate.setHours(hours, minutes + 30);
       const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
 
-      const action = {
-        type: 'create',
-        slotData: {
-          date: date.toISOString().split('T')[0],
-          startTime: startTime,
-          endTime: endTime
-        },
-        displayInfo: {
-          date: date.toLocaleDateString('vi-VN'),
-          time: time
-        }
+      const slotData = {
+        date: date.toISOString().split('T')[0],
+        startTime: startTime,
+        endTime: endTime,
+        specialtyId: selectedSpecialty
       };
-      setPendingAction(action);
-      setPreviewSlotId(`preview-${date.toISOString().split('T')[0]}-${time}`);
-      setShowConfirmDialog(true);
+      
+      onCreateNewSlot(slotData);
     }
-  };
-
-  // Execute the confirmed action
-  const handleConfirmAction = () => {
-    if (!pendingAction) return;
-    
-    if (pendingAction.type === 'toggle') {
-      onSlotToggle(
-        pendingAction.slotId, 
-        pendingAction.currentStatus
-      );
-    } else if (pendingAction.type === 'create') {
-      onCreateNewSlot(pendingAction.slotData);
-    }
-    
-    // Reset states
-    setShowConfirmDialog(false);
-    setPendingAction(null);
-    setPreviewSlotId(null);
-  };
-
-  // Cancel the action
-  const handleCancelAction = () => {
-    setShowConfirmDialog(false);
-    setPendingAction(null);
-    setPreviewSlotId(null);
   };
 
   const handleSlotSelection = (slotId, e) => {
@@ -241,8 +277,6 @@ const WeeklyCalendarView = ({
                 const past = isPast(date, time);
                 const canCreate = !past && !!currentSpecialtyInfo;
                 const isSelected = selectedSlots.has(currentSlot?.slotId);
-                const isPreview = previewSlotId === (currentSlot?.slotId || currentSlot?.slot_id) || 
-                                previewSlotId === `preview-${dateStr}-${time}`;
 
                 let bgColor = 'bg-gray-50';
                 let textColor = 'text-gray-400';
@@ -252,30 +286,7 @@ const WeeklyCalendarView = ({
                 let title = 'Click để tạo slot mới';
                 let isDisabled = past || loading;
 
-                // Handle preview state
-                if (isPreview && pendingAction) {
-                  if (pendingAction.type === 'create') {
-                    bgColor = 'bg-yellow-100';
-                    textColor = 'text-yellow-700';
-                    borderColor = 'border-yellow-300';
-                    content = <Plus className="w-4 h-4" />;
-                    title = 'Sẽ tạo slot mới - Chờ xác nhận';
-                  } else if (pendingAction.type === 'toggle') {
-                    if (currentSlot?.status === 'AVAILABLE') {
-                      bgColor = 'bg-red-200';
-                      textColor = 'text-red-800';
-                      borderColor = 'border-red-400';
-                      content = <PowerOff className="w-4 h-4" />;
-                      title = 'Sẽ tắt slot - Chờ xác nhận';
-                    } else {
-                      bgColor = 'bg-green-200';
-                      textColor = 'text-green-800';
-                      borderColor = 'border-green-400';
-                      content = <Power className="w-4 h-4" />;
-                      title = 'Sẽ bật slot - Chờ xác nhận';
-                    }
-                  }
-                } else if (currentSlot) {
+                if (currentSlot) {
                   switch (currentSlot.status) {
                     case 'AVAILABLE':
                       bgColor = 'bg-green-100';
@@ -286,6 +297,7 @@ const WeeklyCalendarView = ({
                       title = 'Slot có sẵn. Click để tắt.';
                       break;
                     case 'BOOKED':
+                    case 'CONFIRMED':
                       bgColor = 'bg-blue-100';
                       textColor = 'text-blue-700';
                       borderColor = 'border-blue-300';
@@ -295,12 +307,33 @@ const WeeklyCalendarView = ({
                       isDisabled = true; // Cannot toggle booked slots directly
                       break;
                     case 'CANCELLED_BY_CLINIC':
+                    case 'DISABLED':
                       bgColor = 'bg-red-100';
                       textColor = 'text-red-700';
                       borderColor = 'border-red-300';
                       hoverBgColor = 'hover:bg-red-200';
                       content = <PowerOff className="w-4 h-4" />;
-                      title = 'Slot đã bị tắt. Click để bật.';
+                      title = 'Slot đã tắt. Click để bật.';
+                      break;
+                    case 'PENDING_PAYMENT':
+                    case 'PENDING_CONFIRMATION':
+                    case 'PENDING':
+                      bgColor = 'bg-yellow-100';
+                      textColor = 'text-yellow-700';
+                      borderColor = 'border-yellow-300';
+                      hoverBgColor = ''; // No hover for pending slots
+                      content = <Clock className="w-4 h-4" />;
+                      title = 'Chờ xác nhận từ bệnh nhân';
+                      isDisabled = true; // Cannot toggle pending slots
+                      break;
+                    case 'CANCELLED_BY_PATIENT':
+                    case 'CANCELLED':
+                      bgColor = 'bg-gray-100';
+                      textColor = 'text-gray-600';
+                      borderColor = 'border-gray-300';
+                      hoverBgColor = 'hover:bg-gray-200';
+                      content = <X className="w-4 h-4" />;
+                      title = 'Đã hủy bởi bệnh nhân. Click để bật lại.';
                       break;
                     default:
                       bgColor = 'bg-gray-100';
@@ -308,6 +341,7 @@ const WeeklyCalendarView = ({
                       borderColor = 'border-gray-300';
                       hoverBgColor = '';
                       content = 'N/A';
+                      title = `Status: ${currentSlot.status}`;
                   }
                 } else {
                   if (!canCreate) {
@@ -381,79 +415,6 @@ const WeeklyCalendarView = ({
           <div className="flex items-center space-x-3">
             <RotateCw className="w-6 h-6 animate-spin text-blue-600" />
             <span className="text-lg font-medium text-gray-700">Đang cập nhật lịch...</span>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation Dialog */}
-      {showConfirmDialog && pendingAction && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 shadow-2xl max-w-md w-full mx-4">
-            <div className="text-center">
-              <div className="mb-4">
-                {pendingAction.type === 'create' ? (
-                  <div className="w-16 h-16 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-3">
-                    <Plus className="w-8 h-8 text-yellow-600" />
-                  </div>
-                ) : (
-                  <div className="w-16 h-16 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3">
-                    {pendingAction.currentStatus === 'AVAILABLE' ? (
-                      <PowerOff className="w-8 h-8 text-red-600" />
-                    ) : (
-                      <Power className="w-8 h-8 text-green-600" />
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {pendingAction.type === 'create' 
-                  ? 'Xác nhận tạo slot mới' 
-                  : 'Xác nhận thay đổi slot'}
-              </h3>
-
-              <div className="text-sm text-gray-600 mb-6">
-                <p className="mb-1">
-                  <strong>Ngày:</strong> {pendingAction.displayInfo.date}
-                </p>
-                <p className="mb-3">
-                  <strong>Giờ:</strong> {pendingAction.displayInfo.time}
-                </p>
-                
-                {pendingAction.type === 'create' ? (
-                  <p className="text-blue-600">
-                    Slot mới sẽ được tạo và có thể đặt lịch.
-                  </p>
-                ) : (
-                  <p className={pendingAction.currentStatus === 'AVAILABLE' ? 'text-red-600' : 'text-green-600'}>
-                    {pendingAction.currentStatus === 'AVAILABLE' 
-                      ? 'Slot sẽ bị tắt và không thể đặt lịch.'
-                      : 'Slot sẽ được bật và có thể đặt lịch.'}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex space-x-3">
-                <button
-                  onClick={handleCancelAction}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-                >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleConfirmAction}
-                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors ${
-                    pendingAction.type === 'create' 
-                      ? 'bg-yellow-600 hover:bg-yellow-700'
-                      : pendingAction.currentStatus === 'AVAILABLE'
-                        ? 'bg-red-600 hover:bg-red-700'
-                        : 'bg-green-600 hover:bg-green-700'
-                  }`}
-                >
-                  Xác nhận
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
