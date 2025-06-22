@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom"
 import { useState, useEffect } from "react"
-import { Calendar, Users, Clock, Shield, Heart, Stethoscope, ChevronRight, Check, Star, ChevronLeft, ArrowRight, Play, Award, TrendingUp, Zap } from "lucide-react"
-import { Facebook, Twitter, Instagram } from "lucide-react";
+import { Calendar, Users, Clock, Shield, Heart, Stethoscope, ChevronRight, Check, Star, ChevronLeft, ArrowRight, Play, Award, TrendingUp, Zap, ExternalLink } from "lucide-react"
 import { apiService } from "../services/api";
 
 const Home = () => {
@@ -18,14 +17,14 @@ const Home = () => {
 
   // Number of clinics to show per slide
   const clinicsPerSlide = 4;
-  const totalSlides = Math.ceil(clinics.length / clinicsPerSlide);
+  const totalSlides = Math.max(1, Math.ceil(clinics.length / clinicsPerSlide));
 
   // Fetch data
   useEffect(() => {
     const fetchClinics = async () => {
       try {
         const response = await apiService.getClinics();
-        setClinics(response.content || []);
+        setClinics(Array.isArray(response?.content) ? response.content : []);
       } catch (error) {
         console.error('Error fetching clinics:', error);
       } finally {
@@ -41,12 +40,12 @@ const Home = () => {
           const formattedDoctors = response.content.map(doc => ({
             id: doc.doctor_id,
             name: doc.user.full_name,
-            specialty: doc.specialties.map(s => s.name).join(' & ') || 'Chuyên khoa chung',
+            specialty: doc.specialties?.map(s => s.name).join(' & ') || 'Chuyên khoa chung',
             rating: (Math.random() * (5.0 - 4.7) + 4.7).toFixed(1),
             experience: `${doc.years_of_experience || 5} năm kinh nghiệm`,
             patients: `${(doc.years_of_experience || 5) * 250 + Math.floor(Math.random() * 500)}+ bệnh nhân`,
             image: doc.user.image_url || `https://source.unsplash.com/400x400/?doctor,person,${doc.doctor_id}`,
-            achievements: ['Chuyên gia hàng đầu', 'Bằng cấp quốc tế'].slice(0, Math.floor(Math.random() * 3))
+            achievements: ['Chuyên gia hàng đầu', 'Bằng cấp quốc tế'].slice(0, Math.floor(Math.random() * 2) + 1)
           }));
           setDoctors(formattedDoctors);
         } else {
@@ -76,11 +75,11 @@ const Home = () => {
 
   // Auto-play slideshow
   useEffect(() => {
-    if (totalSlides > 1) {
+    if (totalSlides > 1 && !loading && clinics.length > 0) {
       const timer = setInterval(nextSlide, 6000);
       return () => clearInterval(timer);
     }
-  }, [totalSlides]);
+  }, [totalSlides, loading, clinics.length]);
 
   const features = [
     {
@@ -270,11 +269,11 @@ const Home = () => {
                     const slideClinics = clinics.slice(slideStart, slideEnd);
                     
                     return (
-                      <div key={slideIndex} className="w-full flex-shrink-0 px-4">
+                      <div key={slideIndex} className="w-full flex-shrink-0 px-8 py-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
                           {slideClinics.map((clinic) => (
-                            <div key={clinic.clinic_id} className="group relative">
-                              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:-translate-y-2">
+                            <div key={clinic.clinic_id} className="group relative h-full">
+                              <div className="h-full min-h-[400px] flex flex-col bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg hover:shadow-2xl transition-all duration-500 hover:scale-105 hover:-translate-y-2">
                                 {/* Logo */}
                                 <div className="relative mb-6">
                                   <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 rounded-2xl p-0.5 group-hover:rotate-6 transition-transform duration-500">
@@ -296,47 +295,54 @@ const Home = () => {
                                   </div>
                                 </div>
                                 
-                                {/* Clinic name */}
-                                <h3 className="text-lg font-bold text-gray-900 mb-3 text-center group-hover:text-blue-600 transition-colors duration-300"
-                                    style={{
-                                      display: '-webkit-box',
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: 'vertical',
-                                      overflow: 'hidden',
-                                      lineHeight: '1.3em',
-                                      maxHeight: '2.6em'
-                                    }}>
-                                  {clinic.name}
-                                </h3>
+                                {/* Clinic name - Fixed height */}
+                                <div className="h-16 flex items-center justify-center mb-4">
+                                  <h3 className="text-lg font-bold text-gray-900 text-center group-hover:text-blue-600 transition-colors duration-300 leading-tight"
+                                      style={{
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: 2,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden'
+                                      }}>
+                                    {clinic.name}
+                                  </h3>
+                                </div>
                                 
-                                {/* Clinic info */}
-                                <p className="text-sm text-gray-600 mb-4 text-center"
-                                   style={{
-                                     display: '-webkit-box',
-                                     WebkitLineClamp: 2,
-                                     WebkitBoxOrient: 'vertical',
-                                     overflow: 'hidden',
-                                     lineHeight: '1.4em',
-                                     maxHeight: '2.8em'
-                                   }}>
-                                  {clinic.address}
-                                </p>
+                                {/* Clinic info - Fixed height */}
+                                <div className="h-20 flex items-start justify-center mb-6">
+                                  <p className="text-sm text-gray-600 text-center leading-relaxed"
+                                     style={{
+                                       display: '-webkit-box',
+                                       WebkitLineClamp: 3,
+                                       WebkitBoxOrient: 'vertical',
+                                       overflow: 'hidden'
+                                     }}>
+                                    {clinic.address}
+                                  </p>
+                                </div>
                                 
-                                {/* Specialties */}
-                                <div className="flex flex-wrap justify-center gap-2">
-                                  {clinic.specialties?.slice(0, 2).map((specialty, idx) => (
-                                    <span 
-                                      key={specialty.specialty_id}
-                                      className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200"
-                                    >
-                                      {specialty.name}
-                                    </span>
-                                  ))}
-                                  {clinic.specialties?.length > 2 && (
-                                    <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full border border-gray-200">
-                                      +{clinic.specialties.length - 2} khoa
-                                    </span>
-                                  )}
+                                {/* Specialties - Flexible at bottom */}
+                                <div className="mt-auto">
+                                  <div className="flex flex-wrap justify-center gap-2 min-h-[2.5rem] items-center">
+                                    {clinic.specialties?.slice(0, 2).map((specialty) => (
+                                      <span 
+                                        key={`clinic-${clinic.clinic_id}-specialty-${specialty.specialty_id}`}
+                                        className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200 whitespace-nowrap"
+                                      >
+                                        {specialty.name}
+                                      </span>
+                                    ))}
+                                    {clinic.specialties?.length > 2 && (
+                                      <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full border border-gray-200 whitespace-nowrap">
+                                        +{clinic.specialties.length - 2} khoa
+                                      </span>
+                                    )}
+                                    {(!clinic.specialties || clinic.specialties.length === 0) && (
+                                      <span className="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded-full border border-gray-200">
+                                        Đa chuyên khoa
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                                 
                                 {/* Hover overlay */}
@@ -349,7 +355,7 @@ const Home = () => {
                           {slideClinics.length < clinicsPerSlide && 
                             Array.from({ length: clinicsPerSlide - slideClinics.length }, (_, emptyIndex) => (
                               <div key={`empty-${emptyIndex}`} className="opacity-0">
-                                <div className="h-full"></div>
+                                <div className="h-full min-h-[400px]"></div>
                               </div>
                             ))
                           }
@@ -522,8 +528,8 @@ const Home = () => {
                       
                       {/* Achievement Badges */}
                       <div className="absolute top-4 left-4 space-y-2">
-                        {doctor.achievements.map((achievement, idx) => (
-                          <div key={idx} className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-3 py-1 rounded-full font-medium shadow-md">
+                        {doctor.achievements?.map((achievement, idx) => (
+                          <div key={`doctor-${doctor.id}-achievement-${idx}`} className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-3 py-1 rounded-full font-medium shadow-md">
                             {achievement}
                           </div>
                         ))}
@@ -736,12 +742,12 @@ const Home = () => {
                   
                   <div className="flex space-x-4">
                     {[
-                      { icon: Facebook, href: "#", label: "Facebook" },
-                      { icon: Twitter, href: "#", label: "Twitter" },
-                      { icon: Instagram, href: "#", label: "Instagram" }
+                      { icon: ExternalLink, href: "#", label: "Facebook" },
+                      { icon: ExternalLink, href: "#", label: "Twitter" },
+                      { icon: ExternalLink, href: "#", label: "Instagram" }
                     ].map((social, index) => (
                       <a 
-                        key={index}
+                        key={`social-${index}`}
                         href={social.href} 
                         className="w-10 h-10 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 hover:border-white/40 transition-all duration-300 hover:scale-110"
                         aria-label={social.label}
