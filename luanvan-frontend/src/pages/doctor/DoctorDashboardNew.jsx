@@ -122,12 +122,12 @@ const DoctorDashboardNew = () => {
       if (error.message.includes('Dữ liệu xác thực không hợp lệ') || 
           error.message.includes('User not found') ||
           error.message.includes('Không tìm thấy thông tin bác sĩ')) {
-        // Show user-friendly error and redirect to login
+        // Show user-friendly error and redirect to home
         showError('Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại để tiếp tục.');
         
         // Clear localStorage and redirect
         localStorage.clear();
-        window.location.href = '/login';
+        window.location.href = '/';
         return;
       }
       
@@ -189,7 +189,7 @@ const DoctorDashboardNew = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      window.location.href = '/login';
+      window.location.href = '/';
     } catch (error) {
       console.error('Error logging out:', error);
     }

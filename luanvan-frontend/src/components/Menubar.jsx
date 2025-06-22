@@ -1,19 +1,25 @@
 "use client"
 
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { SignedIn, SignedOut, UserButton, SignInButton, SignUpButton, useUser } from "@clerk/clerk-react"
 import { useAuth } from "../context/AuthContext"
 import { Calendar, User, Stethoscope, Home, LayoutDashboard, LogOut, BookOpen } from "lucide-react"
 
 const Menubar = () => {
   const [menuOpen, setMenuOpen] = useState(false)
-  const { user } = useUser()
+  const { isSignedIn, user } = useUser()
   const { currentUser, isAdmin, isDoctor, logout } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    await logout()
+    navigate('/')
+  }
 
   // Hiển thị menu khác nhau tùy theo vai trò người dùng
   const renderMenuLinks = () => {
-    if (currentUser) {
+    if (currentUser && isSignedIn) {
       if (isAdmin()) {
         return (
           <>
@@ -38,7 +44,7 @@ const Menubar = () => {
               Dashboard
             </Link>
             <button 
-              onClick={() => { logout(); window.location.href = '/login'; }} 
+              onClick={handleLogout} 
               className="flex items-center gap-2 text-gray-700 hover:text-red-600 font-medium transition-colors px-3 py-2 rounded-lg hover:bg-red-50"
             >
               <LogOut className="w-5 h-5" />
@@ -74,7 +80,8 @@ const Menubar = () => {
 
   // Hiển thị nút đăng nhập/đăng ký
   const renderAuthButtons = () => {
-    if (currentUser) {
+    // Chỉ hiển thị giao diện tùy chỉnh cho Admin và Bác sĩ
+    if (isAdmin() || isDoctor()) {
       return (
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-blue-100 px-4 py-2 rounded-full">
@@ -86,7 +93,7 @@ const Menubar = () => {
             </p>
           </div>
           <button 
-            onClick={() => { logout(); window.location.href = '/login'; }} 
+            onClick={handleLogout} 
             className="text-gray-500 hover:text-red-600 transition-colors"
             title="Đăng xuất"
           >
@@ -96,6 +103,7 @@ const Menubar = () => {
       )
     }
 
+    // Với Bệnh nhân và khách, sử dụng giao diện của Clerk
     return (
       <>
         <SignedOut>
@@ -148,7 +156,7 @@ const Menubar = () => {
             </div>
 
             <div className="space-y-4">
-              {currentUser ? (
+              {currentUser && isSignedIn ? (
                 isAdmin() ? (
                   <>
                     <Link
@@ -203,7 +211,8 @@ const Menubar = () => {
             </div>
 
             <div className="mt-8 pt-6 border-t border-gray-200">
-              {currentUser ? (
+              {/* Chỉ hiển thị giao diện tùy chỉnh cho Admin và Bác sĩ */}
+              {(isAdmin() || isDoctor()) ? (
                 <>
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-white font-semibold">
@@ -215,7 +224,11 @@ const Menubar = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => { logout(); window.location.href = '/login'; }}
+                    onClick={async () => { 
+                      await logout(); 
+                      setMenuOpen(false);
+                      navigate('/'); 
+                    }}
                     className="flex items-center gap-3 w-full text-red-600 hover:text-red-700 font-medium py-3 px-4 rounded-lg hover:bg-red-50"
                   >
                     <LogOut className="w-5 h-5" />

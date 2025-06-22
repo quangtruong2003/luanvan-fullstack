@@ -96,7 +96,7 @@ const AuthErrorHandler = ({ error, onRetry, onLogout, onClearAuth }) => {
   const handleLogout = () => {
     localStorage.clear();
     if (onLogout) onLogout();
-    window.location.href = '/login';
+    window.location.href = '/';
   };
 
   const handleClearAndReload = () => {

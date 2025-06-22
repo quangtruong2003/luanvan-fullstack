@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { useClerk } from '@clerk/clerk-react';
 import { authService } from '../services/api';
 
 const AuthContext = createContext();
@@ -11,6 +12,7 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { signOut } = useClerk();
   
   // Clear authentication data
   const clearAuthData = () => {
@@ -143,8 +145,21 @@ export function AuthProvider({ children }) {
   
   // Đăng xuất
   const logout = async () => {
-    await authService.logout();
-    setCurrentUser(null);
+    try {
+      // Đăng xuất khỏi Clerk trước
+      await signOut();
+      console.log('✅ Signed out from Clerk successfully');
+
+      // Sau đó, thực hiện logic đăng xuất của ứng dụng
+      await authService.logout();
+      setCurrentUser(null);
+      console.log('✅ Cleared local auth data and context');
+    } catch (error) {
+      console.error('❌ Error during logout:', error);
+      // Ngay cả khi có lỗi, vẫn nên xóa dữ liệu local để đảm bảo an toàn
+      await authService.logout(); 
+      setCurrentUser(null);
+    }
   };
   
   // Kiểm tra vai trò người dùng

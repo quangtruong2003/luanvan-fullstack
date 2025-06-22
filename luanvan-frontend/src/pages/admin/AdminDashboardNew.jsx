@@ -665,7 +665,7 @@ const AdminDashboardNew = () => {
           }}
           onLogout={() => {
             localStorage.clear();
-            window.location.href = '/login';
+            window.location.href = '/';
           }}
         />
       </div>

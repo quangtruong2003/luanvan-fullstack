@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './DoctorCalendar.css';
 import { useAuth } from '../context/AuthContext';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useClerk } from '@clerk/clerk-react';
+import { Calendar as LucideCalendar, Clock, User, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 
 const formatWorkingHours = (shifts) => {
   if (!shifts || shifts.length === 0) {
@@ -76,7 +77,8 @@ const DoctorSchedule = () => {
   const [slotLoading, setSlotLoading] = useState(false);
   const [workShifts, setWorkShifts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { isSignedIn } = useUser();
+  const { isSignedIn, isLoaded } = useUser();
+  const { openSignIn } = useClerk();
   const [minimumAdvanceBookingDays, setMinimumAdvanceBookingDays] = useState(1);
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
@@ -245,24 +247,22 @@ const DoctorSchedule = () => {
   };
 
   // When a slot is selected
-  const handleSlotSelect = async (slot) => {
-    if (!isSignedIn) {
-      navigate('/sign-in', { state: { from: window.location.pathname } });
+  const handleSlotSelect = (slot) => {
+    if (!isLoaded) {
       return;
     }
-    
-    const year = selectedDate.getFullYear();
-    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(selectedDate.getDate()).padStart(2, '0');
-    const formattedDate = `${year}-${month}-${day}`;
 
-    navigate(`/book-appointment-details`, { 
-      state: { 
+    if (!isSignedIn) {
+      openSignIn();
+      return;
+    }
+
+    navigate('/book-appointment-details', {
+      state: {
         slotData: slot,
         doctorData: doctor,
-        clinicData: clinic,
-        date: formattedDate
-      } 
+        date: selectedDate.toISOString().split('T')[0]
+      }
     });
   };
 
