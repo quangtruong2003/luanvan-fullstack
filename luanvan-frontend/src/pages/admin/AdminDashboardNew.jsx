@@ -146,6 +146,8 @@ const AdminDashboardNew = () => {
       const totalClinics = clinicsRes.totalElements || (Array.isArray(clinicsRes) ? clinicsRes.length : (clinicsRes.content?.length || 0));
       const todayAppointments = todayAppointmentsRes.totalElements || (Array.isArray(todayAppointmentsRes) ? todayAppointmentsRes.length : (todayAppointmentsRes.content?.length || 0));
       
+
+      
       const newStats = {
         totalUsers,
         totalDoctors,
