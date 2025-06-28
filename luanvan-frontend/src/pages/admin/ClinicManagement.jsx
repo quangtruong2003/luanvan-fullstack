@@ -468,7 +468,7 @@ const ClinicManagement = ({ onAuthError }) => {
     }
 
     try {
-      await apiService.createClinicSpecialty(clinicId, {
+      await adminService.createClinicSpecialty(clinicId, {
         name: specialtyFormData.name,
         description: specialtyFormData.description
       });
@@ -493,7 +493,7 @@ const ClinicManagement = ({ onAuthError }) => {
     }
 
     try {
-      await apiService.updateClinicSpecialty(clinicId, specialtyId, {
+      await adminService.updateClinicSpecialty(clinicId, specialtyId, {
         name: specialtyFormData.name,
         description: specialtyFormData.description
       });
@@ -504,6 +504,20 @@ const ClinicManagement = ({ onAuthError }) => {
     } catch (error) {
       console.error('Error updating specialty:', error);
       showError(error.message, 'Lỗi khi cập nhật chuyên khoa');
+    }
+  };
+
+  const handleDeleteSpecialty = async (clinicId, specialtyId) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa chuyên khoa này? Hành động này không thể hoàn tác.')) {
+      return;
+    }
+    try {
+      await adminService.deleteClinicSpecialty(clinicId, specialtyId);
+      await fetchClinics();
+      showSuccess('Chuyên khoa đã được xóa thành công!');
+    } catch (error) {
+      console.error('Error deleting specialty:', error);
+      showError(error.message, 'Lỗi khi xóa chuyên khoa');
     }
   };
 
@@ -980,7 +994,7 @@ const ClinicManagement = ({ onAuthError }) => {
                             <div className="space-y-1">
                               {clinic.specialties.slice(0, 3).map(specialty => (
                                 <div key={specialty.specialty_id || specialty.specialtyId}
-                                     className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-100">
+                                     className="flex items-center justify-between p-2 bg-purple-50 rounded-lg border border-purple-100 group">
                                   <div className="flex-1">
                                     <div className="text-sm font-medium text-purple-900">
                                       {specialty.name}
@@ -988,6 +1002,14 @@ const ClinicManagement = ({ onAuthError }) => {
                                     <div className="text-xs text-purple-700">
                                       {specialty.doctor_count || specialty.doctorCount || 0} bác sĩ
                                     </div>
+                                  </div>
+                                  <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => openSpecialtyModal(clinic, specialty)} className="p-1 hover:bg-purple-100 rounded">
+                                      <Edit className="w-3 h-3 text-purple-600" />
+                                    </button>
+                                    <button onClick={() => handleDeleteSpecialty(clinic.clinic_id || clinic.clinicId, specialty.specialty_id || specialty.specialtyId)} className="p-1 hover:bg-red-100 rounded">
+                                      <Trash2 className="w-3 h-3 text-red-600" />
+                                    </button>
                                   </div>
                                 </div>
                               ))}

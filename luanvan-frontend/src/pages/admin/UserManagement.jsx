@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Plus, Edit, Trash2, Search, Filter, UserCheck, UserX, Stethoscope, AlertTriangle, PlusCircle } from 'lucide-react';
 import { adminService } from '../../services/api';
 import { useNotification } from '../../components/NotificationSystem';
+import Pagination from '../../components/Pagination';
 
 const UserManagement = () => {
   const { showSuccess, showError } = useNotification();
@@ -13,12 +14,16 @@ const UserManagement = () => {
   const [filterRole, setFilterRole] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [currentUserRole, setCurrentUserRole] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [formErrors, setFormErrors] = useState({});
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const pageSize = 10;
 
   const [formData, setFormData] = useState({
     email: '',
@@ -34,7 +39,7 @@ const UserManagement = () => {
       let response;
       if (searchTerm || filterRole) {
         // Sử dụng API search nếu có từ khóa hoặc filter
-        response = await adminService.searchUsers(searchTerm, filterRole);
+        response = await adminService.searchUsers(searchTerm, filterRole, currentPage, pageSize);
       } else {
         // Sử dụng API getAllUsers nếu không có filter
         response = await adminService.getAllUsers();
@@ -54,10 +59,13 @@ const UserManagement = () => {
       }      // Validate và set users
       if (Array.isArray(userData)) {
         setUsers(userData);
+        setTotalPages(response.totalPages);
+        setCurrentPage(response.number);
         setLastUpdated(new Date());
       } else {
         console.error('User data is not an array:', userData);
         setUsers([]);
+        setTotalPages(0);
         setError('Dữ liệu người dùng không hợp lệ');
       }
       
@@ -68,7 +76,7 @@ const UserManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, filterRole]);// Initial load and user role setup
+  }, [searchTerm, filterRole, currentPage, pageSize]);// Initial load and user role setup
   useEffect(() => {
     const userRole = localStorage.getItem('userRole');
     setCurrentUserRole(userRole || '');
@@ -186,30 +194,7 @@ const UserManagement = () => {
     }
   };
 
-  const handleDeleteUser = (user) => {
-    setSelectedUser(user);
-    setShowDeleteModal(true);
-  };
-
-  const confirmDeleteUser = async () => {
-    try {
-      if (!selectedUser?.user_id) {
-        throw new Error('ID người dùng không hợp lệ');
-      }
-
-      // Vô hiệu hóa thay vì xóa hoàn toàn
-      await adminService.deactivateUser(selectedUser.user_id);
-      
-      setShowDeleteModal(false);
-      setSelectedUser(null);
-      
-      await fetchUsers();
-      showSuccess('Đã vô hiệu hóa người dùng thành công!');
-    } catch (err) {
-      console.error('Error deleting user:', err);
-      showError('Lỗi xóa người dùng: ' + (err.message || 'Lỗi không xác định'));
-    }
-  };const getRoleDisplayName = (roleName) => {
+  const getRoleDisplayName = (roleName) => {
     switch(roleName) {
       case 'ADMIN': return 'Quản trị viên';
       case 'DOCTOR': return 'Bác sĩ';
@@ -225,6 +210,10 @@ const UserManagement = () => {
       case 'PATIENT': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
   };
 
   if (loading) {
@@ -397,17 +386,6 @@ const UserManagement = () => {
                             title="Chỉnh sửa thông tin"
                           >
                             <Edit className="w-4 h-4" />
-                          </button>
-                        )}
-                        
-                        {/* Nút xóa - chỉ admin và không phải chính mình */}
-                        {currentUserRole === 'ADMIN' && user.user_id && user.role_name !== 'ADMIN' && (
-                          <button
-                            onClick={() => handleDeleteUser(user)}
-                            className="p-1 rounded transition-colors text-red-600 hover:text-red-900 hover:bg-red-50"
-                            title="Xóa người dùng"
-                          >
-                            <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                         
@@ -655,53 +633,11 @@ const UserManagement = () => {
         </div>
       )}
 
-      {/* Delete User Modal */}
-      {showDeleteModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-semibold mb-4 flex items-center text-red-600">
-              <AlertTriangle className="w-5 h-5 mr-2" />
-              Xác Nhận Xóa Người Dùng
-            </h2>
-            
-            <div className="mb-6">
-              <p className="text-gray-700 mb-2">
-                Bạn có chắc chắn muốn xóa người dùng này không?
-              </p>
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="font-medium">{selectedUser.full_name || 'Chưa có tên'}</p>
-                <p className="text-sm text-gray-600">{selectedUser.email}</p>
-                <p className="text-sm text-gray-600">
-                  Vai trò: {getRoleDisplayName(selectedUser.role_name)}
-                </p>
-              </div>
-              <p className="text-sm text-red-600 mt-2">
-                * Hành động này sẽ vô hiệu hóa tài khoản người dùng
-              </p>
-            </div>
-
-            <div className="flex space-x-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setSelectedUser(null);
-                }}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-              >
-                Hủy
-              </button>
-              <button
-                onClick={confirmDeleteUser}
-                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center justify-center"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Xóa
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+      />
     </div>
   );
 };
