@@ -126,30 +126,6 @@ const About = () => {
           </div>
         </div>
       </div>
-
-      {/* Contact Section */}
-      <div className="bg-gray-50 rounded-lg p-8 text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">
-          Liên Hệ Với Chúng Tôi
-        </h2>
-        <p className="text-gray-600 mb-6">
-          Bạn có câu hỏi hoặc cần hỗ trợ? Chúng tôi luôn sẵn sàng giúp đỡ bạn.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-          <div>
-            <h4 className="font-semibold text-gray-900 mb-2">📧 Email</h4>
-            <p className="text-gray-600">support@luanvan.com</p>
-          </div>
-          <div>
-            <h4 className="font-semibold text-gray-900 mb-2">📞 Hotline</h4>
-            <p className="text-gray-600">1900 1234 56</p>
-          </div>
-          <div>
-            <h4 className="font-semibold text-gray-900 mb-2">🕒 Giờ làm việc</h4>
-            <p className="text-gray-600">Thứ 2 - Chủ nhật: 8:00 - 22:00</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

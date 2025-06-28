@@ -100,7 +100,7 @@ const Menubar = () => {
     }
 
     // Default menu for patients and guests
-    return [
+    const links = [
       {
         to: "/",
         icon: Home,
@@ -123,14 +123,19 @@ const Menubar = () => {
         description: "Về chúng tôi",
         color: "text-green-600"
       },
-      {
+    ];
+
+    if (isSignedIn) {
+      links.push({
         to: "/my-appointments",
         icon: Stethoscope,
         label: "Lịch hẹn của tôi",
         description: "Quản lý cuộc hẹn",
         color: "text-purple-600"
-      }
-    ]
+      });
+    }
+
+    return links;
   }
 
   // Enhanced auth buttons with role indicators

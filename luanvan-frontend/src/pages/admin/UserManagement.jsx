@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Plus, Edit, Trash2, Search, Filter, UserCheck, UserX, Stethoscope, AlertTriangle } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Search, Filter, UserCheck, UserX, Stethoscope, AlertTriangle, PlusCircle } from 'lucide-react';
 import { adminService } from '../../services/api';
 import { useNotification } from '../../components/NotificationSystem';
 
@@ -18,6 +18,7 @@ const UserManagement = () => {
   const [currentUserRole, setCurrentUserRole] = useState('');
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [formErrors, setFormErrors] = useState({});
 
   const [formData, setFormData] = useState({
     email: '',
@@ -82,6 +83,7 @@ const UserManagement = () => {
     return () => clearTimeout(timeoutId);
   }, [fetchUsers]);  const handleCreateUser = async (e) => {
     e.preventDefault();
+    setFormErrors({});
     try {
       // Transform data to match backend API format
       const createData = {
@@ -102,7 +104,12 @@ const UserManagement = () => {
       showSuccess('Tạo người dùng thành công!');
     } catch (err) {
       console.error('Error creating user:', err);
-      showError('Lỗi tạo người dùng: ' + (err.message || 'Lỗi không xác định'));
+      if (err.response && err.response.data && err.response.data.details) {
+        setFormErrors(err.response.data.details);
+        showError('Vui lòng kiểm tra lại các trường đã nhập.');
+      } else {
+        showError('Lỗi tạo người dùng: ' + (err.message || 'Lỗi không xác định'));
+      }
     }
   };  const handleToggleStatus = async (userId, isActive) => {
     try {
@@ -133,9 +140,11 @@ const UserManagement = () => {
       phoneNumber: user.phone_number || '',
       role: user.role_name || 'PATIENT'
     });
+    setFormErrors({});
     setShowEditModal(true);
   };  const handleUpdateUser = async (e) => {
     e.preventDefault();
+    setFormErrors({});
     try {
       if (!selectedUser?.user_id) {
         throw new Error('ID người dùng không hợp lệ');
@@ -168,7 +177,12 @@ const UserManagement = () => {
       await fetchUsers();
     } catch (err) {
       console.error('Error updating user:', err);
-      showError('Lỗi cập nhật người dùng: ' + (err.message || 'Lỗi không xác định'));
+      if (err.response && err.response.data && err.response.data.details) {
+        setFormErrors(err.response.data.details);
+        showError('Vui lòng kiểm tra lại thông tin đã nhập.');
+      } else {
+        showError('Lỗi cập nhật người dùng: ' + (err.message || 'Lỗi không xác định'));
+      }
     }
   };
 
@@ -397,8 +411,8 @@ const UserManagement = () => {
                           </button>
                         )}
                         
-                        {/* Nút kích hoạt/vô hiệu hóa - chỉ admin */}
-                        {currentUserRole === 'ADMIN' && user.user_id && (
+                        {/* Nút kích hoạt/vô hiệu hóa - chỉ admin và không phải user ID 1 */}
+                        {currentUserRole === 'ADMIN' && user.user_id && user.user_id !== 1 && (
                           <button
                             onClick={() => handleToggleStatus(user.user_id, user.active)}
                             className={`p-1 rounded transition-colors ${
@@ -462,6 +476,7 @@ const UserManagement = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="doctor@example.com"
                 />
+                {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
               </div>
               
               <div>
@@ -477,6 +492,7 @@ const UserManagement = () => {
                   placeholder="Tối thiểu 6 ký tự"
                   minLength={6}
                 />
+                {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>}
               </div>
 
               <div>
@@ -491,6 +507,7 @@ const UserManagement = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Bác sĩ Nguyễn Văn A"
                 />
+                {formErrors.fullName && <p className="text-red-500 text-xs mt-1">{formErrors.fullName}</p>}
               </div>
 
               <div>
@@ -505,6 +522,7 @@ const UserManagement = () => {
                   placeholder="0123456789"
                   pattern="[0-9]{10,11}"
                 />
+                {formErrors.phoneNumber && <p className="text-red-500 text-xs mt-1">{formErrors.phoneNumber}</p>}
               </div>
 
               {/* Vai trò cố định là DOCTOR */}
@@ -525,7 +543,6 @@ const UserManagement = () => {
                   type="button"
                   onClick={() => {
                     setShowCreateModal(false);
-                    setFormData({ email: '', password: '', fullName: '', phoneNumber: '', role: 'DOCTOR' });
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
@@ -535,8 +552,8 @@ const UserManagement = () => {
                   type="submit"
                   className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center"
                 >
-                  <Stethoscope className="w-4 h-4 mr-2" />
-                  Tạo Bác Sĩ
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Tạo người dùng
                 </button>
               </div>
             </form>
@@ -546,72 +563,81 @@ const UserManagement = () => {
 
       {/* Edit User Modal */}
       {showEditModal && selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-semibold mb-4 flex items-center">
-              <Edit className="w-5 h-5 mr-2 text-blue-500" />
-              Chỉnh Sửa Thông Tin Người Dùng
-            </h2>
-            <form onSubmit={handleUpdateUser} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Chỉnh sửa người dùng: {selectedUser.fullName || selectedUser.full_name}
+            </h3>
+            <form onSubmit={handleUpdateUser}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Full Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Họ và tên *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {formErrors.fullName && <p className="text-red-500 text-xs mt-1">{formErrors.fullName}</p>}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Họ tên *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.fullName}
-                  onChange={(e) => setFormData({...formData, fullName: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
+                {/* Phone Number */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Số điện thoại
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.phoneNumber}
+                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                  {formErrors.phoneNumber && <p className="text-red-500 text-xs mt-1">{formErrors.phoneNumber}</p>}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Số điện thoại
-                </label>
-                <input
-                  type="tel"
-                  value={formData.phoneNumber}
-                  onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  pattern="[0-9]{10,11}"
-                />
-              </div>
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    disabled={selectedUser?.role_name === 'PATIENT'}
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                      selectedUser?.role_name === 'PATIENT' ? 'bg-gray-100 cursor-not-allowed' : ''
+                    }`}
+                  />
+                   {selectedUser?.role_name === 'PATIENT' && (
+                      <p className="text-xs text-gray-500 mt-1">Email của bệnh nhân không thể thay đổi.</p>
+                  )}
+                  {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Vai trò hiện tại
-                </label>
-                <input
-                  type="text"
-                  value={getRoleDisplayName(selectedUser.role_name)}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
-                />
+                {/* Role */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Vai trò hiện tại
+                  </label>
+                  <input
+                    type="text"
+                    value={getRoleDisplayName(selectedUser.role_name)}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500"
+                  />
+                </div>
               </div>
 
               <div className="flex space-x-3 pt-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setSelectedUser(null);
-                    setFormData({ email: '', password: '', fullName: '', phoneNumber: '', role: 'DOCTOR' });
-                  }}
+                  onClick={() => setShowEditModal(false)}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Hủy

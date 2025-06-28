@@ -120,18 +120,12 @@ const handleResponse = async (response) => {
     console.error('❌ API Error:', response.status, errorData);
     
     // Create descriptive error message
-    let errorMessage = errorData.message || `HTTP error! status: ${response.status}`;
-    if (response.status === 401) {
-      errorMessage = 'Session expired. Please login again.';
-    } else if (response.status === 403) {
-      errorMessage = 'Access denied. Please check your permissions.';
-    } else if (response.status === 404) {
-      errorMessage = 'Resource not found.';
-    } else if (response.status >= 500) {
-      errorMessage = 'Server error. Please try again later.';
-    }
-    
-    throw new Error(errorMessage);
+    const error = new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    error.response = {
+      status: response.status,
+      data: errorData
+    };
+    throw error;
   }
 
   // Check if response has content and is JSON

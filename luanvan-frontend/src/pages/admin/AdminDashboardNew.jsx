@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-// import { useAuth } from '../../context/AuthContext'; // Commented out vì header bị comment
+import { useAuth } from '../../context/AuthContext';
 import { 
   Home, Users, UserCog, Building, Stethoscope, Calendar, 
   FileText, Settings, DollarSign, BarChart3, Clock,
-  Activity, TrendingUp, AlertCircle, CheckCircle
+  Activity, TrendingUp, AlertCircle, CheckCircle, LogOut
 } from 'lucide-react';
 import { adminService, apiService } from '../../services/api';
 import UserManagement from './UserManagement';
@@ -15,7 +15,7 @@ import AuthErrorHandler from '../../components/AuthErrorHandler';
 import { NotificationProvider } from '../../components/NotificationSystem';
 
 const AdminDashboardNew = () => {
-  // const { currentUser, logout } = useAuth(); // Commented out vì header bị comment
+  const { currentUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -196,10 +196,10 @@ const AdminDashboardNew = () => {
     setActiveTab(tabId);
   }, [activeTab]);
 
-  // const handleLogout = async () => {
-  //   await logout();
-  //   window.location.href = '/login';
-  // };
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = '/login';
+  };
 
   const tabs = [
     { id: 'dashboard', name: 'Tổng quan', icon: Home, color: 'blue' },
@@ -524,7 +524,7 @@ const AdminDashboardNew = () => {
     <NotificationProvider>
       <div className="min-h-screen bg-gray-100">
         {/* Header */}
-        {/* <header className="bg-white shadow">
+        <header className="bg-white shadow">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center py-6">
               <div className="flex items-center">
@@ -546,117 +546,117 @@ const AdminDashboardNew = () => {
               </div>
             </div>
           </div>
-        </header> */}
+        </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col lg:flex-row space-y-6 lg:space-y-0 lg:space-x-6">
-          {/* Sidebar Navigation */}
-          <div className="w-full lg:w-64 flex-shrink-0">
-            <nav className="bg-white shadow rounded-lg p-4">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 px-3 py-2">
-                  Admin Dashboard
-                </h2>
-                <div className={`px-3 py-1 text-xs rounded-full inline-block ${
-                  connectionStatus === 'online' 
-                    ? 'bg-green-100 text-green-800' 
-                    : connectionStatus === 'offline'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {connectionStatus === 'online' ? '● Kết nối' : 
-                   connectionStatus === 'offline' ? '● Mất kết nối' : '● Kiểm tra...'}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col lg:flex-row space-y-6 lg:space-y-0 lg:space-x-6">
+            {/* Sidebar Navigation */}
+            <div className="w-full lg:w-64 flex-shrink-0">
+              <nav className="bg-white shadow rounded-lg p-4">
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900 px-3 py-2">
+                    Admin Dashboard
+                  </h2>
+                  <div className={`px-3 py-1 text-xs rounded-full inline-block ${
+                    connectionStatus === 'online' 
+                      ? 'bg-green-100 text-green-800' 
+                      : connectionStatus === 'offline'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {connectionStatus === 'online' ? '● Kết nối' : 
+                     connectionStatus === 'offline' ? '● Mất kết nối' : '● Kiểm tra...'}
+                  </div>
                 </div>
+                
+                <ul className="space-y-2">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    const isDisabled = tab.disabled || (connectionStatus !== 'online' && tab.id !== 'dashboard');
+                    const isActive = activeTab === tab.id;
+                    
+                    return (
+                      <li key={tab.id}>
+                        <button
+                          onClick={() => !isDisabled && handleTabChange(tab.id)}
+                          disabled={isDisabled}
+                          className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                            isDisabled
+                              ? 'text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
+                              : isActive
+                              ? `${getTabColorClasses(tab.color, true)} shadow-sm`
+                              : `${getTabColorClasses(tab.color, false)} hover:shadow-sm`
+                          }`}
+                        >
+                          <Icon className={`h-4 w-4 mr-3 ${isDisabled ? 'opacity-50' : ''}`} />
+                          <span className={isDisabled ? 'line-through' : ''}>{tab.name}</span>
+                          {tab.disabled && (
+                            <span className="ml-auto text-xs bg-gray-200 text-gray-500 px-1 rounded">
+                              Soon
+                            </span>
+                          )}
+                          {isActive && !isDisabled && (
+                            <div className="ml-auto w-2 h-2 bg-current rounded-full"></div>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {/* Connection Status Details */}
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <div className="text-xs text-gray-500 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Phiên bản:</span>
+                      <span className="font-mono">v1.0.0</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Uptime:</span>
+                      <span className="font-mono">
+                        {lastUpdated ? `${Math.floor((Date.now() - lastUpdated.getTime()) / 1000)}s` : '-'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Backend:</span>
+                      <span className={`font-mono ${
+                        connectionStatus === 'online' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {connectionStatus === 'online' ? 'OK' : 'ERROR'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </nav>
+            </div>
+
+            {/* Main Content */}
+            <div className="flex-1 min-w-0">
+              <div className="bg-white shadow rounded-lg p-6 min-h-[600px]">
+                {connectionStatus === 'offline' && activeTab !== 'dashboard' ? (
+                  <div className="flex flex-col items-center justify-center h-96 text-center">
+                    <AlertCircle className="h-16 w-16 text-red-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Mất kết nối với backend
+                    </h3>
+                    <p className="text-gray-600 mb-6 max-w-md">
+                      Không thể tải dữ liệu cho tab này. Vui lòng kiểm tra kết nối backend và thử lại.
+                    </p>
+                    <button
+                      onClick={fetchDashboardStats}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                    >
+                      <TrendingUp className="h-4 w-4 mr-2" />
+                      Thử kết nối lại
+                    </button>
+                  </div>
+                ) : (
+                  renderTabContent()
+                )}
               </div>
-              
-              <ul className="space-y-2">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  const isDisabled = tab.disabled || (connectionStatus !== 'online' && tab.id !== 'dashboard');
-                  const isActive = activeTab === tab.id;
-                  
-                  return (
-                    <li key={tab.id}>
-                      <button
-                        onClick={() => !isDisabled && handleTabChange(tab.id)}
-                        disabled={isDisabled}
-                        className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                          isDisabled
-                            ? 'text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
-                            : isActive
-                            ? `${getTabColorClasses(tab.color, true)} shadow-sm`
-                            : `${getTabColorClasses(tab.color, false)} hover:shadow-sm`
-                        }`}
-                      >
-                        <Icon className={`h-4 w-4 mr-3 ${isDisabled ? 'opacity-50' : ''}`} />
-                        <span className={isDisabled ? 'line-through' : ''}>{tab.name}</span>
-                        {tab.disabled && (
-                          <span className="ml-auto text-xs bg-gray-200 text-gray-500 px-1 rounded">
-                            Soon
-                          </span>
-                        )}
-                        {isActive && !isDisabled && (
-                          <div className="ml-auto w-2 h-2 bg-current rounded-full"></div>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-
-              {/* Connection Status Details */}
-              <div className="mt-6 pt-4 border-t border-gray-200">
-                <div className="text-xs text-gray-500 space-y-1">
-                  <div className="flex justify-between">
-                    <span>Phiên bản:</span>
-                    <span className="font-mono">v1.0.0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Uptime:</span>
-                    <span className="font-mono">
-                      {lastUpdated ? `${Math.floor((Date.now() - lastUpdated.getTime()) / 1000)}s` : '-'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Backend:</span>
-                    <span className={`font-mono ${
-                      connectionStatus === 'online' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {connectionStatus === 'online' ? 'OK' : 'ERROR'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </nav>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1 min-w-0">
-            <div className="bg-white shadow rounded-lg p-6 min-h-[600px]">
-              {connectionStatus === 'offline' && activeTab !== 'dashboard' ? (
-                <div className="flex flex-col items-center justify-center h-96 text-center">
-                  <AlertCircle className="h-16 w-16 text-red-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Mất kết nối với backend
-                  </h3>
-                  <p className="text-gray-600 mb-6 max-w-md">
-                    Không thể tải dữ liệu cho tab này. Vui lòng kiểm tra kết nối backend và thử lại.
-                  </p>
-                  <button
-                    onClick={fetchDashboardStats}
-                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    Thử kết nối lại
-                  </button>
-                </div>
-              ) : (
-                renderTabContent()
-              )}
             </div>
           </div>
         </div>
-      </div>
 
         {/* Auth Error Handler */}
         <AuthErrorHandler 
