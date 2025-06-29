@@ -304,8 +304,15 @@ const AppointmentManagement = ({
                         <p className="text-sm font-medium text-gray-900">
                           {appointment.patient?.fullName || 'Bệnh nhân'}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(appointment.appointmentDateTime || appointment.appointmentDate).toLocaleDateString('vi-VN')}
+                        <p className="text-xs text-gray-500 flex items-center">
+                          <Clock className="w-3 h-3 mr-1" />
+                          {new Date(appointment.appointmentDateTime || appointment.appointmentDate).toLocaleString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          })}
                         </p>
                       </div>
                     </div>

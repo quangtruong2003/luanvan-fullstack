@@ -45,13 +45,20 @@ const AppointmentDetailsModal = ({
           <div>
             <label className="text-sm font-medium text-gray-500">Ngày khám</label>
             <p className="text-gray-900">
-              {new Date(selectedAppointment.appointmentDate).toLocaleDateString('vi-VN')}
+              {new Date(selectedAppointment.appointmentDateTime || selectedAppointment.appointmentDate).toLocaleDateString('vi-VN', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
             </p>
           </div>
           
           <div>
             <label className="text-sm font-medium text-gray-500">Giờ khám</label>
-            <p className="text-gray-900">{selectedAppointment.appointmentTime}</p>
+            <p className="text-gray-900">{new Date(selectedAppointment.appointmentDateTime || selectedAppointment.appointmentDate).toLocaleTimeString('vi-VN', {
+              hour: '2-digit', minute: '2-digit'
+            })}</p>
           </div>
           
           <div>

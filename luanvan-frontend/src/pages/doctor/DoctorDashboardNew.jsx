@@ -52,8 +52,27 @@ const DoctorDashboardNew = () => {
         doctorService.getMyAvailabilitySlots()
       ]);
       
-      const appointmentList = appointmentsRes.content || appointmentsRes || [];
+      const rawAppointmentList = appointmentsRes.content || appointmentsRes || [];
       const specialtiesList = specialtiesRes || [];
+
+      const appointmentList = rawAppointmentList.map(apt => {
+        const patient = apt.patient || {};
+        const specialty = apt.specialty || {};
+        return {
+          ...apt,
+          appointmentId: apt.appointment_id,
+          appointmentDateTime: apt.appointment_date_time,
+          reasonForVisit: apt.reason_for_visit,
+          patient: {
+            ...patient,
+            fullName: patient.full_name,
+            phoneNumber: patient.phone_number,
+          },
+          specialty: {
+            ...specialty
+          }
+        }
+      });
       
       // Xử lý dữ liệu slots từ database, đảm bảo đúng định dạng
       let slots = slotsRes.content || slotsRes || [];
@@ -104,15 +123,15 @@ const DoctorDashboardNew = () => {
         
         // Calculate stats
         const today = new Date().toDateString();
-      const todayAppointments = appointmentList.filter(apt => 
+      const todayAppointments = rawAppointmentList.filter(apt => 
         new Date(apt.appointment_date_time).toDateString() === today
       );
         
         setStats({
         todayAppointments: todayAppointments.length,
-        totalAppointments: appointmentList.length,
-        completedAppointments: appointmentList.filter(apt => apt.status === 'COMPLETED').length,
-        cancelledAppointments: appointmentList.filter(apt => apt.status?.startsWith('CANCELLED')).length
+        totalAppointments: rawAppointmentList.length,
+        completedAppointments: rawAppointmentList.filter(apt => apt.status === 'COMPLETED').length,
+        cancelledAppointments: rawAppointmentList.filter(apt => apt.status?.startsWith('CANCELLED')).length
       });
       
     } catch (error) {
