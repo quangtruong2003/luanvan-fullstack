@@ -10,6 +10,7 @@ import UserManagement from './UserManagement';
 import DoctorManagement from './DoctorManagement';
 import ClinicManagement from './ClinicManagement';
 import AppointmentManagement from './AppointmentManagement';
+import PaymentManagement from './PaymentManagement';
 import SystemSettings from './SystemSettings';
 import AuthErrorHandler from '../../components/AuthErrorHandler';
 import { NotificationProvider } from '../../components/NotificationSystem';
@@ -208,7 +209,7 @@ const AdminDashboardNew = () => {
     { id: 'clinics', name: 'Phòng khám', icon: Building, color: 'orange' },
     { id: 'appointments', name: 'Lịch hẹn', icon: Calendar, color: 'yellow' },
     { id: 'articles', name: 'Bài viết', icon: FileText, color: 'cyan', disabled: true },
-    { id: 'payments', name: 'Thanh toán', icon: DollarSign, color: 'emerald', disabled: true },
+    { id: 'payments', name: 'Thanh toán', icon: DollarSign, color: 'emerald' },
     { id: 'settings', name: 'Cài đặt', icon: Settings, color: 'gray' }
   ];
 
@@ -505,7 +506,7 @@ const AdminDashboardNew = () => {
         case 'articles':
           return <div className="p-6 bg-white rounded-lg shadow"><h2 className="text-xl font-semibold">Quản lý bài viết</h2><p className="text-gray-600 mt-2">Tính năng đang được phát triển...</p></div>;
         case 'payments':
-          return <div className="p-6 bg-white rounded-lg shadow"><h2 className="text-xl font-semibold">Quản lý thanh toán</h2><p className="text-gray-600 mt-2">Tính năng đang được phát triển...</p></div>;
+          return <PaymentManagement onAuthError={setAuthError} />;
         case 'settings':
           return <SystemSettings onAuthError={setAuthError} />;
         default:

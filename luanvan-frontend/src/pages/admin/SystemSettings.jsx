@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Settings, Save, RefreshCw, Database, Mail, Shield, 
-  Clock, Users, Bell, AlertCircle, CheckCircle, CreditCard
+  Settings, Save, RefreshCw, Mail, Shield, 
+  Bell, AlertCircle, CheckCircle
 } from 'lucide-react';
-import { adminService } from '../../services/api';
 
 const SystemSettings = () => {
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
   const [message, setMessage] = useState({ type: '', content: '' });
@@ -44,18 +43,6 @@ const SystemSettings = () => {
       passwordMinLength: 8,
       requireSpecialCharacters: true,
       enableTwoFactor: false
-    },
-    payment: {
-      enableMomo: true,
-      enableVNPay: true,
-      momoApiKey: '',
-      momoSecretKey: '',
-      momoPartnerCode: '',
-      vnpayTmnCode: '',
-      vnpaySecretKey: '',
-      defaultPaymentMethod: 'momo',
-      depositAmount: 50000,
-      examinationFee: 200000
     }
   });
 
@@ -108,7 +95,6 @@ const SystemSettings = () => {
 
   const tabs = [
     { id: 'general', name: 'Chung', icon: Settings },
-    { id: 'payment', name: 'Thanh toán', icon: CreditCard },
     { id: 'email', name: 'Email', icon: Mail },
     { id: 'notifications', name: 'Thông báo', icon: Bell },
     { id: 'security', name: 'Bảo mật', icon: Shield }
@@ -240,258 +226,12 @@ const SystemSettings = () => {
     </div>
   );
 
-  const renderPaymentSettings = () => (
-    <div className="space-y-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="text-lg font-semibold text-blue-900 mb-2">Cài đặt Phương thức Thanh toán</h4>
-        <p className="text-sm text-blue-700">
-          Cấu hình các phương thức thanh toán khả dụng cho hệ thống đặt lịch khám.
-        </p>
-      </div>
 
-      {/* Payment Methods Status */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center mr-3">
-                <CreditCard className="h-6 w-6 text-pink-600" />
-              </div>
-              <div>
-                <h5 className="font-semibold text-gray-900">MoMo</h5>
-                <p className="text-sm text-gray-500">Ví điện tử MoMo</p>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="enableMomo"
-                checked={settings.payment.enableMomo}
-                onChange={(e) => handleInputChange('payment', 'enableMomo', e.target.checked)}
-                className="rounded border-gray-300 text-pink-600 focus:ring-pink-500"
-              />
-              <label htmlFor="enableMomo" className="ml-2 text-sm text-gray-700">
-                {settings.payment.enableMomo ? 'Đã bật' : 'Tắt'}
-              </label>
-            </div>
-          </div>
-          <div className={`space-y-3 ${!settings.payment.enableMomo ? 'opacity-50' : ''}`}>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Partner Code
-              </label>
-              <input
-                type="text"
-                disabled={!settings.payment.enableMomo}
-                value={settings.payment.momoPartnerCode}
-                onChange={(e) => handleInputChange('payment', 'momoPartnerCode', e.target.value)}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-transparent disabled:bg-gray-100"
-                placeholder="Nhập Partner Code"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                API Key
-              </label>
-              <input
-                type="password"
-                disabled={!settings.payment.enableMomo}
-                value={settings.payment.momoApiKey}
-                onChange={(e) => handleInputChange('payment', 'momoApiKey', e.target.value)}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-transparent disabled:bg-gray-100"
-                placeholder="Nhập API Key"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Secret Key
-              </label>
-              <input
-                type="password"
-                disabled={!settings.payment.enableMomo}
-                value={settings.payment.momoSecretKey}
-                onChange={(e) => handleInputChange('payment', 'momoSecretKey', e.target.value)}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-pink-500 focus:border-transparent disabled:bg-gray-100"
-                placeholder="Nhập Secret Key"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                <CreditCard className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <h5 className="font-semibold text-gray-900">VNPay</h5>
-                <p className="text-sm text-gray-500">Cổng thanh toán VNPay</p>
-              </div>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="enableVNPay"
-                checked={settings.payment.enableVNPay}
-                onChange={(e) => handleInputChange('payment', 'enableVNPay', e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="enableVNPay" className="ml-2 text-sm text-gray-700">
-                {settings.payment.enableVNPay ? 'Đã bật' : 'Tắt'}
-              </label>
-            </div>
-          </div>
-          <div className={`space-y-3 ${!settings.payment.enableVNPay ? 'opacity-50' : ''}`}>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                TMN Code
-              </label>
-              <input
-                type="text"
-                disabled={!settings.payment.enableVNPay}
-                value={settings.payment.vnpayTmnCode}
-                onChange={(e) => handleInputChange('payment', 'vnpayTmnCode', e.target.value)}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                placeholder="Nhập TMN Code"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Hash Secret
-              </label>
-              <input
-                type="password"
-                disabled={!settings.payment.enableVNPay}
-                value={settings.payment.vnpaySecretKey}
-                onChange={(e) => handleInputChange('payment', 'vnpaySecretKey', e.target.value)}
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                placeholder="Nhập Hash Secret"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Payment Amounts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Phí khám cơ bản (VNĐ)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1000"
-            value={settings.payment.examinationFee}
-            onChange={(e) => handleInputChange('payment', 'examinationFee', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Nhập phí khám"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Phí khám cơ bản cho mỗi lần đặt lịch
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Số tiền đặt cọc (VNĐ)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1000"
-            value={settings.payment.depositAmount}
-            onChange={(e) => handleInputChange('payment', 'depositAmount', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Nhập số tiền đặt cọc"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Số tiền đặt cọc người dùng phải thanh toán trước
-          </p>
-        </div>
-      </div>
-
-      {/* Default Payment Method */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Phương thức thanh toán mặc định
-        </label>
-        <select
-          value={settings.payment.defaultPaymentMethod}
-          onChange={(e) => handleInputChange('payment', 'defaultPaymentMethod', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          disabled={!settings.payment.enableMomo && !settings.payment.enableVNPay}
-        >
-          <option value="momo" disabled={!settings.payment.enableMomo}>
-            MoMo {!settings.payment.enableMomo ? '(Đã tắt)' : ''}
-          </option>
-          <option value="vnpay" disabled={!settings.payment.enableVNPay}>
-            VNPay {!settings.payment.enableVNPay ? '(Đã tắt)' : ''}
-          </option>
-        </select>
-        <p className="text-xs text-gray-500 mt-1">
-          {(!settings.payment.enableMomo && !settings.payment.enableVNPay) ? 
-            'Không có phương thức thanh toán nào được bật - Đặt lịch sẽ miễn phí' :
-            'Phương thức thanh toán được chọn mặc định khi người dùng đặt lịch'
-          }
-        </p>
-      </div>
-
-      {/* Status Summary */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h6 className="font-medium text-gray-900 mb-2">Tình trạng cấu hình</h6>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span>Phương thức thanh toán khả dụng:</span>
-            <span className="font-medium">
-              {[
-                settings.payment.enableMomo && 'MoMo',
-                settings.payment.enableVNPay && 'VNPay'
-              ].filter(Boolean).join(', ') || 'Không có'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span>Tổng số phương thức:</span>
-            <span className="font-medium">
-              {(settings.payment.enableMomo ? 1 : 0) + (settings.payment.enableVNPay ? 1 : 0)} / 2
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span>Phí khám:</span>
-            <span className="font-medium text-green-600">
-              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(settings.payment.examinationFee)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span>Tiền đặt cọc:</span>
-            <span className="font-medium text-blue-600">
-              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(settings.payment.depositAmount)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between text-sm">
-            <span>Tổng thanh toán:</span>
-            <span className="font-medium text-gray-900">
-              {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(settings.payment.examinationFee + settings.payment.depositAmount)}
-            </span>
-          </div>
-          {(!settings.payment.enableMomo && !settings.payment.enableVNPay) && (
-            <div className="flex items-center text-sm text-amber-600 mt-3 p-2 bg-amber-50 rounded">
-              <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0" />
-              <span>Chế độ miễn phí: Tất cả phương thức thanh toán đã tắt</span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
 
   const renderTabContent = () => {
     switch (activeTab) {
       case 'general':
         return renderGeneralSettings();
-      case 'payment':
-        return renderPaymentSettings();
       case 'email':
         return <div className="text-center py-12 text-gray-500">Cài đặt Email đang được phát triển...</div>;
       case 'notifications':
@@ -573,6 +313,20 @@ const SystemSettings = () => {
 
       {/* Settings Content */}
       <div className="bg-white shadow rounded-lg p-6">
+        {/* Payment Settings Note */}
+        {activeTab === 'general' && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center">
+              <AlertCircle className="h-5 w-5 text-blue-600 mr-2" />
+              <div>
+                <h6 className="font-medium text-blue-900">Thông báo</h6>
+                <p className="text-sm text-blue-700 mt-1">
+                  Cài đặt thanh toán đã được di chuyển sang tab <strong>"Thanh toán"</strong> riêng biệt để quản lý dễ dàng hơn.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         {renderTabContent()}
       </div>
     </div>
