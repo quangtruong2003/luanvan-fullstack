@@ -490,11 +490,32 @@ public class AppointmentServiceImpl implements AppointmentService {
     
     // Helper method để kiểm tra logic chuyển trạng thái
     private void validateStatusTransition(Appointment.AppointmentStatus currentStatus, Appointment.AppointmentStatus newStatus) {
-        // Kiểm tra logic chuyển trạng thái
-        if ((currentStatus == Appointment.AppointmentStatus.COMPLETED && newStatus != Appointment.AppointmentStatus.COMPLETED) ||
-                (currentStatus == Appointment.AppointmentStatus.CANCELLED_BY_PATIENT && newStatus != Appointment.AppointmentStatus.CANCELLED_BY_PATIENT) ||
-                (currentStatus == Appointment.AppointmentStatus.CANCELLED_BY_CLINIC && newStatus != Appointment.AppointmentStatus.CANCELLED_BY_CLINIC)) {
-            throw new RuntimeException("Không thể thay đổi trạng thái từ " + currentStatus + " sang " + newStatus);
+        // Nếu trạng thái không thay đổi, cho phép
+        if (currentStatus == newStatus) {
+            return;
         }
+        
+        // Không cho phép thay đổi từ trạng thái đã hoàn thành
+        if (currentStatus == Appointment.AppointmentStatus.COMPLETED) {
+            throw new RuntimeException("Không thể thay đổi trạng thái từ COMPLETED sang " + newStatus);
+        }
+        
+        // Không cho phép thay đổi từ trạng thái đã hủy (trừ khi admin muốn khôi phục)
+        if (currentStatus == Appointment.AppointmentStatus.CANCELLED_BY_PATIENT || 
+            currentStatus == Appointment.AppointmentStatus.CANCELLED_BY_CLINIC) {
+            // Chỉ cho phép chuyển sang CONFIRMED nếu muốn khôi phục
+            if (newStatus != Appointment.AppointmentStatus.CONFIRMED && 
+                newStatus != Appointment.AppointmentStatus.PENDING_PAYMENT) {
+                throw new RuntimeException("Không thể thay đổi trạng thái từ " + currentStatus + " sang " + newStatus);
+            }
+        }
+        
+        // Các chuyển đổi hợp lệ khác:
+        // PENDING_PAYMENT → CONFIRMED, CANCELLED_BY_PATIENT, CANCELLED_BY_CLINIC, PAYMENT_FAILED
+        // CONFIRMED → COMPLETED, CANCELLED_BY_PATIENT, CANCELLED_BY_CLINIC, NO_SHOW
+        // PAYMENT_FAILED → PENDING_PAYMENT, CANCELLED_BY_PATIENT, CANCELLED_BY_CLINIC
+        // NO_SHOW → CANCELLED_BY_CLINIC (nếu cần)
+        
+        // Tất cả các chuyển đổi khác đều được phép
     }
 } 

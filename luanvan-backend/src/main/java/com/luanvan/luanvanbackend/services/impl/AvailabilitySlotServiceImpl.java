@@ -341,32 +341,22 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         slotRepository.deleteAll(slots);
     }
 
-    @Override
-    public void deleteExpiredSlots() {
-        LocalDate nowDate = LocalDate.now();
-        LocalTime nowTime = LocalTime.now();
-        List<AvailabilitySlot> allSlots = slotRepository.findAll();
-        List<AvailabilitySlot> expired = new ArrayList<>();
-        for (AvailabilitySlot slot : allSlots) {
-            if (slot.getDate().isBefore(nowDate) ||
-                (slot.getDate().isEqual(nowDate) && slot.getEndTime().plusMinutes(30).isBefore(nowTime))) {
-                expired.add(slot);
-            }
-        }
-        slotRepository.deleteAll(expired);
-    }
-
-    // Scheduled job: Xóa slot hết hạn (endTime + 30 phút < now)
-    @Scheduled(fixedDelay = 600000) // 10 phút
+    // Scheduled job: Xóa slot hết hạn (endTime < now) và không phải là slot đã được đặt.
+    // Chạy mỗi 10 phút.
+    @Scheduled(fixedDelay = 600000)
     @Transactional
     public void deleteExpiredSlotsScheduled() {
+        // Chỉ xóa các slot đã qua và có trạng thái là AVAILABLE, CANCELLED_BY_CLINIC, hoặc ON_LEAVE
+        // Không bao giờ xóa slot có trạng thái BOOKED để bảo toàn lịch sử.
         LocalDateTime now = LocalDateTime.now();
-        List<AvailabilitySlot> allSlots = slotRepository.findAll();
-        for (AvailabilitySlot slot : allSlots) {
-            LocalDateTime slotEnd = LocalDateTime.of(slot.getDate(), slot.getEndTime());
-            if (slotEnd.plusMinutes(30).isBefore(now)) {
-                slotRepository.delete(slot);
-            }
+        List<AvailabilitySlot.SlotStatus> deletableStatuses = List.of(
+                AvailabilitySlot.SlotStatus.AVAILABLE,
+                AvailabilitySlot.SlotStatus.CANCELLED_BY_CLINIC,
+                AvailabilitySlot.SlotStatus.ON_LEAVE
+        );
+        List<AvailabilitySlot> expiredSlots = slotRepository.findExpiredSlotsWithStatuses(now, deletableStatuses);
+        if (!expiredSlots.isEmpty()) {
+            slotRepository.deleteAll(expiredSlots);
         }
     }
 

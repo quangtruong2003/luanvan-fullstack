@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -130,4 +131,9 @@ public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySl
     
     // Tìm slot theo doctor, date và startTime (cho ghi đè tuyệt đối)
     List<AvailabilitySlot> findByDoctorDoctorIdAndDateAndStartTime(Long doctorId, LocalDate date, LocalTime startTime);
+
+    @Query("SELECT s FROM AvailabilitySlot s WHERE " +
+            "FUNCTION('TIMESTAMP', s.date, s.endTime) < :expiryDateTime " +
+            "AND s.status IN :statuses")
+    List<AvailabilitySlot> findExpiredSlotsWithStatuses(@Param("expiryDateTime") LocalDateTime expiryDateTime, @Param("statuses") List<AvailabilitySlot.SlotStatus> statuses);
 }

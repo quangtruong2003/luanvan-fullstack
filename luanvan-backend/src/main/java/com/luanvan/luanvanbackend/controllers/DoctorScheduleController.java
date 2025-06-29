@@ -388,13 +388,6 @@ public class DoctorScheduleController {
                 }
             }
 
-            // Xóa các slot đã hết hạn trước khi tạo mới
-            try {
-                availabilitySlotService.deleteExpiredSlots();
-            } catch (Exception e) {
-                log.warn("Không thể xóa slot hết hạn: {}", e.getMessage());
-            }
-            
             while (!currentDate.isAfter(endDate)) {
                 for (StandardWorkShift shift : workShifts) {
                     if (shift.getDayOfWeek() == currentDate.getDayOfWeek()) {

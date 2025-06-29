@@ -98,7 +98,7 @@ public class AppointmentValidationService {
             case CONFIRMED -> newStatus == Appointment.AppointmentStatus.COMPLETED ||
                              newStatus == Appointment.AppointmentStatus.CANCELLED_BY_PATIENT ||
                              newStatus == Appointment.AppointmentStatus.CANCELLED_BY_CLINIC;
-            case COMPLETED, CANCELLED_BY_PATIENT, CANCELLED_BY_CLINIC, PAYMENT_FAILED -> false; // Terminal states
+            case COMPLETED, CANCELLED_BY_PATIENT, CANCELLED_BY_CLINIC, PAYMENT_FAILED, NO_SHOW -> false; // Terminal states
         };
 
         if (!isValidTransition) {

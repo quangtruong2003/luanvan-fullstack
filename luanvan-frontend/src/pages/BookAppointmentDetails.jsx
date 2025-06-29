@@ -19,6 +19,7 @@ import {
 import { apiService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../components/NotificationSystem';
+import { adminService } from '../services/api';
 
 const BookAppointmentDetails = () => {
   const navigate = useNavigate();
@@ -281,17 +282,27 @@ const BookAppointmentDetails = () => {
       return;
     }
 
-    // Validate số điện thoại
-    if (!formData.patientPhone || formData.patientPhone.trim() === '') {
-      setError('Vui lòng nhập số điện thoại');
+    // Chuẩn hóa số điện thoại: chỉ giữ lại các chữ số
+    const normalizedPhone = formData.patientPhone.replace(/\D/g, '');
+    
+    // Kiểm tra độ dài số điện thoại sau khi chuẩn hóa
+    if (normalizedPhone.length < 10 || normalizedPhone.length > 11) {
+      setError('Số điện thoại phải có 10-11 chữ số');
       return;
     }
-
-    const phoneRegex = /^(0|\+84)[3|5|7|8|9][0-9]{8}$/;
-    if (!phoneRegex.test(formData.patientPhone)) {
-      setError('Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam (bắt đầu bằng 0 hoặc +84)');
+    
+    // Kiểm tra format số điện thoại Việt Nam
+    const phoneRegex = /^(0[3|5|7|8|9][0-9]{8}|84[3|5|7|8|9][0-9]{8})$/;
+    if (!phoneRegex.test(normalizedPhone)) {
+      setError('Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam hợp lệ');
       return;
     }
+    
+    // Cập nhật formData với số điện thoại đã chuẩn hóa
+    setFormData(prev => ({
+      ...prev,
+      patientPhone: normalizedPhone
+    }));
     
     // === BƯỚC 1: XÁC ĐỊNH USER ID ===
     let userId = null;
@@ -712,6 +723,34 @@ const BookAppointmentDetails = () => {
     console.log('  - actualSpecialtyId:', actualSpecialtyId, '→ parsedSpecialtyId:', parsedSpecialtyId, 'isNaN:', isNaN(parsedSpecialtyId));
     console.log('  - actualClinicId:', actualClinicId, '→ parsedClinicId:', parsedClinicId, 'isNaN:', isNaN(parsedClinicId));
     
+    // Kiểm tra payment config để xác định trạng thái mặc định
+    let defaultStatus = 'PENDING_PAYMENT'; // Mặc định
+    let paymentConfig = {
+      enableMomo: true,
+      enableVNPay: true,
+      depositAmount: 50000
+    };
+
+    try {
+      const savedSettings = localStorage.getItem('adminSettings');
+      if (savedSettings) {
+        const adminSettings = JSON.parse(savedSettings);
+        if (adminSettings.payment) {
+          paymentConfig = { ...paymentConfig, ...adminSettings.payment };
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load payment config:', error);
+    }
+
+    // Nếu không có phương thức thanh toán nào được bật hoặc depositAmount = 0, set status = CONFIRMED
+    if ((!paymentConfig.enableMomo && !paymentConfig.enableVNPay) || paymentConfig.depositAmount === 0) {
+      defaultStatus = 'CONFIRMED';
+      console.log('💰 No payment required - Setting appointment status to CONFIRMED');
+    } else {
+      console.log('💰 Payment required - Setting appointment status to PENDING_PAYMENT');
+    }
+    
     // Gửi theo format backend mong đợi với snake_case fields và proper data types
     const appointmentData = {
       // Backend hỗ trợ cả camelCase và snake_case với @JsonAlias
@@ -736,11 +775,13 @@ const BookAppointmentDetails = () => {
       reasonForVisit: formData.reasonForVisit.trim(),
       reason_for_visit: formData.reasonForVisit.trim(),
       
+      status: defaultStatus, // Sử dụng trạng thái đã xác định
+      
       // Không gửi depositAmount để backend hiểu là null (bypass validation @DecimalMin)
       // depositAmount: null sẽ không trigger validation @DecimalMin
       
-      isDepositPaid: false,
-      is_deposit_paid: false
+      isDepositPaid: defaultStatus === 'CONFIRMED', // Nếu CONFIRMED thì coi như đã "thanh toán"
+      is_deposit_paid: defaultStatus === 'CONFIRMED'
     };
 
     console.log('📤 Final appointment data to send:', appointmentData);
@@ -787,19 +828,40 @@ const BookAppointmentDetails = () => {
 
     try {
       // === BƯỚC 10: CẬP NHẬT PHONE NUMBER NẾU CẦN ===
-      // Tạm thời bỏ qua việc update phone để tránh lỗi 500
-      // if (formData.patientPhone !== userInfo.phone_number && formData.patientPhone.trim()) {
-      //   try {
-      //     console.log('📞 Updating user phone number...');
-      //     await adminService.updateUser(userId, {
-      //       phoneNumber: formData.patientPhone.trim()
-      //     });
-      //     console.log('✅ Phone number updated successfully');
-      //   } catch (phoneUpdateError) {
-      //     console.warn('⚠️ Failed to update phone number:', phoneUpdateError);
-      //     // Không dừng process, chỉ warning
-      //   }
-      // }
+      // Cập nhật số điện thoại nếu người dùng đã thay đổi
+      if (normalizedPhone !== userInfo.phone_number && normalizedPhone.trim()) {
+        try {
+          console.log('📞 Updating user phone number...');
+          console.log('📞 Current phone:', userInfo.phone_number);
+          console.log('📞 New phone (normalized):', normalizedPhone);
+          
+          // Sử dụng endpoint mới và an toàn hơn
+          await adminService.updateUserContactInfo(userId, {
+            phoneNumber: normalizedPhone
+          });
+          
+          console.log('✅ Phone number updated successfully via /contact-info');
+          
+          // Cập nhật thông tin local để tránh việc gọi API lại
+          setUserInfo(prev => ({
+            ...prev,
+            phone_number: normalizedPhone
+          }));
+          
+        } catch (phoneUpdateError) {
+          console.error('❌ Failed to update phone number:', phoneUpdateError);
+          
+          // Bắt lỗi duplicate từ backend một cách chính xác
+          if (phoneUpdateError.message && phoneUpdateError.message.includes('Số điện thoại đã được sử dụng')) {
+            setError('Số điện thoại này đã được sử dụng bởi một tài khoản khác. Vui lòng nhập số khác.');
+            setLoading(false); // Dừng loading
+            return; // Dừng toàn bộ quá trình
+          }
+          
+          // Các lỗi khác thì cảnh báo nhưng vẫn tiếp tục
+          showError('Không thể cập nhật số điện thoại của bạn lúc này. Lịch hẹn sẽ vẫn được tạo.', 'Cảnh báo');
+        }
+      }
 
       // === BƯỚC 11: KIỂM TRA PAYMENT CONFIG VÀ CHUYỂN HƯỚNG ===
       console.log('🚀 Checking payment configuration...');
@@ -832,7 +894,7 @@ const BookAppointmentDetails = () => {
 
       const appointmentInfo = {
         patientName: formData.patientName || userInfo.full_name,
-        patientPhone: formData.patientPhone,
+        patientPhone: normalizedPhone,
         patientEmail: formData.patientEmail || userInfo.email,
         doctorName: doctorName,
         specialtyName: specialtyName,
@@ -845,24 +907,6 @@ const BookAppointmentDetails = () => {
       console.log('📋 Appointment data for payment:', appointmentData);
       
       // Check payment configuration
-      let paymentConfig = {
-        enableMomo: true,
-        enableVNPay: true,
-        depositAmount: 50000
-      };
-
-      try {
-        const savedSettings = localStorage.getItem('adminSettings');
-        if (savedSettings) {
-          const adminSettings = JSON.parse(savedSettings);
-          if (adminSettings.payment) {
-            paymentConfig = { ...paymentConfig, ...adminSettings.payment };
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to load payment config:', error);
-      }
-
       console.log('💰 Payment config check:', paymentConfig);
 
       // If no payment methods enabled, create free appointment directly
@@ -872,6 +916,7 @@ const BookAppointmentDetails = () => {
         const freeAppointmentData = {
           ...appointmentData,
           depositAmount: 0.0,
+          status: 'CONFIRMED', // Đảm bảo trạng thái là CONFIRMED
           isDepositPaid: false,
           isDepositNonRefundable: false
         };
@@ -1205,24 +1250,28 @@ const BookAppointmentDetails = () => {
                     </div>
                   </div>
 
-                  {/* Phone Input */}
+                  {/* Phone Input - Conditional Rendering */}
                   <div className="space-y-2">
                     <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700">
                       <Phone className="w-4 h-4" />
                       <span>Số điện thoại</span>
-                      <span className="text-red-500">*</span>
+                      {/* Thêm dấu * nếu SĐT chưa có */}
+                      {!userInfo.phone_number && <span className="text-red-500">*</span>}
                     </label>
                     <input
                       type="tel"
                       name="patientPhone"
                       value={formData.patientPhone}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
-                      placeholder="Nhập số điện thoại của bạn"
-                      required
+                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      placeholder={userInfo.phone_number ? '' : 'Nhập số điện thoại của bạn'}
+                      required={!userInfo.phone_number}
+                      disabled={!!userInfo.phone_number}
                     />
                     <p className="text-xs text-gray-500">
-                      Vui lòng cập nhật nếu chưa có hoặc không chính xác
+                      {userInfo.phone_number 
+                        ? 'Số điện thoại đã được lưu trong hồ sơ của bạn.'
+                        : 'Số điện thoại này sẽ được lưu vào hồ sơ của bạn.'}
                     </p>
                   </div>
                   

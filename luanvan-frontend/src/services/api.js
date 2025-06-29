@@ -422,6 +422,18 @@ export const adminService = {
     }
   },
 
+  async updateUserContactInfo(userId, contactData) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/users/${userId}/contact-info`, {
+        method: 'PUT',
+        body: JSON.stringify(contactData)
+      });
+    } catch (error) {
+      console.error('Update user contact info error:', error);
+      throw error;
+    }
+  },
+
   async deactivateUser(userId) {
     try {
       return await apiRequest(`${API_BASE_URL}/users/${userId}/deactivate`, {
@@ -654,6 +666,92 @@ export const adminService = {
       return await apiRequest(`${API_BASE_URL}/appointments?${queryParams}`);
     } catch (error) {
       console.error('Get all appointments error:', error);
+      throw error;
+    }
+  },
+
+  async createAppointment(appointmentData) {
+    try {
+      console.log('🔧 Admin creating appointment with data:', appointmentData);
+      console.log('🔧 Data types:', {
+        patientId: typeof appointmentData.patientId,
+        doctorId: typeof appointmentData.doctorId,
+        specialtyId: typeof appointmentData.specialtyId,
+        clinicId: typeof appointmentData.clinicId,
+        slotId: typeof appointmentData.slotId,
+        appointmentDateTime: typeof appointmentData.appointmentDateTime
+      });
+      
+      // Use same format as patient booking (both camelCase and snake_case)
+      const processedData = {
+        // Backend hỗ trợ cả camelCase và snake_case với @JsonAlias
+        patientId: parseInt(appointmentData.patientId),
+        patient_id: parseInt(appointmentData.patientId),
+        
+        doctorId: parseInt(appointmentData.doctorId),
+        doctor_id: parseInt(appointmentData.doctorId),
+        
+        specialtyId: parseInt(appointmentData.specialtyId),
+        specialty_id: parseInt(appointmentData.specialtyId),
+        
+        clinicId: parseInt(appointmentData.clinicId),
+        clinic_id: parseInt(appointmentData.clinicId),
+        
+        slotId: parseInt(appointmentData.slotId),
+        slot_id: parseInt(appointmentData.slotId),
+        
+        appointmentDateTime: appointmentData.appointmentDateTime,
+        appointment_date_time: appointmentData.appointmentDateTime,
+        
+        reasonForVisit: appointmentData.reasonForVisit || '',
+        reason_for_visit: appointmentData.reasonForVisit || '',
+        
+        // Admin tạo với deposit đã paid
+        isDepositPaid: true,
+        is_deposit_paid: true
+        
+        // Không gửi depositAmount để tránh validation lỗi
+      };
+      
+      console.log('🔧 Processed data:', processedData);
+      
+      // Validate required fields
+      const requiredFields = ['patientId', 'doctorId', 'specialtyId', 'clinicId', 'slotId', 'appointmentDateTime'];
+      for (const field of requiredFields) {
+        if (!processedData[field] || (typeof processedData[field] === 'number' && isNaN(processedData[field]))) {
+          throw new Error(`Missing or invalid required field: ${field}`);
+        }
+      }
+      
+      // Try admin endpoint first
+      try {
+        return await apiRequest(`${API_BASE_URL}/admin/appointments`, {
+          method: 'POST',
+          body: JSON.stringify(processedData)
+        });
+      } catch (adminError) {
+        console.warn('Admin endpoint failed, trying regular endpoint:', adminError.message);
+        
+        // Fallback to regular endpoint
+        return await apiRequest(`${API_BASE_URL}/appointments`, {
+          method: 'POST',
+          body: JSON.stringify(processedData)
+        });
+      }
+    } catch (error) {
+      console.error('Admin create appointment error:', error);
+      throw error;
+    }
+  },
+
+  async updateAppointment(appointmentId, appointmentData) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/appointments/${appointmentId}`, {
+        method: 'PUT',
+        body: JSON.stringify(appointmentData)
+      });
+    } catch (error) {
+      console.error('Update appointment error:', error);
       throw error;
     }
   },

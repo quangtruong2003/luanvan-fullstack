@@ -66,7 +66,7 @@ public class Appointment {
     
     public enum AppointmentStatus {
         PENDING_PAYMENT, CONFIRMED, COMPLETED, 
-        CANCELLED_BY_PATIENT, CANCELLED_BY_CLINIC, PAYMENT_FAILED
+        CANCELLED_BY_PATIENT, CANCELLED_BY_CLINIC, PAYMENT_FAILED, NO_SHOW
     }
     
     public enum PaymentStatus {

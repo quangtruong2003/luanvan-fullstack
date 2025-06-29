@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import java.util.Objects;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -95,8 +96,8 @@ public class UserServiceImpl implements UserService {
             user.setEmail(userUpdateDTO.getEmail());
         }
         if (userUpdateDTO.getPhoneNumber() != null) {
-            // Kiểm tra số điện thoại đã tồn tại chưa (nếu khác số hiện tại)
-            if (!userUpdateDTO.getPhoneNumber().equals(user.getPhoneNumber()) && 
+            // Kiểm tra số điện thoại đã tồn tại chưa (nếu khác số hiện tại) - sử dụng Objects.equals để tránh NullPointerException
+            if (!Objects.equals(userUpdateDTO.getPhoneNumber(), user.getPhoneNumber()) &&
                     userRepository.existsByPhoneNumber(userUpdateDTO.getPhoneNumber())) {
                 throw new RuntimeException("Số điện thoại đã được sử dụng bởi người dùng khác");
             }
@@ -121,22 +122,25 @@ public class UserServiceImpl implements UserService {
         
         // Kiểm tra và cập nhật số điện thoại
         if (contactInfo.getPhoneNumber() != null && !contactInfo.getPhoneNumber().isEmpty()) {
-            // Kiểm tra số điện thoại đã tồn tại chưa (nếu khác số hiện tại)
-            if (!contactInfo.getPhoneNumber().equals(user.getPhoneNumber()) && 
-                    userRepository.existsByPhoneNumber(contactInfo.getPhoneNumber())) {
-                throw new RuntimeException("Số điện thoại đã được sử dụng bởi người dùng khác");
+            String newPhone = contactInfo.getPhoneNumber();
+            // Chỉ kiểm tra trùng lặp nếu số điện thoại thực sự thay đổi
+            if (!Objects.equals(newPhone, user.getPhoneNumber())) {
+                if (userRepository.existsByPhoneNumber(newPhone)) {
+                    throw new RuntimeException("Số điện thoại đã được sử dụng");
+                }
+                user.setPhoneNumber(newPhone);
             }
-            user.setPhoneNumber(contactInfo.getPhoneNumber());
         }
         
         // Kiểm tra và cập nhật email
         if (contactInfo.getEmail() != null && !contactInfo.getEmail().isEmpty()) {
-            // Kiểm tra email đã tồn tại chưa (nếu khác email hiện tại)
-            if (!contactInfo.getEmail().equals(user.getEmail()) && 
-                    userRepository.existsByEmail(contactInfo.getEmail())) {
-                throw new RuntimeException("Email đã được sử dụng bởi người dùng khác");
+            String newEmail = contactInfo.getEmail();
+            if (!Objects.equals(newEmail, user.getEmail())) {
+                if (userRepository.existsByEmail(newEmail)) {
+                    throw new RuntimeException("Email đã được sử dụng");
+                }
+                user.setEmail(newEmail);
             }
-            user.setEmail(contactInfo.getEmail());
         }
         
         // Cập nhật tên nếu có

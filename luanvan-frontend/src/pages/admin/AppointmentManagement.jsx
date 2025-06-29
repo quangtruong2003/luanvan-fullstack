@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Plus, Search, Filter, Edit, Trash2, Eye, Calendar, 
-  Clock, User, Phone, Mail, CheckCircle, XCircle, AlertCircle, Save
+  Plus, Search, Filter, Edit, Trash2, Calendar, 
+  Clock, User, CheckCircle, XCircle, AlertCircle, Save
 } from 'lucide-react';
-import { adminService, apiService } from '../../services/api';
+import { adminService, apiService, API_BASE_URL } from '../../services/api';
 import { useNotification } from '../../components/NotificationSystem';
 
 const AppointmentManagement = () => {
@@ -15,7 +15,7 @@ const AppointmentManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -31,18 +31,24 @@ const AppointmentManagement = () => {
     clinicId: '',
     appointmentDateTime: '',
     reasonForVisit: '',
-    status: 'PENDING'
+    status: 'PENDING_PAYMENT',
+    slotId: null,
   });
 
-  // State for cascading dropdowns
+  // State for cascading dropdowns and slot selection
   const [availableSpecialties, setAvailableSpecialties] = useState([]);
   const [availableClinics, setAvailableClinics] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [selectedDate, setSelectedDate] = useState('');
+  const [slotsLoading, setSlotsLoading] = useState(false);
 
   const statusOptions = [
-    { value: 'PENDING', label: 'Chờ xác nhận', color: 'yellow' },
+    { value: 'PENDING_PAYMENT', label: 'Chờ thanh toán', color: 'orange' },
     { value: 'CONFIRMED', label: 'Đã xác nhận', color: 'blue' },
     { value: 'COMPLETED', label: 'Hoàn thành', color: 'green' },
-    { value: 'CANCELLED', label: 'Đã hủy', color: 'red' },
+    { value: 'CANCELLED_BY_PATIENT', label: 'Hủy bởi bệnh nhân', color: 'red' },
+    { value: 'CANCELLED_BY_CLINIC', label: 'Hủy bởi phòng khám', color: 'red' },
+    { value: 'PAYMENT_FAILED', label: 'Thanh toán thất bại', color: 'gray' },
     { value: 'NO_SHOW', label: 'Không đến', color: 'gray' }
   ];
 
@@ -118,24 +124,68 @@ const AppointmentManagement = () => {
     }
   };
 
-  const handleStatusChange = async (appointmentId, newStatus) => {
+  const handleStatusChange = async (appointment, newStatus) => {
+    const appointmentId = appointment.appointmentId || appointment.appointment_id || appointment.id;
+
+    console.log('🔄 handleStatusChange called with:', {
+      appointment,
+      newStatus,
+      appointmentId,
+      currentStatus: appointment.status
+    });
+
+    if (!appointmentId) {
+      showError('Không thể xác định ID lịch hẹn để cập nhật trạng thái.');
+      console.error("Lỗi ID không xác định trên đối tượng lịch hẹn:", appointment);
+      return;
+    }
+
+    // Kiểm tra xem trạng thái có thay đổi không
+    if (appointment.status === newStatus) {
+      console.log('⚠️ Trạng thái không thay đổi, bỏ qua update');
+      return;
+    }
+
     try {
-      await adminService.updateAppointmentStatus(appointmentId, { status: newStatus });
+      // Chuẩn bị payload cho việc cập nhật trạng thái
+      const payload = {
+        status: newStatus,
+        cancellationReason: null
+      };
+      
+      // Xử lý lý do hủy cho trạng thái hủy
+      if (newStatus === 'CANCELLED_BY_PATIENT') {
+        payload.cancellationReason = 'Đã hủy bởi bệnh nhân qua quản trị viên';
+      } else if (newStatus === 'CANCELLED_BY_CLINIC') {
+        payload.cancellationReason = 'Đã hủy bởi phòng khám';
+      }
+
+      console.log('📤 Sending status update request:', {
+        appointmentId,
+        payload,
+        apiUrl: `${API_BASE_URL}/appointments/${appointmentId}/status`
+      });
+
+      const result = await adminService.updateAppointmentStatus(appointmentId, payload);
+      console.log('✅ Status update successful:', result);
+
       await fetchAppointments();
       const statusText = statusOptions.find(s => s.value === newStatus)?.label || newStatus;
       showSuccess(`Trạng thái cuộc hẹn đã được cập nhật thành: ${statusText}`, 'Cập nhật thành công');
     } catch (error) {
-      console.error('Error updating appointment status:', error);
-      showError(error.message, 'Lỗi khi cập nhật trạng thái');
+      console.error('❌ Error updating appointment status:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response,
+        stack: error.stack
+      });
+      showError(error.message || 'Có lỗi xảy ra khi cập nhật trạng thái', 'Lỗi khi cập nhật trạng thái');
     }
   };
 
-  const openDetailsModal = (appointment) => {
-    setSelectedAppointment(appointment);
-    setShowDetailsModal(true);
-  };
-
   const openCreateModal = () => {
+    console.log('📋 Opening create modal');
+    console.log('📋 Initial data - Patients:', patients.length, 'Doctors:', doctors.length, 'Specialties:', specialties.length, 'Clinics:', clinics.length);
     resetForm();
     setAvailableSpecialties(specialties);
     setAvailableClinics(clinics);
@@ -143,48 +193,93 @@ const AppointmentManagement = () => {
   };
 
   const openEditModal = (appointment) => {
+    console.log('🔧 Opening edit modal for appointment:', appointment);
+    
+    // Kiểm tra trạng thái lịch hẹn trước khi cho phép chỉnh sửa
+    if (appointment.status !== 'CONFIRMED') {
+      const statusText = statusOptions.find(s => s.value === appointment.status)?.label || appointment.status;
+      showError(`Chỉ có thể chỉnh sửa lịch hẹn ở trạng thái 'Đã xác nhận'. Trạng thái hiện tại: ${statusText}`, 'Không thể chỉnh sửa');
+      return;
+    }
+    
     setSelectedAppointment(appointment);
+    
+    // Extract appointment data
     const dateTimeValue = appointment.appointmentDateTime || appointment.appointment_date_time || '';
     const appointmentDate = dateTimeValue.split('T')[0] || '';
     const appointmentTime = dateTimeValue.split('T')[1]?.substring(0, 5) || '';
     
-    console.log('🔧 Edit appointment data:', appointment);
-    
+    // Extract IDs - try multiple possible field names for robustness
+    const patientId = appointment.patient?.userId || 
+                     appointment.patient?.user_id || 
+                     appointment.patient?.user?.userId ||
+                     appointment.patient?.user?.user_id ||
+                     appointment.patient?.id || '';
+                     
+    const doctorId = appointment.doctor?.doctorId || 
+                    appointment.doctor?.doctor_id || 
+                    appointment.doctor?.userId ||
+                    appointment.doctor?.user_id ||
+                    appointment.doctor?.user?.userId ||
+                    appointment.doctor?.user?.user_id ||
+                    appointment.doctor?.id || '';
+                    
+    const specialtyId = appointment.specialty?.specialtyId || 
+                       appointment.specialty?.specialty_id || 
+                       appointment.specialty?.id || '';
+                       
+    const clinicId = appointment.clinic?.clinicId || 
+                    appointment.clinic?.clinic_id || 
+                    appointment.clinic?.id || '';
+
+    console.log('🔧 Extracted IDs:', { patientId, doctorId, specialtyId, clinicId });
+
+    // Start with all available options (same as create modal)
+    setAvailableSpecialties(specialties);
+    setAvailableClinics(clinics);
+    setAvailableSlots([]);
+    setSelectedDate(appointmentDate);
+
+    // Set form data
     setFormData({
-      patientId: appointment.patient?.userId || 
-                appointment.patient?.user_id || 
-                appointment.patient?.user?.userId ||
-                appointment.patient?.user?.user_id ||
-                appointment.patient?.id || '',
-      doctorId: appointment.doctor?.doctorId || 
-               appointment.doctor?.doctor_id || 
-               appointment.doctor?.userId ||
-               appointment.doctor?.user_id ||
-               appointment.doctor?.user?.userId ||
-               appointment.doctor?.user?.user_id ||
-               appointment.doctor?.id || '',
-      specialtyId: appointment.specialty?.specialtyId || 
-                  appointment.specialty?.specialty_id || 
-                  appointment.specialty?.id || '',
-      clinicId: appointment.clinic?.clinicId || 
-               appointment.clinic?.clinic_id || 
-               appointment.clinic?.id || '',
+      patientId: patientId,
+      doctorId: doctorId,
+      specialtyId: specialtyId,
+      clinicId: clinicId,
       appointmentDateTime: `${appointmentDate}T${appointmentTime}`,
       reasonForVisit: appointment.reasonForVisit || appointment.reason_for_visit || '',
-      status: appointment.status || 'PENDING'
+      status: appointment.status || 'PENDING_PAYMENT',
+      slotId: appointment.slot?.slotId || appointment.slot?.slot_id || null,
     });
 
-    // Populate dropdowns for edit modal
-    const doctorId = appointment.doctor?.doctorId || appointment.doctor?.doctor_id;
+    // Now apply the cascading logic (same as create modal)
+    // Step 1: If doctor is selected, filter specialties
     if (doctorId) {
-        const selectedDoctor = doctors.find(d => (d.doctorId || d.doctor_id) == doctorId);
-        setAvailableSpecialties(selectedDoctor?.specialties || []);
+      const selectedDoctor = doctors.find(d => (d.doctorId || d.doctor_id) == doctorId);
+      console.log('🔧 Found doctor for edit:', selectedDoctor);
+      
+      if (selectedDoctor && selectedDoctor.specialties && selectedDoctor.specialties.length > 0) {
+        console.log('🔧 Setting doctor specialties:', selectedDoctor.specialties);
+        setAvailableSpecialties(selectedDoctor.specialties);
+      } else {
+        console.log('🔧 No doctor specialties found, using all specialties');
+        setAvailableSpecialties(specialties);
+      }
     }
 
-    const specialtyId = appointment.specialty?.specialtyId || appointment.specialty?.specialty_id;
+    // Step 2: If specialty is selected, filter clinics
     if (specialtyId) {
-        const selectedSpecialty = specialties.find(s => (s.specialtyId || s.specialty_id) == specialtyId);
-        setAvailableClinics(selectedSpecialty?.clinic ? [selectedSpecialty.clinic] : []);
+      // Find specialty in the available specialties (not all specialties)
+      const selectedSpecialty = specialties.find(s => (s.specialtyId || s.specialty_id) == specialtyId);
+      console.log('🔧 Found specialty for edit:', selectedSpecialty);
+      
+      if (selectedSpecialty && selectedSpecialty.clinic) {
+        console.log('🔧 Setting specialty clinic:', selectedSpecialty.clinic);
+        setAvailableClinics([selectedSpecialty.clinic]);
+      } else {
+        console.log('🔧 No specific clinic for specialty, using all clinics');
+        setAvailableClinics(clinics);
+      }
     }
 
     setShowEditModal(true);
@@ -196,31 +291,85 @@ const AppointmentManagement = () => {
   };
 
   const resetForm = () => {
-    setFormData({
+    console.log('🔄 Resetting form');
+    const newFormData = {
       patientId: '',
       doctorId: '',
       specialtyId: '',
       clinicId: '',
       appointmentDateTime: '',
       reasonForVisit: '',
-      status: 'PENDING'
-    });
+      status: 'PENDING_PAYMENT',
+      slotId: null,
+    };
+    console.log('🔄 New form data:', newFormData);
+    setFormData(newFormData);
+    setAvailableSpecialties([]);
+    setAvailableClinics([]);
+    setAvailableSlots([]);
+    setSelectedDate('');
   };
 
   const handleCreateAppointment = async (e) => {
     e.preventDefault();
     try {
+      // Detailed validation with specific error messages
+      console.log('🔍 Form validation - current formData:', formData);
+
+      if (!formData.patientId) {
+        showError('Vui lòng chọn bệnh nhân.');
+        return;
+      }
+      if (!formData.doctorId) {
+        showError('Vui lòng chọn bác sĩ.');
+        return;
+      }
+      if (!formData.specialtyId) {
+        showError('Vui lòng chọn chuyên khoa.');
+        return;
+      }
+      if (!formData.clinicId) {
+        showError('Vui lòng chọn phòng khám.');
+        return;
+      }
+      if (!selectedDate) {
+        showError('Vui lòng chọn ngày hẹn.');
+        return;
+      }
+      if (!formData.slotId) {
+        showError('Vui lòng chọn khung giờ hẹn.');
+        return;
+      }
+      if (!formData.appointmentDateTime) {
+        showError('Thời gian hẹn không hợp lệ.');
+        return;
+      }
+
+      // Convert to integers and validate
+      const patientId = parseInt(formData.patientId);
+      const doctorId = parseInt(formData.doctorId);
+      const specialtyId = parseInt(formData.specialtyId);
+      const clinicId = parseInt(formData.clinicId);
+      const slotId = parseInt(formData.slotId);
+
+      if (isNaN(patientId) || isNaN(doctorId) || isNaN(specialtyId) || isNaN(clinicId) || isNaN(slotId)) {
+        showError('Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.');
+        return;
+      }
+
       const appointmentData = {
-        patientId: parseInt(formData.patientId),
-        doctorId: parseInt(formData.doctorId),
-        specialtyId: parseInt(formData.specialtyId),
-        clinicId: parseInt(formData.clinicId),
+        patientId: patientId,
+        doctorId: doctorId,
+        specialtyId: specialtyId,
+        clinicId: clinicId,
         appointmentDateTime: formData.appointmentDateTime,
-        reasonForVisit: formData.reasonForVisit,
+        reasonForVisit: formData.reasonForVisit || '',
         depositAmount: 0,
-        isDepositPaid: false,
-        isDepositNonRefundable: false
+        isDepositPaid: true,
+        slotId: slotId,
       };
+
+      console.log('📤 Sending appointment data:', appointmentData);
 
       await adminService.createAppointment(appointmentData);
       await fetchAppointments();
@@ -287,11 +436,6 @@ const AppointmentManagement = () => {
     return statusOption ? statusOption.color : 'gray';
   };
 
-  const getStatusLabel = (status) => {
-    const statusOption = statusOptions.find(option => option.value === status);
-    return statusOption ? statusOption.label : status;
-  };
-
   const filteredAppointments = appointments.filter(appointment => {
     const patientName = appointment.patient?.user?.fullName || 
                        appointment.patient?.user?.full_name ||
@@ -326,6 +470,137 @@ const AppointmentManagement = () => {
   console.log('📊 Search term:', searchTerm);
   console.log('📊 Status filter:', statusFilter);
   console.log('📊 Date filter:', dateFilter);
+
+  // --- Handlers for cascading dropdowns and slot fetching ---
+
+  const handleDoctorChange = (doctorId) => {
+    console.log('🏥 Doctor selected:', doctorId);
+    const selectedDoctor = doctors.find(d => (d.doctorId || d.doctor_id) == doctorId);
+    console.log('🏥 Selected doctor object:', selectedDoctor);
+
+    setFormData(prev => ({
+        ...prev,
+        doctorId: doctorId,
+        specialtyId: '',
+        clinicId: '',
+        slotId: null,
+        appointmentDateTime: ''
+    }));
+
+    if (selectedDoctor && selectedDoctor.specialties && selectedDoctor.specialties.length > 0) {
+      console.log('🏥 Doctor specialties:', selectedDoctor.specialties);
+      setAvailableSpecialties(selectedDoctor.specialties);
+    } else {
+      console.log('🏥 No specialties found for doctor, using all specialties');
+      setAvailableSpecialties(specialties);
+    }
+    
+    setAvailableClinics([]);
+    setAvailableSlots([]);
+    setSelectedDate('');
+  };
+
+  const handleSpecialtyChange = (specialtyId) => {
+    console.log('🩺 Specialty selected:', specialtyId);
+    const selectedSpecialty = availableSpecialties.find(s => (s.specialtyId || s.specialty_id) == specialtyId);
+    console.log('🩺 Selected specialty object:', selectedSpecialty);
+    
+    let newClinicId = '';
+    let availableClinicsToSet = [];
+    
+    if (selectedSpecialty && selectedSpecialty.clinic) {
+      console.log('🩺 Specialty has specific clinic:', selectedSpecialty.clinic);
+      availableClinicsToSet = [selectedSpecialty.clinic];
+      newClinicId = selectedSpecialty.clinic.clinicId || selectedSpecialty.clinic.clinic_id;
+    } else {
+      console.log('🩺 No specific clinic found for specialty, using all clinics');
+      availableClinicsToSet = clinics;
+      // Auto-select first clinic if there's only one, or leave empty if multiple
+      if (clinics.length === 1) {
+        newClinicId = clinics[0].clinicId || clinics[0].clinic_id;
+        console.log('🩺 Auto-selected single clinic:', newClinicId);
+      }
+    }
+    
+    setAvailableClinics(availableClinicsToSet);
+    
+    setFormData(prev => ({
+      ...prev,
+      specialtyId: specialtyId,
+      clinicId: newClinicId,
+      slotId: null,
+      appointmentDateTime: ''
+    }));
+    
+    setAvailableSlots([]);
+    setSelectedDate('');
+
+    console.log('🩺 Updated formData with specialty:', { specialtyId, clinicId: newClinicId, availableClinics: availableClinicsToSet.length });
+  };
+
+  const handleDateChange = async (date) => {
+    console.log('📅 Date selected:', date);
+    setSelectedDate(date);
+    setAvailableSlots([]);
+    setFormData(prev => ({...prev, slotId: null, appointmentDateTime: ''}));
+    
+    const doctorId = formData.doctorId;
+    console.log('📅 Doctor ID for slots:', doctorId);
+    
+    if (!doctorId || !date) {
+      console.log('📅 Missing doctorId or date, skipping slot fetch');
+      return;
+    }
+
+    setSlotsLoading(true);
+    try {
+      console.log('📅 Fetching slots for doctor:', doctorId, 'date:', date);
+      const slots = await apiService.getAvailableSlots(doctorId, date);
+      console.log('📅 Retrieved slots:', slots);
+      
+      const availableSlots = Array.isArray(slots) 
+        ? slots.filter(slot => slot.status === 'AVAILABLE')
+        : [];
+      
+      console.log('📅 Available slots:', availableSlots);
+      setAvailableSlots(availableSlots);
+    } catch (error) {
+      console.error('Error fetching available slots:', error);
+      showError('Không thể tải danh sách lịch trống của bác sĩ.');
+    } finally {
+      setSlotsLoading(false);
+    }
+  };
+
+  const handleSlotSelect = (slot) => {
+    console.log('⏰ Slot selected:', slot);
+    const timeString = slot.startTime || slot.start_time;
+    const slotId = slot.slotId || slot.slot_id;
+
+    console.log('⏰ Slot details:', { timeString, slotId, selectedDate });
+
+    if (selectedDate && timeString && slotId) {
+      // Backend expects format: YYYY-MM-DDTHH:mm:ss
+      // Ensure time string is in HH:mm:ss format for consistency
+      let formattedTime = timeString;
+      if (formattedTime.length === 5) { // Handles HH:mm
+        formattedTime = `${formattedTime}:00`;
+      } else if (formattedTime.includes('.')) { // Handles HH:mm:ss.sss
+        formattedTime = formattedTime.split('.')[0];
+      }
+
+      const fullDateTime = `${selectedDate}T${formattedTime}`;
+      console.log('⏰ Setting datetime:', fullDateTime, 'slotId:', slotId);
+      
+      setFormData(prev => ({
+        ...prev,
+        slotId: slotId,
+        appointmentDateTime: fullDateTime,
+      }));
+    } else {
+      console.log('⏰ Missing required data for slot selection');
+    }
+  };
 
   if (loading) {
     return (
@@ -493,11 +768,20 @@ const AppointmentManagement = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={appointment.status}
-                      onChange={(e) => handleStatusChange(
-                        appointment.appointmentId || appointment.appointment_id || appointment.id, 
-                        e.target.value
-                      )}
-                      className={`text-xs font-medium px-2 py-1 rounded-full border-0 bg-${getStatusColor(appointment.status)}-100 text-${getStatusColor(appointment.status)}-800`}
+                      onChange={(e) => handleStatusChange(appointment, e.target.value)}
+                      className="text-xs font-medium px-2 py-1 rounded-full border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      style={{
+                        backgroundColor: getStatusColor(appointment.status) === 'orange' ? '#FEF3C7' :
+                                       getStatusColor(appointment.status) === 'blue' ? '#DBEAFE' :
+                                       getStatusColor(appointment.status) === 'green' ? '#D1FAE5' :
+                                       getStatusColor(appointment.status) === 'red' ? '#FEE2E2' :
+                                       getStatusColor(appointment.status) === 'gray' ? '#F3F4F6' : '#F3F4F6',
+                        color: getStatusColor(appointment.status) === 'orange' ? '#92400E' :
+                               getStatusColor(appointment.status) === 'blue' ? '#1E40AF' :
+                               getStatusColor(appointment.status) === 'green' ? '#065F46' :
+                               getStatusColor(appointment.status) === 'red' ? '#991B1B' :
+                               getStatusColor(appointment.status) === 'gray' ? '#374151' : '#374151'
+                      }}
                     >
                       {statusOptions.map(option => (
                         <option key={option.value} value={option.value}>
@@ -515,24 +799,27 @@ const AppointmentManagement = () => {
                   
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
-                      <button
-                        onClick={() => openDetailsModal(appointment)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Xem chi tiết"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => openEditModal(appointment)}
-                        className="text-green-600 hover:text-green-900"
-                        title="Chỉnh sửa"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
+                      {appointment.status === 'CONFIRMED' ? (
+                        <button
+                          onClick={() => openEditModal(appointment)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Chỉnh sửa lịch hẹn"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="text-gray-400 cursor-not-allowed"
+                          title={`Chỉ có thể chỉnh sửa lịch hẹn ở trạng thái 'Đã xác nhận'. Trạng thái hiện tại: ${statusOptions.find(s => s.value === appointment.status)?.label || appointment.status}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => openDeleteModal(appointment)}
                         className="text-red-600 hover:text-red-900"
-                        title="Xóa"
+                        title="Xóa lịch hẹn"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -558,155 +845,44 @@ const AppointmentManagement = () => {
         )}
       </div>
 
-      {/* Appointment Details Modal */}
-      {showDetailsModal && selectedAppointment && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Chi tiết lịch hẹn #{selectedAppointment.appointmentId}
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Thông tin bệnh nhân</h4>
-                  <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                    <div className="flex items-center">
-                      <User className="h-4 w-4 mr-2 text-gray-500" />
-                      <span className="text-sm">
-                        {selectedAppointment.patient?.user?.fullName || 
-                         selectedAppointment.patient?.user?.full_name ||
-                         selectedAppointment.patient?.fullName || 
-                         selectedAppointment.patient?.full_name ||
-                         selectedAppointment.patient?.name ||
-                         'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <Phone className="h-4 w-4 mr-2 text-gray-500" />
-                      <span className="text-sm">
-                        {selectedAppointment.patient?.user?.phoneNumber || 
-                         selectedAppointment.patient?.user?.phone_number ||
-                         selectedAppointment.patient?.phoneNumber || 
-                         selectedAppointment.patient?.phone_number ||
-                         'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <Mail className="h-4 w-4 mr-2 text-gray-500" />
-                      <span className="text-sm">
-                        {selectedAppointment.patient?.user?.email || 
-                         selectedAppointment.patient?.email ||
-                         'N/A'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Thông tin bác sĩ</h4>
-                  <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                    <div className="flex items-center">
-                      <User className="h-4 w-4 mr-2 text-gray-500" />
-                      <span className="text-sm">
-                        {selectedAppointment.doctor?.user?.fullName || 
-                         selectedAppointment.doctor?.user?.full_name ||
-                         selectedAppointment.doctor?.fullName || 
-                         selectedAppointment.doctor?.full_name ||
-                         selectedAppointment.doctor?.name ||
-                         'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center">
-                      <Phone className="h-4 w-4 mr-2 text-gray-500" />
-                      <span className="text-sm">
-                        {selectedAppointment.doctor?.user?.phoneNumber || 
-                         selectedAppointment.doctor?.user?.phone_number ||
-                         selectedAppointment.doctor?.phoneNumber || 
-                         selectedAppointment.doctor?.phone_number ||
-                         'N/A'}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Chuyên khoa: {selectedAppointment.specialty?.name || 
-                                   selectedAppointment.specialty?.specialty_name ||
-                                   'N/A'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <h4 className="text-sm font-medium text-gray-700 mb-2">Thông tin lịch hẹn</h4>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-2 text-gray-500" />
-                      <span className="text-sm">Ngày: {selectedAppointment.appointmentDateTime?.split('T')[0] || 'N/A'}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-gray-500" />
-                      <span className="text-sm">Giờ: {selectedAppointment.appointmentDateTime?.split('T')[1]?.split('.')[0] || 'N/A'}</span>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <span className="text-sm font-medium">Trạng thái: </span>
-                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full bg-${getStatusColor(selectedAppointment.status)}-100 text-${getStatusColor(selectedAppointment.status)}-800`}>
-                      {getStatusLabel(selectedAppointment.status)}
-                    </span>
-                  </div>
-
-                  {selectedAppointment.reasonForVisit && (
-                    <div>
-                      <span className="text-sm font-medium">Lý do khám: </span>
-                      <p className="text-sm text-gray-700 mt-1">{selectedAppointment.reasonForVisit}</p>
-                    </div>
-                  )}
-                  
-                  <div className="text-xs text-gray-500">
-                    Tạo lúc: {selectedAppointment.bookingTimestamp ? new Date(selectedAppointment.bookingTimestamp).toLocaleString('vi-VN') : 'N/A'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  onClick={() => setShowDetailsModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Đóng
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Create Appointment Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Tạo lịch hẹn mới</h3>
+              {/* Debug info */}
+              <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
+                Debug: Patients: {patients.length}, Doctors: {doctors.length}, 
+                Available Specialties: {availableSpecialties.length}, 
+                Available Clinics: {availableClinics.length},
+                Available Slots: {availableSlots.length}
+              </div>
               <form onSubmit={handleCreateAppointment}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Bệnh nhân *
+                      Bệnh nhân * ({patients.length} bệnh nhân)
                     </label>
                     <select
                       required
                       value={formData.patientId}
-                      onChange={(e) => setFormData({...formData, patientId: e.target.value})}
+                      onChange={(e) => {
+                        console.log('👤 Patient selected:', e.target.value);
+                        setFormData({...formData, patientId: e.target.value});
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Chọn bệnh nhân</option>
-                      {patients.map(patient => (
-                        <option key={patient.userId || patient.user_id} value={patient.userId || patient.user_id}>
-                          {patient.fullName || patient.full_name} - {patient.email}
-                        </option>
-                      ))}
+                      {patients.map(patient => {
+                        const patientId = patient.userId || patient.user_id;
+                        const patientName = patient.fullName || patient.full_name;
+                        return (
+                          <option key={patientId} value={patientId}>
+                            {patientName} - {patient.email}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -717,7 +893,7 @@ const AppointmentManagement = () => {
                     <select
                       required
                       value={formData.doctorId}
-                      onChange={(e) => setFormData({...formData, doctorId: e.target.value})}
+                      onChange={(e) => handleDoctorChange(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Chọn bác sĩ</option>
@@ -736,8 +912,9 @@ const AppointmentManagement = () => {
                     <select
                       required
                       value={formData.specialtyId}
-                      onChange={(e) => setFormData({...formData, specialtyId: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => handleSpecialtyChange(e.target.value)}
+                      disabled={!formData.doctorId}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                     >
                       <option value="">Chọn chuyên khoa</option>
                       {availableSpecialties.map(specialty => (
@@ -750,34 +927,86 @@ const AppointmentManagement = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Phòng khám *
+                      Phòng khám * ({availableClinics.length} phòng khám)
                     </label>
                     <select
                       required
                       value={formData.clinicId}
-                      onChange={(e) => setFormData({...formData, clinicId: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => {
+                        console.log('🏥 Clinic selected:', e.target.value);
+                        setFormData({...formData, clinicId: e.target.value});
+                      }}
+                      disabled={!formData.specialtyId}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                      title={`Specialty selected: ${formData.specialtyId}, Available clinics: ${availableClinics.length}`}
                     >
                       <option value="">Chọn phòng khám</option>
-                      {availableClinics.map(clinic => (
-                        <option key={clinic.clinicId || clinic.clinic_id} value={clinic.clinicId || clinic.clinic_id}>
-                          {clinic.name}
-                        </option>
-                      ))}
+                      {availableClinics.map(clinic => {
+                        const clinicId = clinic.clinicId || clinic.clinic_id;
+                        return (
+                          <option key={clinicId} value={clinicId}>
+                            {clinic.name}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Thời gian hẹn *
+                      Chọn ngày hẹn *
                     </label>
                     <input
-                      type="datetime-local"
+                      type="date"
                       required
-                      value={formData.appointmentDateTime}
-                      onChange={(e) => setFormData({...formData, appointmentDateTime: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={selectedDate}
+                      onChange={(e) => handleDateChange(e.target.value)}
+                      disabled={!formData.specialtyId}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                      min={new Date().toISOString().split("T")[0]}
                     />
+                  </div>
+
+                  {/* Slot selection */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Chọn khung giờ *
+                    </label>
+                    {slotsLoading ? (
+                      <div className="flex items-center justify-center h-24">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                        {availableSlots.length > 0 ? (
+                          availableSlots.map(slot => {
+                            const time = slot.startTime || slot.start_time;
+                            const currentSlotId = slot.slotId || slot.slot_id;
+                            const isSelected = formData.slotId === currentSlotId;
+                            return (
+                              <button
+                                type="button"
+                                key={currentSlotId}
+                                onClick={() => {
+                                  console.log('⏰ Slot clicked:', slot);
+                                  handleSlotSelect(slot);
+                                }}
+                                className={`px-2 py-2 text-sm rounded-lg text-center border ${
+                                  isSelected
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'bg-white text-blue-700 border-blue-500 hover:bg-blue-50'
+                                }`}
+                                title={`Slot ID: ${currentSlotId}, Time: ${time}, Selected: ${isSelected}`}
+                              >
+                                {time ? time.substring(0, 5) : 'N/A'}
+                              </button>
+                            )
+                          })
+                        ) : (
+                          selectedDate && <p className="text-sm text-gray-500 col-span-full">Không có lịch trống trong ngày này.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="md:col-span-2">
@@ -792,6 +1021,19 @@ const AppointmentManagement = () => {
                       placeholder="Nhập lý do khám..."
                     />
                   </div>
+                </div>
+
+                {/* Current form values debug */}
+                <div className="mt-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                  <strong>Current Form Values:</strong><br/>
+                  PatientId: {formData.patientId}<br/>
+                  DoctorId: {formData.doctorId}<br/>
+                  SpecialtyId: {formData.specialtyId}<br/>
+                  ClinicId: {formData.clinicId}<br/>
+                  SlotId: {formData.slotId}<br/>
+                  SelectedDate: {selectedDate}<br/>
+                  AppointmentDateTime: {formData.appointmentDateTime}<br/>
+                  ReasonForVisit: {formData.reasonForVisit}
                 </div>
 
                 <div className="mt-6 flex justify-end space-x-3">
@@ -824,26 +1066,40 @@ const AppointmentManagement = () => {
           <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Chỉnh sửa lịch hẹn #{selectedAppointment.appointmentId}
+                Chỉnh sửa lịch hẹn #{selectedAppointment.appointmentId || selectedAppointment.appointment_id || selectedAppointment.id}
               </h3>
+              {/* Debug info */}
+              <div className="mb-4 p-2 bg-gray-100 rounded text-xs">
+                Debug: Patients: {patients.length}, Doctors: {doctors.length}, 
+                Available Specialties: {availableSpecialties.length}, 
+                Available Clinics: {availableClinics.length},
+                Available Slots: {availableSlots.length}
+              </div>
               <form onSubmit={handleUpdateAppointment}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Bệnh nhân *
+                      Bệnh nhân * ({patients.length} bệnh nhân)
                     </label>
                     <select
                       required
                       value={formData.patientId}
-                      onChange={(e) => setFormData({...formData, patientId: e.target.value})}
+                      onChange={(e) => {
+                        console.log('👤 Patient selected:', e.target.value);
+                        setFormData({...formData, patientId: e.target.value});
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Chọn bệnh nhân</option>
-                      {patients.map(patient => (
-                        <option key={patient.userId || patient.user_id} value={patient.userId || patient.user_id}>
-                          {patient.fullName || patient.full_name} - {patient.email}
-                        </option>
-                      ))}
+                      {patients.map(patient => {
+                        const patientId = patient.userId || patient.user_id;
+                        const patientName = patient.fullName || patient.full_name;
+                        return (
+                          <option key={patientId} value={patientId}>
+                            {patientName} - {patient.email}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -854,7 +1110,7 @@ const AppointmentManagement = () => {
                     <select
                       required
                       value={formData.doctorId}
-                      onChange={(e) => setFormData({...formData, doctorId: e.target.value})}
+                      onChange={(e) => handleDoctorChange(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Chọn bác sĩ</option>
@@ -873,8 +1129,9 @@ const AppointmentManagement = () => {
                     <select
                       required
                       value={formData.specialtyId}
-                      onChange={(e) => setFormData({...formData, specialtyId: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => handleSpecialtyChange(e.target.value)}
+                      disabled={!formData.doctorId}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                     >
                       <option value="">Chọn chuyên khoa</option>
                       {availableSpecialties.map(specialty => (
@@ -887,34 +1144,86 @@ const AppointmentManagement = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Phòng khám *
+                      Phòng khám * ({availableClinics.length} phòng khám)
                     </label>
                     <select
                       required
                       value={formData.clinicId}
-                      onChange={(e) => setFormData({...formData, clinicId: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => {
+                        console.log('🏥 Clinic selected:', e.target.value);
+                        setFormData({...formData, clinicId: e.target.value});
+                      }}
+                      disabled={!formData.specialtyId}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                      title={`Specialty selected: ${formData.specialtyId}, Available clinics: ${availableClinics.length}`}
                     >
                       <option value="">Chọn phòng khám</option>
-                      {availableClinics.map(clinic => (
-                        <option key={clinic.clinicId || clinic.clinic_id} value={clinic.clinicId || clinic.clinic_id}>
-                          {clinic.name}
-                        </option>
-                      ))}
+                      {availableClinics.map(clinic => {
+                        const clinicId = clinic.clinicId || clinic.clinic_id;
+                        return (
+                          <option key={clinicId} value={clinicId}>
+                            {clinic.name}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
-                  <div>
+                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Thời gian hẹn *
+                      Chọn ngày hẹn *
                     </label>
                     <input
-                      type="datetime-local"
+                      type="date"
                       required
-                      value={formData.appointmentDateTime}
-                      onChange={(e) => setFormData({...formData, appointmentDateTime: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={selectedDate}
+                      onChange={(e) => handleDateChange(e.target.value)}
+                      disabled={!formData.specialtyId}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                      min={new Date().toISOString().split("T")[0]}
                     />
+                  </div>
+
+                  {/* Slot selection */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Chọn khung giờ *
+                    </label>
+                    {slotsLoading ? (
+                      <div className="flex items-center justify-center h-24">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+                        {availableSlots.length > 0 ? (
+                          availableSlots.map(slot => {
+                            const time = slot.startTime || slot.start_time;
+                            const currentSlotId = slot.slotId || slot.slot_id;
+                            const isSelected = formData.slotId === currentSlotId;
+                            return (
+                              <button
+                                type="button"
+                                key={currentSlotId}
+                                onClick={() => {
+                                  console.log('⏰ Slot clicked:', slot);
+                                  handleSlotSelect(slot);
+                                }}
+                                className={`px-2 py-2 text-sm rounded-lg text-center border ${
+                                  isSelected
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'bg-white text-blue-700 border-blue-500 hover:bg-blue-50'
+                                }`}
+                                title={`Slot ID: ${currentSlotId}, Time: ${time}, Selected: ${isSelected}`}
+                              >
+                                {time ? time.substring(0, 5) : 'N/A'}
+                              </button>
+                            )
+                          })
+                        ) : (
+                          selectedDate && <p className="text-sm text-gray-500 col-span-full">Không có lịch trống trong ngày này.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -935,7 +1244,7 @@ const AppointmentManagement = () => {
                     </select>
                   </div>
 
-                  <div className="md:col-span-2">
+                  <div className="md:col-span-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Lý do khám
                     </label>
@@ -947,6 +1256,19 @@ const AppointmentManagement = () => {
                       placeholder="Nhập lý do khám..."
                     />
                   </div>
+                </div>
+
+                {/* Current form values debug */}
+                <div className="mt-4 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                  <strong>Current Form Values:</strong><br/>
+                  PatientId: {formData.patientId}<br/>
+                  DoctorId: {formData.doctorId}<br/>
+                  SpecialtyId: {formData.specialtyId}<br/>
+                  ClinicId: {formData.clinicId}<br/>
+                  SlotId: {formData.slotId}<br/>
+                  SelectedDate: {selectedDate}<br/>
+                  AppointmentDateTime: {formData.appointmentDateTime}<br/>
+                  ReasonForVisit: {formData.reasonForVisit}
                 </div>
 
                 <div className="mt-6 flex justify-end space-x-3">
