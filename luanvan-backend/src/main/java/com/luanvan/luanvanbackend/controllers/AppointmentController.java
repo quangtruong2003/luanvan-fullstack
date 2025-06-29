@@ -189,6 +189,18 @@ public class AppointmentController {
     }
 
     /**
+     * Xóa một lịch hẹn vĩnh viễn (chỉ Admin).
+     * @param appointmentId ID của lịch hẹn cần xóa.
+     * @return ResponseEntity không có nội dung (204 No Content).
+     */
+    @DeleteMapping("/{appointmentId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteAppointment(@PathVariable Long appointmentId) {
+        appointmentService.deleteAppointment(appointmentId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
      * Hủy lịch hẹn bởi bệnh nhân (chỉ bệnh nhân đó)
      */
     @PutMapping("/{appointmentId}/cancel-by-patient")

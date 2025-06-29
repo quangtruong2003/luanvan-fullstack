@@ -146,4 +146,10 @@ public interface AppointmentService {
      * @return Lịch hẹn sau khi cập nhật
      */
     Appointment updatePaymentStatus(Long appointmentId, String paymentStatus, String transactionId);
+
+    /**
+     * Xóa một lịch hẹn.
+     * @param appointmentId ID của lịch hẹn cần xóa.
+     */
+    void deleteAppointment(Long appointmentId);
 } 

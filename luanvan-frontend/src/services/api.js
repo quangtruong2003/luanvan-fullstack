@@ -670,6 +670,17 @@ export const adminService = {
     }
   },
 
+  async deleteAppointment(appointmentId) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/appointments/${appointmentId}`, {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error('Delete appointment error:', error);
+      throw error;
+    }
+  },
+
   // System Settings
   async getSystemConfig() {
     try {

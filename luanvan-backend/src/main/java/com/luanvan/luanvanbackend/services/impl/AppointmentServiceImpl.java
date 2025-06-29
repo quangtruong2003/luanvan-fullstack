@@ -470,6 +470,24 @@ public class AppointmentServiceImpl implements AppointmentService {
         }
     }
     
+    @Override
+    @Transactional
+    public void deleteAppointment(Long appointmentId) {
+        // Lấy thông tin lịch hẹn trước khi xóa để xử lý các logic liên quan
+        Appointment appointment = getAppointmentById(appointmentId);
+
+        // Khi xóa lịch hẹn, cần cập nhật lại trạng thái của slot giờ khám
+        // để người khác có thể đặt được
+        AvailabilitySlot slot = appointment.getSlot();
+        if (slot != null) {
+            slot.setStatus(AvailabilitySlot.SlotStatus.AVAILABLE);
+            slotRepository.save(slot);
+        }
+
+        // Xóa lịch hẹn
+        appointmentRepository.deleteById(appointmentId);
+    }
+    
     // Helper method để kiểm tra logic chuyển trạng thái
     private void validateStatusTransition(Appointment.AppointmentStatus currentStatus, Appointment.AppointmentStatus newStatus) {
         // Kiểm tra logic chuyển trạng thái
