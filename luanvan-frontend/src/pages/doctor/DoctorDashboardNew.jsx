@@ -215,16 +215,18 @@ const DoctorDashboardNew = () => {
   };
 
   // Xem chi tiết lịch hẹn
-  const handleViewAppointmentDetails = async (appointmentId) => {
+  const handleViewAppointmentDetails = (appointmentId) => {
     try {
-      const details = await doctorService.getAppointmentDetails(appointmentId);
-      setSelectedAppointment(details);
-      setShowAppointmentDetails(true);
+      const details = appointments.find(apt => apt.appointmentId === appointmentId);
+      if (details) {
+        setSelectedAppointment(details);
+        setShowAppointmentDetails(true);
+      } else {
+        showError('Không thể tìm thấy chi tiết cho lịch hẹn này.');
+      }
     } catch (error) {
-      console.error('Error fetching appointment details:', error);
-      // Show error notification instead of alert
-      const errorMessage = error.response?.data?.message || 'Không thể tải thông tin lịch hẹn. Vui lòng thử lại!';
-      showError(errorMessage);
+      console.error('Error finding appointment details:', error);
+      showError('Có lỗi xảy ra khi hiển thị chi tiết lịch hẹn.');
     }
   };
 

@@ -13,6 +13,14 @@ const AppointmentDetailsModal = ({
 }) => {
   if (!showAppointmentDetails || !selectedAppointment) return null;
 
+  const appointmentDay = new Date(selectedAppointment.appointmentDateTime || selectedAppointment.appointmentDate);
+  appointmentDay.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const canUpdate = today >= appointmentDay;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
@@ -75,18 +83,29 @@ const AppointmentDetailsModal = ({
           </div>
         </div>
         
+        {selectedAppointment.status === 'CONFIRMED' && !canUpdate && (
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-center text-sm text-yellow-800 flex items-center justify-center space-x-2">
+            <AlertCircle className="w-4 h-4" />
+            <span>Chỉ có thể cập nhật vào hoặc sau ngày hẹn.</span>
+          </div>
+        )}
+
         <div className="mt-6 flex space-x-3">
           {selectedAppointment.status === 'CONFIRMED' && (
             <>
               <button
                 onClick={() => handleUpdateAppointmentStatus(selectedAppointment.appointmentId, 'COMPLETED')}
-                className="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors"
+                disabled={!canUpdate}
+                title={!canUpdate ? "Chỉ có thể cập nhật vào hoặc sau ngày hẹn" : "Đánh dấu là đã hoàn thành"}
+                className="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 Hoàn thành
               </button>
               <button
                 onClick={() => handleUpdateAppointmentStatus(selectedAppointment.appointmentId, 'CANCELLED')}
-                className="flex-1 bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors"
+                disabled={!canUpdate}
+                title={!canUpdate ? "Chỉ có thể hủy vào hoặc sau ngày hẹn" : "Hủy lịch hẹn"}
+                className="flex-1 bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
                 Hủy lịch
               </button>
