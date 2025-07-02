@@ -368,17 +368,17 @@ const MyAppointments = () => {
                       </button>
                       {appointment.status === "pending" && (
                         <>
-                          <button className="flex items-center gap-1 px-3 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+                          {/* <button className="flex items-center gap-1 px-3 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors">
                             <Edit className="w-4 h-4" />
                             Sửa
-                          </button>
-                          <button
+                          </button> */}
+                          {/* <button
                             onClick={() => handleCancelAppointment(appointment.id)}
                             className="flex items-center gap-1 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                             Hủy
-                          </button>
+                          </button> */}
                         </>
                       )}
                     </div>
