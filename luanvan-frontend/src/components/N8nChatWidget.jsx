@@ -54,13 +54,13 @@ const N8nChatWidget = () => {
           // Tin nhắn khởi tạo
           initialMessages: [
             'Xin chào! 👋',
-            'Tôi là trợ lý AI của phòng khám. Tôi có thể giúp gì cho bạn?'
+            'Tôi là trợ lý AI của Medical.Care. Tôi có thể giúp gì cho bạn?'
           ],
           
           // Cấu hình i18n
           i18n: {
             en: {
-              title: 'Trợ lý phòng khám 👋',
+              title: 'Trợ lý Medical.Care 👋',
               subtitle: 'Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7',
               footer: '',
               getStarted: 'Bắt đầu cuộc trò chuyện',
