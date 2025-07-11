@@ -33,44 +33,30 @@ public class SystemConfigurationServiceImpl implements SystemConfigurationServic
     @Transactional
     public SystemConfiguration updateConfiguration(SystemConfigurationDTO configDTO) {
         SystemConfiguration config = getCurrentConfiguration();
+
+        // Ghi đè toàn bộ cấu hình từ DTO, không kiểm tra null
+        // Điều này đảm bảo trạng thái từ frontend luôn là nguồn dữ liệu chính xác
+        config.setEnableDeposit(configDTO.getEnableDeposit());
+        config.setDefaultDepositAmount(configDTO.getDefaultDepositAmount());
         
-        // Cập nhật thông tin từ DTO
-        if (configDTO.getEnableDeposit() != null) {
-            config.setEnableDeposit(configDTO.getEnableDeposit());
-        }
-        
-        if (configDTO.getDefaultDepositAmount() != null) {
-            config.setDefaultDepositAmount(configDTO.getDefaultDepositAmount());
-        }
-        
-        if (configDTO.getMomoPartnerCode() != null) {
-            config.setMomoPartnerCode(configDTO.getMomoPartnerCode());
-        }
-        
-        if (configDTO.getMomoAccessKey() != null) {
-            config.setMomoAccessKey(configDTO.getMomoAccessKey());
-        }
-        
-        if (configDTO.getMomoSecretKey() != null) {
-            config.setMomoSecretKey(configDTO.getMomoSecretKey());
-        }
-        
-        if (configDTO.getMomoApiEndpoint() != null) {
-            config.setMomoApiEndpoint(configDTO.getMomoApiEndpoint());
-        }
-        
-        if (configDTO.getPaymentRetryTimeoutMinutes() != null) {
-            config.setPaymentRetryTimeoutMinutes(configDTO.getPaymentRetryTimeoutMinutes());
-        }
-        
-        if (configDTO.getPatientCancellationTimeLimitHours() != null) {
-            config.setPatientCancellationTimeLimitHours(configDTO.getPatientCancellationTimeLimitHours());
-        }
-        
-        if (configDTO.getNonRefundableDepositPolicyText() != null) {
-            config.setNonRefundableDepositPolicyText(configDTO.getNonRefundableDepositPolicyText());
-        }
-        
+        // MoMo
+        config.setEnableMomo(configDTO.getEnableMomo());
+        config.setMomoPartnerCode(configDTO.getMomoPartnerCode());
+        config.setMomoAccessKey(configDTO.getMomoAccessKey());
+        config.setMomoSecretKey(configDTO.getMomoSecretKey());
+        config.setMomoApiEndpoint(configDTO.getMomoApiEndpoint());
+
+        // VNPay
+        config.setEnableVNPay(configDTO.getEnableVNPay());
+        config.setVnpayTmnCode(configDTO.getVnpayTmnCode());
+        config.setVnpaySecretKey(configDTO.getVnpaySecretKey());
+
+        // General Payment Settings
+        config.setDefaultPaymentMethod(configDTO.getDefaultPaymentMethod());
+        config.setPatientCancellationTimeLimitHours(configDTO.getPatientCancellationTimeLimitHours());
+        config.setPaymentRetryTimeoutMinutes(configDTO.getPaymentRetryTimeoutMinutes());
+        config.setNonRefundableDepositPolicyText(configDTO.getNonRefundableDepositPolicyText());
+
         return configRepository.save(config);
     }
 
@@ -87,6 +73,30 @@ public class SystemConfigurationServiceImpl implements SystemConfigurationServic
     public SystemConfiguration updateDefaultDepositAmount(double amount) {
         SystemConfiguration config = getCurrentConfiguration();
         config.setDefaultDepositAmount(BigDecimal.valueOf(amount));
+        return configRepository.save(config);
+    }
+
+    @Override
+    @Transactional
+    public SystemConfiguration toggleMomoPayment(boolean enableMomo) {
+        SystemConfiguration config = getCurrentConfiguration();
+        config.setEnableMomo(enableMomo); // Sửa lỗi: Sử dụng đúng tham số 'enableMomo'
+        return configRepository.save(config);
+    }
+
+    @Override
+    @Transactional
+    public SystemConfiguration toggleVNPayPayment(boolean enableVNPay) {
+        SystemConfiguration config = getCurrentConfiguration();
+        config.setEnableVNPay(enableVNPay); // Sửa lỗi: Sử dụng đúng tham số 'enableVNPay'
+        return configRepository.save(config);
+    }
+
+    @Override
+    @Transactional
+    public SystemConfiguration updateDefaultPaymentMethod(String defaultPaymentMethod) {
+        SystemConfiguration config = getCurrentConfiguration();
+        config.setDefaultPaymentMethod(defaultPaymentMethod);
         return configRepository.save(config);
     }
 
@@ -110,6 +120,22 @@ public class SystemConfigurationServiceImpl implements SystemConfigurationServic
         
         if (apiEndpoint != null) {
             config.setMomoApiEndpoint(apiEndpoint);
+        }
+        
+        return configRepository.save(config);
+    }
+
+    @Override
+    @Transactional
+    public SystemConfiguration updateVNPayConfiguration(String tmnCode, String secretKey) {
+        SystemConfiguration config = getCurrentConfiguration();
+        
+        if (tmnCode != null) {
+            config.setVnpayTmnCode(tmnCode);
+        }
+        
+        if (secretKey != null) {
+            config.setVnpaySecretKey(secretKey);
         }
         
         return configRepository.save(config);
@@ -151,10 +177,21 @@ public class SystemConfigurationServiceImpl implements SystemConfigurationServic
         SystemConfiguration config = new SystemConfiguration();
         config.setEnableDeposit(true);
         config.setDefaultDepositAmount(new BigDecimal("50000")); // 50,000 VND
+        
+        // MoMo Default Configuration
+        config.setEnableMomo(true);
         config.setMomoPartnerCode("");
         config.setMomoAccessKey("");
         config.setMomoSecretKey("");
         config.setMomoApiEndpoint("https://test-payment.momo.vn/v2/gateway/api/create");
+        
+        // VNPay Default Configuration
+        config.setEnableVNPay(true);
+        config.setVnpayTmnCode("");
+        config.setVnpaySecretKey("");
+        
+        // Payment Settings
+        config.setDefaultPaymentMethod("momo");
         config.setPaymentRetryTimeoutMinutes(15);
         config.setPatientCancellationTimeLimitHours(24);
         config.setNonRefundableDepositPolicyText(

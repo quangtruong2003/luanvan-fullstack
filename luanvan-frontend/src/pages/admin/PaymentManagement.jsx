@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  CreditCard, Save, RefreshCw, AlertCircle, CheckCircle
+  CreditCard, Save, RefreshCw, AlertCircle, CheckCircle, DollarSign
 } from 'lucide-react';
+import { adminService } from '../../services/api';
+import { useNotification } from '../../components/NotificationSystem';
 
 const PaymentManagement = () => {
+  const { showSuccess, showError, showWarning, showInfo } = useNotification();
+  
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', content: '' });
   
   const [paymentSettings, setPaymentSettings] = useState({
+    enableDeposit: true,
     enableMomo: true,
     enableVNPay: true,
     momoApiKey: '',
@@ -20,49 +26,120 @@ const PaymentManagement = () => {
   });
 
   useEffect(() => {
-    // Load payment settings from localStorage on component mount
-    const loadPaymentSettings = () => {
-      try {
-        const savedSettings = localStorage.getItem('adminSettings');
-        if (savedSettings) {
-          const parsedSettings = JSON.parse(savedSettings);
-          if (parsedSettings.payment) {
-            setPaymentSettings(parsedSettings.payment);
-            console.log('📂 Payment settings loaded from localStorage:', parsedSettings.payment);
-          }
-        }
-      } catch (error) {
-        console.warn('Failed to load payment settings from localStorage:', error);
-      }
-    };
-
     loadPaymentSettings();
   }, []);
+
+  const loadPaymentSettings = async () => {
+    try {
+      setLoading(true);
+      console.log('📂 Loading payment settings from database...');
+      
+      const config = await adminService.getSystemConfig();
+      console.log('✅ System config loaded:', config);
+      
+      if (config) {
+        const settings = {
+          enableDeposit: config.enable_deposit == 1 || config.enable_deposit === true,
+          enableMomo: config.enable_momo == 1 || config.enable_momo === true,
+          enableVNPay: config.enable_vn_pay == 1 || config.enable_vn_pay === true,
+          momoApiKey: config.momo_access_key || '',
+          momoSecretKey: config.momo_secret_key || '',
+          momoPartnerCode: config.momo_partner_code || '',
+          vnpayTmnCode: config.vnpay_tmn_code || '',
+          vnpaySecretKey: config.vnpay_secret_key || '',
+          defaultPaymentMethod: config.default_payment_method || 'momo',
+          depositAmount: config.default_deposit_amount || 50000
+        };
+        
+        setPaymentSettings(settings);
+        console.log('📄 Payment settings loaded from database:', settings);
+        showInfo('Đã tải cài đặt thanh toán từ database', 'Tải thành công');
+      } else {
+        // If no config found, create default
+        console.log('⚠️ No config found, creating default configuration...');
+        await adminService.createDefaultConfiguration();
+        // Retry loading after creating default
+        const newConfig = await adminService.getSystemConfig();
+        if (newConfig) {
+          const settings = {
+            enableDeposit: newConfig.enable_deposit == 1 || newConfig.enable_deposit === true,
+            enableMomo: newConfig.enable_momo == 1 || newConfig.enable_momo === true,
+            enableVNPay: newConfig.enable_vn_pay == 1 || newConfig.enable_vn_pay === true,
+            momoApiKey: newConfig.momo_access_key || '',
+            momoSecretKey: newConfig.momo_secret_key || '',
+            momoPartnerCode: newConfig.momo_partner_code || '',
+            vnpayTmnCode: newConfig.vnpay_tmn_code || '',
+            vnpaySecretKey: newConfig.vnpay_secret_key || '',
+            defaultPaymentMethod: newConfig.default_payment_method || 'momo',
+            depositAmount: newConfig.default_deposit_amount || 50000
+          };
+          setPaymentSettings(settings);
+          showInfo('Đã tạo và tải cấu hình mặc định từ database', 'Khởi tạo thành công');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to load payment settings:', error);
+      showError('Không thể tải cài đặt thanh toán: ' + error.message, 'Lỗi tải dữ liệu');
+      
+      // Set default values on error
+      setPaymentSettings({
+        enableDeposit: true,
+        enableMomo: true,
+        enableVNPay: true,
+        momoApiKey: '',
+        momoSecretKey: '',
+        momoPartnerCode: '',
+        vnpayTmnCode: '',
+        vnpaySecretKey: '',
+        defaultPaymentMethod: 'momo',
+        depositAmount: 50000
+      });
+      showWarning('Đã tải cài đặt mặc định do lỗi kết nối database', 'Fallback');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     try {
       setSaving(true);
+      console.log('💾 Saving payment settings to database...', paymentSettings);
       
-      // Load existing settings and update payment section
-      const existingSettings = JSON.parse(localStorage.getItem('adminSettings') || '{}');
-      const updatedSettings = {
-        ...existingSettings,
-        payment: paymentSettings
+      // Validate settings before saving
+      if (paymentSettings.depositAmount < 0) {
+        showError('Số tiền đặt cọc không thể âm', 'Lỗi validation');
+        return;
+      }
+      
+      // Prepare config data for API
+      const configData = {
+        enableDeposit: paymentSettings.enableDeposit,
+        enableMomo: paymentSettings.enableMomo,
+        enableVNPay: paymentSettings.enableVNPay,
+        momoPartnerCode: paymentSettings.momoPartnerCode,
+        momoAccessKey: paymentSettings.momoApiKey,
+        momoSecretKey: paymentSettings.momoSecretKey,
+        vnpayTmnCode: paymentSettings.vnpayTmnCode,
+        vnpaySecretKey: paymentSettings.vnpaySecretKey,
+        defaultPaymentMethod: paymentSettings.defaultPaymentMethod,
+        defaultDepositAmount: paymentSettings.depositAmount
       };
       
-      // Save to localStorage
-      localStorage.setItem('adminSettings', JSON.stringify(updatedSettings));
-      console.log('💾 Payment settings saved to localStorage:', paymentSettings);
+      // Save to database using API
+      const result = await adminService.updateSystemConfig(configData);
+      console.log('✅ Payment settings saved to database:', result);
       
-      setMessage({ type: 'success', content: 'Cài đặt thanh toán đã được lưu thành công' });
+      setMessage({ type: 'success', content: 'Cài đặt thanh toán đã được lưu thành công vào database' });
+      showSuccess('Cài đặt thanh toán đã được lưu vào database và có hiệu lực toàn hệ thống', 'Lưu thành công');
       
-      // Clear message after 3 seconds
+      // Clear message after 5 seconds
       setTimeout(() => {
         setMessage({ type: '', content: '' });
-      }, 3000);
+      }, 5000);
     } catch (error) {
-      console.error('Error saving payment settings:', error);
+      console.error('❌ Error saving payment settings:', error);
       setMessage({ type: 'error', content: 'Lỗi khi lưu cài đặt thanh toán: ' + error.message });
+      showError('Lỗi khi lưu cài đặt thanh toán: ' + error.message, 'Lỗi lưu dữ liệu');
     } finally {
       setSaving(false);
     }
@@ -75,11 +152,45 @@ const PaymentManagement = () => {
     }));
   };
 
+  const handleToggleChange = async (field, value) => {
+    // Optimistic UI update
+    const originalSettings = { ...paymentSettings };
+    const updatedSettings = { ...paymentSettings, [field]: value };
+    setPaymentSettings(updatedSettings);
+
+    try {
+      const configData = {
+        enableDeposit: updatedSettings.enableDeposit,
+        enableMomo: updatedSettings.enableMomo,
+        enableVNPay: updatedSettings.enableVNPay,
+        momoPartnerCode: updatedSettings.momoPartnerCode,
+        momoAccessKey: updatedSettings.momoApiKey,
+        momoSecretKey: updatedSettings.momoSecretKey,
+        vnpayTmnCode: updatedSettings.vnpayTmnCode,
+        vnpaySecretKey: updatedSettings.vnpaySecretKey,
+        defaultPaymentMethod: updatedSettings.defaultPaymentMethod,
+        defaultDepositAmount: updatedSettings.depositAmount
+      };
+      
+      await adminService.updateSystemConfig(configData);
+      
+      showSuccess(`Trạng thái đã được cập nhật thành công!`);
+
+    } catch (error) {
+      console.error('❌ Error toggling payment method:', error);
+      showError('Lỗi khi thay đổi trạng thái: ' + error.message, 'Lỗi');
+      
+      // Revert on error
+      setPaymentSettings(originalSettings);
+    }
+  };
+
   // Toggle Switch Component như iPhone
   const ToggleSwitch = ({ id, checked, onChange, disabled = false, color = 'blue' }) => {
     const colorClasses = {
       blue: 'bg-blue-600',
-      pink: 'bg-pink-500'
+      pink: 'bg-pink-500',
+      green: 'bg-green-600'
     };
     
     return (
@@ -116,6 +227,15 @@ const PaymentManagement = () => {
     );
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <span className="ml-3 text-gray-600">Đang tải cài đặt thanh toán...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -124,18 +244,28 @@ const PaymentManagement = () => {
           <h2 className="text-2xl font-bold text-gray-900">Quản lý Thanh toán</h2>
           <p className="text-gray-600 mt-1">Cấu hình các phương thức thanh toán và tiền đặt cọc</p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-        >
-          {saving ? (
-            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
-          {saving ? 'Đang lưu...' : 'Lưu cài đặt'}
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={loadPaymentSettings}
+            disabled={loading}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Tải lại
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+          >
+            {saving ? (
+              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            {saving ? 'Đang lưu...' : 'Lưu cài đặt'}
+          </button>
+        </div>
       </div>
 
       {/* Message */}
@@ -159,8 +289,40 @@ const PaymentManagement = () => {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <h4 className="text-lg font-semibold text-blue-900 mb-2">Cài đặt Phương thức Thanh toán</h4>
           <p className="text-sm text-blue-700">
-            Cấu hình các phương thức thanh toán khả dụng cho hệ thống đặt lịch khám.
+            Cấu hình các phương thức thanh toán và trạng thái đặt cọc cho hệ thống.
+            <span className="font-medium"> Cài đặt được lưu vào database và đồng bộ trên tất cả thiết bị.</span>
           </p>
+        </div>
+
+        {/* General Deposit Setting */}
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                <DollarSign className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <h5 className="font-semibold text-gray-900">Bật/Tắt Đặt cọc</h5>
+                <p className="text-sm text-gray-500">
+                  {paymentSettings.enableDeposit 
+                    ? 'Hệ thống đang yêu cầu đặt cọc khi đặt lịch' 
+                    : 'Hệ thống đang không yêu cầu đặt cọc'
+                  }
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <ToggleSwitch
+                id="enableDeposit"
+                checked={paymentSettings.enableDeposit}
+                onChange={(e) => handleToggleChange('enableDeposit', e.target.checked)}
+                color="green"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                {paymentSettings.enableDeposit ? 'Đang bật' : 'Đang tắt'}
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Payment Methods Status */}
@@ -180,7 +342,7 @@ const PaymentManagement = () => {
                 <ToggleSwitch
                   id="enableMomo"
                   checked={paymentSettings.enableMomo}
-                  onChange={(e) => handleInputChange('enableMomo', e.target.checked)}
+                  onChange={(e) => handleToggleChange('enableMomo', e.target.checked)}
                   color="pink"
                 />
                 <span className="text-sm font-medium text-gray-700">
@@ -246,7 +408,7 @@ const PaymentManagement = () => {
                 <ToggleSwitch
                   id="enableVNPay"
                   checked={paymentSettings.enableVNPay}
-                  onChange={(e) => handleInputChange('enableVNPay', e.target.checked)}
+                  onChange={(e) => handleToggleChange('enableVNPay', e.target.checked)}
                 />
                 <span className="text-sm font-medium text-gray-700">
                   {paymentSettings.enableVNPay ? 'Đã bật' : 'Tắt'}
@@ -355,6 +517,10 @@ const PaymentManagement = () => {
               <span className="font-medium text-blue-600">
                 {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(paymentSettings.depositAmount)}
               </span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span>Lưu trữ dữ liệu:</span>
+              <span className="font-medium text-green-600">Database</span>
             </div>
             {(!paymentSettings.enableMomo && !paymentSettings.enableVNPay) && (
               <div className="flex items-center text-sm text-amber-600 mt-3 p-2 bg-amber-50 rounded">

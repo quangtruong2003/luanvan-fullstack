@@ -33,6 +33,27 @@ public interface SystemConfigurationService {
     SystemConfiguration updateDefaultDepositAmount(double amount);
     
     /**
+     * Bật/tắt phương thức thanh toán MoMo
+     * @param enableMomo true để bật, false để tắt
+     * @return Cấu hình sau khi cập nhật
+     */
+    SystemConfiguration toggleMomoPayment(boolean enableMomo);
+    
+    /**
+     * Bật/tắt phương thức thanh toán VNPay
+     * @param enableVNPay true để bật, false để tắt
+     * @return Cấu hình sau khi cập nhật
+     */
+    SystemConfiguration toggleVNPayPayment(boolean enableVNPay);
+    
+    /**
+     * Cập nhật phương thức thanh toán mặc định
+     * @param defaultPaymentMethod Phương thức thanh toán ("momo" hoặc "vnpay")
+     * @return Cấu hình sau khi cập nhật
+     */
+    SystemConfiguration updateDefaultPaymentMethod(String defaultPaymentMethod);
+    
+    /**
      * Cập nhật thông tin cấu hình Momo
      * @param partnerCode Partner code
      * @param accessKey Access key
@@ -45,6 +66,16 @@ public interface SystemConfigurationService {
             String accessKey, 
             String secretKey, 
             String apiEndpoint);
+    
+    /**
+     * Cập nhật thông tin cấu hình VNPay
+     * @param tmnCode TMN Code
+     * @param secretKey Secret Key
+     * @return Cấu hình sau khi cập nhật
+     */
+    SystemConfiguration updateVNPayConfiguration(
+            String tmnCode, 
+            String secretKey);
     
     /**
      * Cập nhật thời gian chờ thanh toán (phút)

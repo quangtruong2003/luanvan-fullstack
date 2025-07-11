@@ -782,7 +782,7 @@ export const adminService = {
   // System Settings
   async getSystemConfig() {
     try {
-      return await apiRequest(`${API_BASE_URL}/admin/system-config`);
+      return await apiRequest(`${API_BASE_URL}/system-config`);
     } catch (error) {
       console.error('Get system config error:', error);
       throw error;
@@ -791,12 +791,102 @@ export const adminService = {
 
   async updateSystemConfig(configData) {
     try {
-      return await apiRequest(`${API_BASE_URL}/admin/system-config`, {
+      return await apiRequest(`${API_BASE_URL}/system-config`, {
         method: 'PUT',
         body: JSON.stringify(configData)
       });
     } catch (error) {
       console.error('Update system config error:', error);
+      throw error;
+    }
+  },
+
+  // Payment Configuration - new methods
+  async toggleMomoPayment(enableMomo) {
+    try {
+      const value = enableMomo ? 1 : 0;
+      return await apiRequest(`${API_BASE_URL}/system-config/payment/momo/toggle?enableMomo=${value}`, {
+        method: 'PUT'
+      });
+    } catch (error) {
+      console.error('Toggle MoMo payment error:', error);
+      throw error;
+    }
+  },
+
+  async toggleVNPayPayment(enableVNPay) {
+    try {
+      const value = enableVNPay ? 1 : 0;
+      return await apiRequest(`${API_BASE_URL}/system-config/payment/vnpay/toggle?enableVNPay=${value}`, {
+        method: 'PUT'
+      });
+    } catch (error) {
+      console.error('Toggle VNPay payment error:', error);
+      throw error;
+    }
+  },
+
+  async updateDefaultPaymentMethod(defaultPaymentMethod) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/system-config/payment/default-method?defaultPaymentMethod=${defaultPaymentMethod}`, {
+        method: 'PUT'
+      });
+    } catch (error) {
+      console.error('Update default payment method error:', error);
+      throw error;
+    }
+  },
+
+  async updateMomoConfiguration(momoConfig) {
+    try {
+      const params = new URLSearchParams();
+      if (momoConfig.partnerCode) params.append('partnerCode', momoConfig.partnerCode);
+      if (momoConfig.accessKey) params.append('accessKey', momoConfig.accessKey);
+      if (momoConfig.secretKey) params.append('secretKey', momoConfig.secretKey);
+      if (momoConfig.apiEndpoint) params.append('apiEndpoint', momoConfig.apiEndpoint);
+      
+      return await apiRequest(`${API_BASE_URL}/system-config/payment/momo?${params}`, {
+        method: 'PUT'
+      });
+    } catch (error) {
+      console.error('Update MoMo configuration error:', error);
+      throw error;
+    }
+  },
+
+  async updateVNPayConfiguration(vnpayConfig) {
+    try {
+      const params = new URLSearchParams();
+      if (vnpayConfig.tmnCode) params.append('tmnCode', vnpayConfig.tmnCode);
+      if (vnpayConfig.secretKey) params.append('secretKey', vnpayConfig.secretKey);
+      
+      return await apiRequest(`${API_BASE_URL}/system-config/payment/vnpay?${params}`, {
+        method: 'PUT'
+      });
+    } catch (error) {
+      console.error('Update VNPay configuration error:', error);
+      throw error;
+    }
+  },
+
+  async updateDepositAmount(amount) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/system-config/deposit/amount?amount=${amount}`, {
+        method: 'PUT'
+      });
+    } catch (error) {
+      console.error('Update deposit amount error:', error);
+      throw error;
+    }
+  },
+
+  async createDefaultConfiguration() {
+    try {
+      return await apiRequest(`${API_BASE_URL}/system-config/default`, {
+        method: 'POST'
+      });
+    } catch (error) {
+      console.error('Create default configuration error:', error);
       throw error;
     }
   },

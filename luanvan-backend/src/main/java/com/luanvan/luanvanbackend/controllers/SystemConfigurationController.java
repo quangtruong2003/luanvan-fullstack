@@ -60,17 +60,62 @@ public class SystemConfigurationController {
     }
 
     /**
+     * Bật/tắt phương thức thanh toán MoMo (chỉ Admin)
+     */
+    @PutMapping("/payment/momo/toggle")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SystemConfiguration> toggleMomoPayment(
+            @RequestParam boolean enableMomo) {
+        SystemConfiguration config = systemConfigurationService.toggleMomoPayment(enableMomo);
+        return ResponseEntity.ok(config);
+    }
+
+    /**
+     * Bật/tắt phương thức thanh toán VNPay (chỉ Admin)
+     */
+    @PutMapping("/payment/vnpay/toggle")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SystemConfiguration> toggleVNPayPayment(
+            @RequestParam boolean enableVNPay) {
+        SystemConfiguration config = systemConfigurationService.toggleVNPayPayment(enableVNPay);
+        return ResponseEntity.ok(config);
+    }
+
+    /**
+     * Cập nhật phương thức thanh toán mặc định (chỉ Admin)
+     */
+    @PutMapping("/payment/default-method")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SystemConfiguration> updateDefaultPaymentMethod(
+            @RequestParam String defaultPaymentMethod) {
+        SystemConfiguration config = systemConfigurationService.updateDefaultPaymentMethod(defaultPaymentMethod);
+        return ResponseEntity.ok(config);
+    }
+
+    /**
      * Cập nhật thông tin cấu hình Momo (chỉ Admin)
      */
-    @PutMapping("/momo")
+    @PutMapping("/payment/momo")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SystemConfiguration> updateMomoConfiguration(
-            @RequestParam String partnerCode,
-            @RequestParam String accessKey,
-            @RequestParam String secretKey,
-            @RequestParam String apiEndpoint) {
+            @RequestParam(required = false) String partnerCode,
+            @RequestParam(required = false) String accessKey,
+            @RequestParam(required = false) String secretKey,
+            @RequestParam(required = false) String apiEndpoint) {
         SystemConfiguration config = systemConfigurationService.updateMomoConfiguration(
                 partnerCode, accessKey, secretKey, apiEndpoint);
+        return ResponseEntity.ok(config);
+    }
+
+    /**
+     * Cập nhật thông tin cấu hình VNPay (chỉ Admin)
+     */
+    @PutMapping("/payment/vnpay")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SystemConfiguration> updateVNPayConfiguration(
+            @RequestParam(required = false) String tmnCode,
+            @RequestParam(required = false) String secretKey) {
+        SystemConfiguration config = systemConfigurationService.updateVNPayConfiguration(tmnCode, secretKey);
         return ResponseEntity.ok(config);
     }
 
