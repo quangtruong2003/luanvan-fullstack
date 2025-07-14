@@ -1,5 +1,8 @@
-// API Base URL - sử dụng environment variable hoặc localhost
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9090/api';
+// API Base URL - sử dụng environment variable hoặc detect production
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (window.location.hostname === 'localhost' 
+    ? 'http://localhost:9090/api' 
+    : 'https://luanvan-backend-1g56.onrender.com/api');
 
 // Notification service for user feedback
 export const notificationService = {
