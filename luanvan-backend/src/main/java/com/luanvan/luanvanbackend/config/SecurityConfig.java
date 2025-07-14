@@ -89,6 +89,13 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/shifts/clinic/*").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/shifts/day/*").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/shifts/default").permitAll()
+                        // Public read-only endpoints for standard work shifts
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts/clinic/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts/day/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts/default").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts/specialty/*").permitAll()
                         // Admin availability endpoints (will be protected by @PreAuthorize)
                         .requestMatchers("/api/availability/admin/**").authenticated()
                         .requestMatchers("/api/availability/slots/clinic/*").authenticated()

@@ -54,6 +54,13 @@ const getAuthHeaders = () => {
   };
 };
 
+// Helper function for public API requests (không cần token)
+const getPublicHeaders = () => {
+  return {
+    'Content-Type': 'application/json'
+  };
+};
+
 // Enhanced error handling with user-friendly messages
 const handleApiError = (error, operation) => {
   const errorMessages = {
@@ -169,6 +176,25 @@ const apiRequest = async (url, options = {}) => {
     return await handleResponse(response);
   } catch (error) {
     console.error('API Request failed:', error);
+    throw error;
+  }
+};
+
+// Public API request (không cần authentication)
+const publicApiRequest = async (url, options = {}) => {
+  try {
+    console.log('🚀 Public API Request:', url, options.method || 'GET');
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...getPublicHeaders(),
+        ...options.headers
+      }
+    });
+    
+    return await handleResponse(response);
+  } catch (error) {
+    console.error('Public API Request failed:', error);
     throw error;
   }
 };
@@ -1055,7 +1081,8 @@ export const apiService = {
   async getDoctors(params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      return await apiRequest(`${API_BASE_URL}/doctors?${queryParams}`);
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/doctors?${queryParams}`);
     } catch (error) {
       console.error('Get doctors error:', error);
       throw error;
@@ -1073,7 +1100,8 @@ export const apiService = {
 
   async getDoctorsBySpecialty(specialtyId) {
     try {
-      return await apiRequest(`${API_BASE_URL}/doctors/specialty/${specialtyId}`);
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/doctors/specialty/${specialtyId}`);
     } catch (error) {
       console.error('Get doctors by specialty error:', error);
       throw error;
@@ -1110,14 +1138,8 @@ export const apiService = {
   // Specialty APIs  
   async getSpecialties() {
     try {
-      const response = await fetch(`${API_BASE_URL}/specialties`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      return data;
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/specialties`);
     } catch (error) {
       console.error('Error fetching specialties:', error);
       throw error;
@@ -1198,7 +1220,8 @@ export const apiService = {
   async getClinics(params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      return await apiRequest(`${API_BASE_URL}/clinics?${queryParams}`);
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/clinics?${queryParams}`);
     } catch (error) {
       console.error('Get clinics error:', error);
       throw error;
@@ -1252,7 +1275,8 @@ export const apiService = {
   // Lấy thông tin phòng khám theo ID
   async getClinicById(clinicId) {
     try {
-      return await apiRequest(`${API_BASE_URL}/clinics/${clinicId}`);
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/clinics/${clinicId}`);
     } catch (error) {
       console.error('Get clinic error:', error);
       throw error;
@@ -1263,7 +1287,8 @@ export const apiService = {
   async getDoctorByUserId(doctorId) {
     try {
       console.log('Gọi API getDoctorByUserId với doctorId:', doctorId);
-      const data = await apiRequest(`${API_BASE_URL}/doctors/${doctorId}`);
+      // Use publicApiRequest since this is a public endpoint
+      const data = await publicApiRequest(`${API_BASE_URL}/doctors/${doctorId}`);
       console.log('Dữ liệu bác sĩ nhận được từ API:', data);
       
       // Nếu đã có clinic object thì trả về ngay
@@ -1296,7 +1321,8 @@ export const apiService = {
     try {
       console.log(`📡 Fetching standard work shifts for clinic ID: ${clinicId}`);
       // This is the correct endpoint based on StandardWorkShiftController.java
-      return await apiRequest(`${API_BASE_URL}/standard-work-shifts/clinic/${clinicId}`);
+      // Use publicApiRequest since this is a public endpoint that doesn't require authentication
+      return await publicApiRequest(`${API_BASE_URL}/standard-work-shifts/clinic/${clinicId}`);
     } catch (error) {
       console.error('Get standard work shifts by clinic error:', error);
       throw error;
@@ -1307,7 +1333,8 @@ export const apiService = {
   async getAvailableSlots(doctorId, date) {
     try {
       console.log(`📡 Fetching available slots for doctor ID: ${doctorId} and date: ${date}`);
-      return await apiRequest(`${API_BASE_URL}/availability/slots/doctor/${doctorId}/date/${date}`);
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/availability/slots/doctor/${doctorId}/date/${date}`);
     } catch (error) {
       console.error('Get available slots error:', error);
       throw error;
