@@ -969,6 +969,51 @@ export const adminService = {
       console.error('Unset default standard work shift error:', error);
       throw error;
     }
+  },
+
+  // Clinic Specialty Management
+  async createClinicSpecialty(clinicId, specialtyData) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/clinics/${clinicId}/specialties`, {
+        method: 'POST',
+        body: JSON.stringify(specialtyData)
+      });
+    } catch (error) {
+      console.error('Create clinic specialty error:', error);
+      throw error;
+    }
+  },
+
+  async getClinicSpecialties(clinicId) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/clinics/${clinicId}/specialties`);
+    } catch (error) {
+      console.error('Get clinic specialties error:', error);
+      throw error;
+    }
+  },
+
+  async updateClinicSpecialty(clinicId, specialtyId, specialtyData) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/clinics/${clinicId}/specialties/${specialtyId}`, {
+        method: 'PUT',
+        body: JSON.stringify(specialtyData)
+      });
+    } catch (error) {
+      console.error('Update clinic specialty error:', error);
+      throw error;
+    }
+  },
+
+  async deleteClinicSpecialty(clinicId, specialtyId) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/clinics/${clinicId}/specialties/${specialtyId}`, {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error('Delete clinic specialty error:', error);
+      throw error;
+    }
   }
 };
 
