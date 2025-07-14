@@ -280,11 +280,11 @@ const BookAppointment = () => {
             </p>
 
             {/* Search Section */}
-            <div className={`max-w-4xl mx-auto transform transition-all duration-1000 delay-300 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-              <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-2xl">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div className={`max-w-3xl mx-auto transform transition-all duration-1000 delay-300 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
+              <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 shadow-2xl">
+                <div className="space-y-4">
                   {/* Search Input */}
-                  <div className="relative md:col-span-2">
+                  <div className="relative">
                     <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
                       type="text"
@@ -292,64 +292,76 @@ const BookAppointment = () => {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyPress={handleKeyPress}
-                      className="w-full pl-12 pr-4 py-4 bg-white/90 backdrop-blur-md border border-white/30 rounded-2xl focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 placeholder-gray-500 font-medium"
+                      className="w-full pl-12 pr-4 py-3 bg-white/90 backdrop-blur-md border border-white/30 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 placeholder-gray-500"
                     />
                   </div>
 
-                  {/* Specialty Filter */}
-                  <div className="relative">
-                    <Stethoscope className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <select
-                      value={selectedSpecialty}
-                      onChange={(e) => setSelectedSpecialty(e.target.value)}
-                      className="w-full pl-12 pr-10 py-4 bg-white/90 backdrop-blur-md border border-white/30 rounded-2xl focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 font-medium appearance-none"
-                    >
-                      <option value="">Tất cả chuyên khoa</option>
-                      {specialties.map(specialty => (
-                        <option key={specialty.specialty_id || specialty.specialtyId} value={specialty.specialty_id || specialty.specialtyId}>
-                          {specialty.name}
-                        </option>
-                      ))}
-                    </select>
+                  {/* Filters Row */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Specialty Filter */}
+                    <div className="relative flex-1">
+                      <Stethoscope className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <select
+                        value={selectedSpecialty}
+                        onChange={(e) => setSelectedSpecialty(e.target.value)}
+                        className="w-full pl-10 pr-8 py-3 bg-white/90 backdrop-blur-md border border-white/30 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 text-sm appearance-none cursor-pointer"
+                      >
+                        <option value="">Tất cả chuyên khoa</option>
+                        {specialties.map(specialty => (
+                          <option key={specialty.specialty_id || specialty.specialtyId} value={specialty.specialty_id || specialty.specialtyId}>
+                            {specialty.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Clinic Filter */}
+                    <div className="relative flex-1">
+                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <select
+                        value={selectedClinic}
+                        onChange={(e) => setSelectedClinic(e.target.value)}
+                        className="w-full pl-10 pr-8 py-3 bg-white/90 backdrop-blur-md border border-white/30 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 text-sm appearance-none cursor-pointer"
+                      >
+                        <option value="">Tất cả phòng khám</option>
+                        {clinics.map(clinic => (
+                          <option key={clinic.clinic_id || clinic.clinicId} value={clinic.clinic_id || clinic.clinicId}>
+                            {clinic.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Clinic Filter */}
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <select
-                      value={selectedClinic}
-                      onChange={(e) => setSelectedClinic(e.target.value)}
-                      className="w-full pl-12 pr-10 py-4 bg-white/90 backdrop-blur-md border border-white/30 rounded-2xl focus:ring-4 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 font-medium appearance-none"
-                    >
-                      <option value="">Tất cả phòng khám</option>
-                      {clinics.map(clinic => (
-                        <option key={clinic.clinic_id || clinic.clinicId} value={clinic.clinic_id || clinic.clinicId}>
-                          {clinic.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* Search Button */}
+                  <button
+                    onClick={handleSearch}
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-gray-900 font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-yellow-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-gray-900/20 border-t-gray-900 rounded-full animate-spin"></div>
+                        Đang tìm kiếm...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4" />
+                        Tìm bác sĩ phù hợp
+                      </>
+                    )}
+                  </button>
                 </div>
-
-                {/* Search Button */}
-                <button
-                  onClick={handleSearch}
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-gray-900 font-bold py-4 px-8 rounded-2xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-yellow-500/30 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed group"
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-gray-900/20 border-t-gray-900 rounded-full animate-spin"></div>
-                      Đang tìm kiếm...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
-                      Tìm bác sĩ phù hợp
-                      <TrendingUp className="w-5 h-5 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
-                    </>
-                  )}
-                </button>
               </div>
             </div>
           </div>
