@@ -1,10 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService } from '../services/api';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './DoctorCalendar.css';
-import { useAuth } from '../context/AuthContext';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { Calendar as LucideCalendar, Clock, User, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
 
@@ -12,6 +11,8 @@ const formatWorkingHours = (shifts) => {
   if (!shifts || shifts.length === 0) {
     return 'Chưa cập nhật';
   }
+
+  console.log('🔍 Formatting working hours with shifts:', shifts);
 
   const dayMap = {
     MONDAY: 'Thứ 2', TUESDAY: 'Thứ 3', WEDNESDAY: 'Thứ 4',
@@ -21,17 +22,39 @@ const formatWorkingHours = (shifts) => {
 
   // Group shifts by time range (e.g., "08:00 - 12:00")
   const shiftsByTime = shifts.reduce((acc, shift) => {
-    const startTime = (shift.startTime || shift.start_time)?.substring(0, 5);
-    const endTime = (shift.endTime || shift.end_time)?.substring(0, 5);
-    if (!startTime || !endTime) return acc;
+    // Handle both snake_case and camelCase field names
+    const startTime = shift.startTime || shift.start_time;
+    const endTime = shift.endTime || shift.end_time;
+    const dayOfWeek = shift.dayOfWeek || shift.day_of_week;
     
-    const timeRange = `${startTime} - ${endTime}`;
+    if (!startTime || !endTime || !dayOfWeek) {
+      console.warn('⚠️ Missing fields in shift:', shift);
+      return acc;
+    }
+    
+    // Format time - handle both string and LocalTime object
+    const formatTime = (time) => {
+      if (typeof time === 'string') {
+        return time.substring(0, 5);
+      }
+      if (time && time.hour !== undefined && time.minute !== undefined) {
+        return `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`;
+      }
+      return time;
+    };
+    
+    const formattedStartTime = formatTime(startTime);
+    const formattedEndTime = formatTime(endTime);
+    
+    const timeRange = `${formattedStartTime} - ${formattedEndTime}`;
     if (!acc[timeRange]) {
       acc[timeRange] = [];
     }
-    acc[timeRange].push(shift.dayOfWeek || shift.day_of_week);
+    acc[timeRange].push(dayOfWeek);
     return acc;
   }, {});
+
+  console.log('🔍 Shifts grouped by time:', shiftsByTime);
 
   // Format each group into a string like "Thứ 2 - Thứ 6: 08:00 - 17:00"
   const formattedStrings = Object.entries(shiftsByTime).map(([timeRange, days]) => {
@@ -65,7 +88,9 @@ const formatWorkingHours = (shifts) => {
     return `${dayString}: ${timeRange}`;
   });
 
-  return formattedStrings.join('; ');
+  const result = formattedStrings.join('; ');
+  console.log('✅ Final formatted working hours:', result);
+  return result;
 };
 
 const DoctorSchedule = () => {
@@ -76,6 +101,7 @@ const DoctorSchedule = () => {
   const [slots, setSlots] = useState([]);
   const [slotLoading, setSlotLoading] = useState(false);
   const [workShifts, setWorkShifts] = useState([]);
+  const [workShiftsError, setWorkShiftsError] = useState(null);
   const [loading, setLoading] = useState(true);
   const { isSignedIn, isLoaded } = useUser();
   const { openSignIn } = useClerk();
@@ -158,21 +184,21 @@ const DoctorSchedule = () => {
             try {
               console.log('🔍 Fetching work shifts for clinicId:', clinicId);
               console.log('🔍 Clinic object:', foundClinic);
-              console.log('🔍 API URL will be:', `${apiService.API_BASE_URL || 'http://localhost:9090/api'}/standard-work-shifts/clinic/${clinicId}`);
               
+              setWorkShiftsError(null); // Clear previous errors
               const shifts = await apiService.getStandardWorkShiftsByClinic(clinicId);
-              console.log('✅ Raw API response:', shifts);
-              console.log('✅ Response type:', typeof shifts);
-              console.log('✅ Is array?', Array.isArray(shifts));
+              console.log('✅ Raw API response for work shifts:', shifts);
               
-              if (shifts && Array.isArray(shifts)) {
-                console.log('✅ Setting work shifts:', shifts.length, 'items');
+              if (shifts && Array.isArray(shifts) && shifts.length > 0) {
+                console.log(`✅ Successfully loaded ${shifts.length} work shifts`);
                 shifts.forEach((shift, index) => {
                   console.log(`  Shift ${index}:`, {
-                    dayOfWeek: shift.dayOfWeek || shift.day_of_week,
-                    startTime: shift.startTime || shift.start_time,
-                    endTime: shift.endTime || shift.end_time,
-                    clinicId: shift.clinicId || shift.clinic_id
+                    shiftId: shift.shiftId,
+                    shiftName: shift.shiftName,
+                    dayOfWeek: shift.dayOfWeek,
+                    startTime: shift.startTime,
+                    endTime: shift.endTime,
+                    isDefault: shift.isDefault
                   });
                 });
                 setWorkShifts(shifts);
@@ -180,21 +206,19 @@ const DoctorSchedule = () => {
                 console.log('✅ Setting work shifts from .data property:', shifts.data.length, 'items');
                 setWorkShifts(shifts.data);
               } else {
-                console.warn('⚠️ Unexpected shifts format:', shifts);
+                console.warn('⚠️ No work shifts found for clinic:', clinicId);
+                console.warn('⚠️ Response:', shifts);
                 setWorkShifts([]);
+                setWorkShiftsError('Chưa có lịch làm việc cho phòng khám này');
               }
             } catch (shiftError) {
-              console.error("❌ Error fetching work shifts:", shiftError);
-              console.error("❌ Error details:", {
-                message: shiftError.message,
-                status: shiftError.status,
-                response: shiftError.response
-              });
+              console.error("❌ Error fetching work shifts for clinic", clinicId, ":", shiftError);
               setWorkShifts([]);
+              setWorkShiftsError(`Lỗi tải lịch làm việc: ${shiftError.message}`);
             }
         } else {
             console.warn('⚠️ Could not find clinic info or clinicId');
-            console.log('Debug clinic search results:', {
+            console.log('🔍 Clinic search debug:', {
               foundClinic,
               clinicId,
               'data.clinic': data.clinic,
@@ -202,17 +226,56 @@ const DoctorSchedule = () => {
               'data.clinic_id': data.clinic_id,
               'data.clinicId': data.clinicId
             });
-            setClinic({
-              id: 1, name: "Phòng khám mặc định", address: "Chưa cập nhật địa chỉ",
-              email: "info@clinic.com", phoneNumber: "0123456789"
-            });
-            setWorkShifts([]);
+            
+            // Try to find clinicId in other locations
+            let fallbackClinicId = null;
+            if (data.clinics && data.clinics.length > 0) {
+              fallbackClinicId = data.clinics[0].clinicId || data.clinics[0].clinic_id;
+            } else if (data.clinic_id) {
+              fallbackClinicId = data.clinic_id;
+            } else if (data.clinicId) {
+              fallbackClinicId = data.clinicId;
+            }
+            
+            if (fallbackClinicId) {
+              console.log('🔍 Found fallback clinic ID:', fallbackClinicId);
+              try {
+                const fallbackClinic = await apiService.getClinicById(fallbackClinicId);
+                setClinic(fallbackClinic);
+                
+                                 // Try to fetch work shifts for fallback clinic
+                 const shifts = await apiService.getStandardWorkShiftsByClinic(fallbackClinicId);
+                 if (shifts && Array.isArray(shifts) && shifts.length > 0) {
+                   setWorkShifts(shifts);
+                   setWorkShiftsError(null);
+                 } else {
+                   setWorkShifts([]);
+                   setWorkShiftsError('Chưa có lịch làm việc cho phòng khám này');
+                 }
+                             } catch (fallbackError) {
+                 console.error('❌ Error with fallback clinic:', fallbackError);
+                 setClinic({
+                   clinicId: 1, name: "Phòng khám mặc định", address: "Chưa cập nhật địa chỉ",
+                   email: "info@clinic.com", phoneNumber: "0123456789"
+                 });
+                 setWorkShifts([]);
+                 setWorkShiftsError('Lỗi tải thông tin phòng khám');
+               }
+                         } else {
+               setClinic({
+                 clinicId: 1, name: "Phòng khám mặc định", address: "Chưa cập nhật địa chỉ",
+                 email: "info@clinic.com", phoneNumber: "0123456789"
+               });
+               setWorkShifts([]);
+               setWorkShiftsError('Không tìm thấy thông tin phòng khám');
+             }
         }
       } catch (error) {
         console.error('Lỗi khi lấy thông tin bác sĩ:', error);
         setDoctor({ user: { full_name: "Bác sĩ không xác định" } });
         setClinic({ name: "Phòng khám không xác định" });
         setWorkShifts([]);
+        setWorkShiftsError('Lỗi tải thông tin bác sĩ và phòng khám');
       } finally {
         setLoading(false);
       }
@@ -461,7 +524,18 @@ const DoctorSchedule = () => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Giờ làm việc</p>
-                    <p className="text-gray-900 text-sm leading-relaxed">{formatWorkingHours(workShifts)}</p>
+                    {workShifts && workShifts.length > 0 ? (
+                      <p className="text-gray-900 text-sm leading-relaxed">{formatWorkingHours(workShifts)}</p>
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <p className="text-gray-500 text-sm">
+                          {workShiftsError || 'Chưa cập nhật'}
+                        </p>
+                        {loading && (
+                          <div className="animate-spin rounded-full h-3 w-3 border-b border-orange-600"></div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
