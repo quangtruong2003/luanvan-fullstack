@@ -47,7 +47,9 @@ public class SecurityConfig {
                         // Error handling
                         .requestMatchers("/error").permitAll()
                         // Authentication endpoints
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/clerk-sync").permitAll()
+                        .requestMatchers("/api/auth/create-first-admin").permitAll()
                         // Public endpoints
                         .requestMatchers("/api/public/**").permitAll()
                         // Payment callbacks (must be accessible without auth)
