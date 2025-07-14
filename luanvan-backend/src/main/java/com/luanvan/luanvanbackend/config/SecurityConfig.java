@@ -46,10 +46,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         // Error handling
                         .requestMatchers("/error").permitAll()
+                        // CORS preflight requests
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         // Authentication endpoints
-                        .requestMatchers("/api/auth/login").permitAll()
-                        .requestMatchers("/api/auth/clerk-sync").permitAll()
-                        .requestMatchers("/api/auth/create-first-admin").permitAll()
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
                         // Public endpoints
                         .requestMatchers("/api/public/**").permitAll()
                         // Payment callbacks (must be accessible without auth)
