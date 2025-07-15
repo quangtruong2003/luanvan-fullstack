@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   CreditCard, 
@@ -14,12 +14,12 @@ import {
   AlertCircle,
   ArrowRight,
   Stethoscope,
-  Building2
+  Building2,
+  Loader2
 } from 'lucide-react';
-import { apiService } from '../services/api';
+import { apiService, authService, adminService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../components/NotificationSystem';
-import { adminService } from '../services/api';
 
 const BookAppointmentDetails = () => {
   const navigate = useNavigate();
@@ -49,11 +49,14 @@ const BookAppointmentDetails = () => {
   });  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [specialtyId, setSpecialtyId] = useState(null);
+  const [isPaymentRequired, setIsPaymentRequired] = useState(true);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [configError, setConfigError] = useState(null);
   
-  // Hàm lấy thông tin người dùng từ API
+  // Hàm lấy thông tin người dùng từ API - chỉ sử dụng API, không localStorage
   const fetchUserInfoFromAPI = async () => {
     try {
-      const userData = await apiService.getCurrentUser();
+      const userData = await authService.getCurrentUserFromAPI();
       if (userData) {
         console.log('Fetched user data from API:', userData);
         const userDataFormatted = {
@@ -63,70 +66,77 @@ const BookAppointmentDetails = () => {
           phone_number: userData.phone_number || userData.phoneNumber || ''
         };
         setUserInfo(userDataFormatted);
-        setFormData(prev => ({
-          ...prev,
-          patientName: userDataFormatted.full_name,
-          patientPhone: userDataFormatted.phone_number,
-          patientEmail: userDataFormatted.email
-        }));
+      } else {
+        console.warn('No user data received from API');
+        setError('Không thể lấy thông tin người dùng. Vui lòng đăng nhập lại.');
       }
     } catch (err) {
       console.error('Error fetching user info from API:', err);
+      setError('Không thể lấy thông tin người dùng. Vui lòng đăng nhập lại.');
     }
   };
   
-  // Lấy thông tin người dùng từ localStorage hoặc currentUser  
+  // Chỉ load thông tin người dùng từ API khi component mount
   useEffect(() => {
-    console.log('Checking user info sources...');
+    console.log('Loading user info from API...');
     
-    // Lấy từ currentUser trước
-    if (currentUser) {
-      console.log('Using currentUser:', currentUser);
-      const userData = {
-        user_id: currentUser.id || currentUser.user_id || currentUser.userId,
-        full_name: currentUser.fullName || currentUser.full_name || '',
-        email: currentUser.email || '',
-        phone_number: currentUser.phoneNumber || currentUser.phone_number || ''
-      };
-      setUserInfo(userData);
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchUserInfoFromAPI();
+    } else {
+      setError('Vui lòng đăng nhập để tiếp tục.');
+    }
+  }, []);
+
+  // Đồng bộ thông tin user vào form khi userInfo được load
+  useEffect(() => {
+    if (userInfo && userInfo.user_id) {
       setFormData(prev => ({
         ...prev,
-        patientName: userData.full_name,
-        patientPhone: userData.phone_number,
-        patientEmail: userData.email
+        patientName: userInfo.full_name,
+        patientEmail: userInfo.email,
+        // CHỈ cập nhật SĐT nếu trong form đang trống hoặc chưa có input từ user
+        // Điều này đảm bảo không ghi đè số điện thoại mà user đã nhập
+        patientPhone: prev.patientPhone || userInfo.phone_number || '',
       }));
-    } else {
-      // Fallback: lấy từ localStorage
-      const backendUserId = localStorage.getItem('backendUserId');
-      const userName = localStorage.getItem('userName');
-      const userEmail = localStorage.getItem('userEmail');
-      const userPhone = localStorage.getItem('userPhone'); // Thêm phone từ localStorage
-      
-      console.log('Using localStorage fallback:', { backendUserId, userName, userEmail, userPhone });
-      
-      if (backendUserId || userName || userEmail) {
-        const userData = {
-          user_id: backendUserId ? parseInt(backendUserId) : null,
-          full_name: userName || '',
-          email: userEmail || '',
-          phone_number: userPhone || ''
-        };
-        setUserInfo(userData);
-        setFormData(prev => ({
-          ...prev,
-          patientName: userData.full_name,
-          patientPhone: userData.phone_number,
-          patientEmail: userData.email
-        }));
-      } else {
-        // Thử lấy thông tin từ API nếu có token
-        const token = localStorage.getItem('token');
-        if (token) {
-          console.log('Attempting to fetch user info from API...');
-          fetchUserInfoFromAPI();
+    }
+  }, [userInfo]);
+
+  const fetchPaymentConfig = useCallback(async () => {
+    setLoadingConfig(true);
+    setConfigError(null);
+    try {
+        const systemConfigs = await adminService.getSystemConfig();
+        const fetchedConfig = Array.isArray(systemConfigs) ? systemConfigs[0] : systemConfigs;
+
+        if (!fetchedConfig) {
+            throw new Error("Không thể tải cấu hình hệ thống.");
         }
-      }    }
-  }, [currentUser]);
+
+        const newConfig = {
+            enableMomo: fetchedConfig.enableMomo || false,
+            enableVNPay: fetchedConfig.enableVNPay || false,
+            depositAmount: fetchedConfig.depositAmount || 0,
+        };
+
+        const needsPayment = newConfig.enableMomo || newConfig.enableVNPay;
+        const hasDeposit = newConfig.depositAmount > 0;
+        setIsPaymentRequired(needsPayment && hasDeposit);
+
+    } catch (error) {
+        const errorMessage = error.message || 'Không thể tải cấu hình hệ thống. Vui lòng thử lại.';
+        console.error('Error fetching system config:', error);
+        setConfigError(errorMessage);
+        showError(errorMessage, 'Lỗi hệ thống');
+    } finally {
+        setLoadingConfig(false);
+    }
+  }, [showError]);
+
+  // Effect để lấy cấu hình thanh toán từ API khi component được mount
+  useEffect(() => {
+    fetchPaymentConfig();
+  }, [fetchPaymentConfig]);
   
   // Lấy specialtyId từ slot nếu có
   useEffect(() => {
@@ -282,8 +292,20 @@ const BookAppointmentDetails = () => {
       return;
     }
 
+    // Xử lý số điện thoại - QUAN TRỌNG: Không được cập nhật số điện thoại thành null/rỗng
+    const inputPhone = formData.patientPhone?.trim() || '';
+    const currentPhone = userInfo.phone_number?.trim() || '';
+    
+    // Nếu user không nhập gì, sử dụng SĐT hiện tại từ database
+    const finalPhone = inputPhone || currentPhone;
+    
+    if (!finalPhone) {
+      setError('Vui lòng nhập số điện thoại');
+      return;
+    }
+    
     // Chuẩn hóa số điện thoại: chỉ giữ lại các chữ số
-    const normalizedPhone = formData.patientPhone.replace(/\D/g, '');
+    const normalizedPhone = finalPhone.replace(/\D/g, '');
     
     // Kiểm tra độ dài số điện thoại sau khi chuẩn hóa
     if (normalizedPhone.length < 10 || normalizedPhone.length > 11) {
@@ -298,40 +320,16 @@ const BookAppointmentDetails = () => {
       return;
     }
     
-    // Cập nhật formData với số điện thoại đã chuẩn hóa
-    setFormData(prev => ({
-      ...prev,
-      patientPhone: normalizedPhone
-    }));
+    console.log('📞 Phone validation passed:', {
+      inputPhone,
+      currentPhone,
+      finalPhone,
+      normalizedPhone,
+      willUpdate: inputPhone && inputPhone !== currentPhone
+    });
     
     // === BƯỚC 1: XÁC ĐỊNH USER ID ===
-    let userId = null;
-    
-    // Thử lấy từ nhiều nguồn với thứ tự ưu tiên
-    if (userInfo.user_id) {
-      userId = userInfo.user_id;
-    } else if (currentUser?.id) {
-      userId = currentUser.id;
-    } else if (currentUser?.user_id) {
-      userId = currentUser.user_id;  
-    } else if (currentUser?.userId) {
-      userId = currentUser.userId;
-    } else {
-      // Fallback: lấy từ localStorage
-      const backendUserId = localStorage.getItem('backendUserId');
-      if (backendUserId && !isNaN(parseInt(backendUserId))) {
-        userId = parseInt(backendUserId);
-      }
-    }
-    
-    console.log('🔍 User ID Resolution:', {
-      userInfo_user_id: userInfo.user_id,
-      currentUser_id: currentUser?.id,
-      currentUser_user_id: currentUser?.user_id,
-      currentUser_userId: currentUser?.userId,
-      localStorage_backendUserId: localStorage.getItem('backendUserId'),
-      finalUserId: userId
-    });
+    const userId = userInfo.user_id;
     
     if (!userId || isNaN(parseInt(userId))) {
       setError('Không tìm thấy thông tin người dùng hợp lệ. Vui lòng đăng nhập lại.');
@@ -743,8 +741,22 @@ const BookAppointmentDetails = () => {
       console.warn('Failed to load payment config:', error);
     }
 
+    console.log('💰 Payment config loaded:', paymentConfig);
+
+    // Kiểm tra xem có cần thanh toán không
+    const needsPayment = paymentConfig.enableMomo || paymentConfig.enableVNPay;
+    const hasDepositAmount = paymentConfig.depositAmount && paymentConfig.depositAmount > 0;
+    
+    console.log('💰 Payment checks:', {
+      needsPayment,
+      hasDepositAmount,
+      enableMomo: paymentConfig.enableMomo,
+      enableVNPay: paymentConfig.enableVNPay,
+      depositAmount: paymentConfig.depositAmount
+    });
+
     // Nếu không có phương thức thanh toán nào được bật hoặc depositAmount = 0, set status = CONFIRMED
-    if ((!paymentConfig.enableMomo && !paymentConfig.enableVNPay) || paymentConfig.depositAmount === 0) {
+    if (!needsPayment || !hasDepositAmount) {
       defaultStatus = 'CONFIRMED';
       console.log('💰 No payment required - Setting appointment status to CONFIRMED');
     } else {
@@ -828,21 +840,29 @@ const BookAppointmentDetails = () => {
 
     try {
       // === BƯỚC 10: CẬP NHẬT PHONE NUMBER NẾU CẦN ===
-      // Cập nhật số điện thoại nếu người dùng đã thay đổi
-      if (normalizedPhone !== userInfo.phone_number && normalizedPhone.trim()) {
+      let phoneUpdateSuccess = false;
+      
+      // CHỈ cập nhật nếu:
+      // 1. User thực sự nhập số điện thoại mới (inputPhone không rỗng)
+      // 2. Số điện thoại mới khác với số hiện tại
+      // 3. Số điện thoại mới đã được validate và chuẩn hóa
+      
+      // Chỉ cập nhật khi user thực sự nhập số mới VÀ số đó khác với số hiện tại
+      if (inputPhone && inputPhone !== currentPhone && normalizedPhone && normalizedPhone.length >= 10) {
         try {
           console.log('📞 Updating user phone number...');
-          console.log('📞 Current phone:', userInfo.phone_number);
+          console.log('📞 Current phone:', currentPhone);
+          console.log('📞 New phone (input):', inputPhone);
           console.log('📞 New phone (normalized):', normalizedPhone);
           
-          // Sử dụng endpoint mới và an toàn hơn
           await adminService.updateUserContactInfo(userId, {
             phoneNumber: normalizedPhone
           });
           
-          console.log('✅ Phone number updated successfully via /contact-info');
+          console.log('✅ Phone number updated successfully');
+          phoneUpdateSuccess = true;
           
-          // Cập nhật thông tin local để tránh việc gọi API lại
+          // Cập nhật thông tin local
           setUserInfo(prev => ({
             ...prev,
             phone_number: normalizedPhone
@@ -850,51 +870,30 @@ const BookAppointmentDetails = () => {
           
         } catch (phoneUpdateError) {
           console.error('❌ Failed to update phone number:', phoneUpdateError);
-          
-          // Bắt lỗi duplicate từ backend một cách chính xác
-          if (phoneUpdateError.message && phoneUpdateError.message.includes('Số điện thoại đã được sử dụng')) {
-            setError('Số điện thoại này đã được sử dụng bởi một tài khoản khác. Vui lòng nhập số khác.');
-            setLoading(false); // Dừng loading
-            return; // Dừng toàn bộ quá trình
-          }
-          
-          // Các lỗi khác thì cảnh báo nhưng vẫn tiếp tục
           showError('Không thể cập nhật số điện thoại của bạn lúc này. Lịch hẹn sẽ vẫn được tạo.', 'Cảnh báo');
         }
+      } else {
+        console.log('📞 No phone update needed:', {
+          inputPhone,
+          currentPhone,
+          normalizedPhone,
+          hasInput: !!inputPhone,
+          isDifferent: inputPhone !== currentPhone,
+          isValidNormalized: normalizedPhone && normalizedPhone.length >= 10
+        });
       }
 
       // === BƯỚC 11: KIỂM TRA PAYMENT CONFIG VÀ CHUYỂN HƯỚNG ===
-      console.log('🚀 Checking payment configuration...');
+      console.log('🚀 Checking payment requirement:', { isPaymentRequired });
+
+      // Chuẩn bị thông tin để hiển thị (sử dụng SĐT đã chuẩn hóa)
+      const clinicName = clinicData?.name || clinicData?.clinic_name || slotData?.clinic?.name || slotData?.clinic?.clinic_name || doctorData?.clinic?.name || doctorData?.clinic?.clinic_name || doctorData?.specialties?.[0]?.clinic?.name || doctorData?.specialties?.[0]?.clinic?.clinic_name || 'Phòng khám mặc định';
+      const doctorName = doctorData?.user?.full_name || doctorData?.user?.fullName || doctorData?.user?.name || doctorData?.fullName || doctorData?.full_name || doctorData?.name || 'Bác sĩ không xác định';
+      const specialtyName = doctorData?.specialties?.map(s => s.name || s.specialty_name).join(', ') || doctorData?.specialty?.name || doctorData?.specialty?.specialty_name || slotData?.specialty?.name || slotData?.specialty?.specialty_name || 'Chuyên khoa chung';
       
-      // Chuẩn bị thông tin để hiển thị trong trang thanh toán
-      const clinicName = clinicData?.name || 
-                        clinicData?.clinic_name ||
-                        slotData?.clinic?.name || 
-                        slotData?.clinic?.clinic_name ||
-                        doctorData?.clinic?.name ||
-                        doctorData?.clinic?.clinic_name ||
-                        doctorData?.specialties?.[0]?.clinic?.name ||
-                        doctorData?.specialties?.[0]?.clinic?.clinic_name ||
-                        'Phòng khám mặc định';
-
-      const doctorName = doctorData?.user?.full_name || 
-                        doctorData?.user?.fullName || 
-                        doctorData?.user?.name ||
-                        doctorData?.fullName ||
-                        doctorData?.full_name ||
-                        doctorData?.name ||
-                        'Bác sĩ không xác định';
-
-      const specialtyName = doctorData?.specialties?.map(s => s.name || s.specialty_name).join(', ') || 
-                           doctorData?.specialty?.name ||
-                           doctorData?.specialty?.specialty_name ||
-                           slotData?.specialty?.name ||
-                           slotData?.specialty?.specialty_name ||
-                           'Chuyên khoa chung';
-
       const appointmentInfo = {
         patientName: formData.patientName || userInfo.full_name,
-        patientPhone: normalizedPhone,
+        patientPhone: finalPhone, // Sử dụng số điện thoại cuối cùng (có thể là input hoặc current)
         patientEmail: formData.patientEmail || userInfo.email,
         doctorName: doctorName,
         specialtyName: specialtyName,
@@ -902,52 +901,41 @@ const BookAppointmentDetails = () => {
         appointmentDateTime: appointmentDateTime,
         reasonForVisit: formData.reasonForVisit
       };
-      
-      console.log('📋 Appointment info for payment:', appointmentInfo);
-      console.log('📋 Appointment data for payment:', appointmentData);
-      
-      // Check payment configuration
-      console.log('💰 Payment config check:', paymentConfig);
 
-      // If no payment methods enabled, create free appointment directly
-      if (!paymentConfig.enableMomo && !paymentConfig.enableVNPay) {
-        console.log('🆓 No payment methods enabled - Creating free appointment...');
+      if (!isPaymentRequired) {
+        console.log('🆓 No payment required. Creating appointment directly...');
         
         const freeAppointmentData = {
           ...appointmentData,
+          status: 'CONFIRMED',
+          isDepositPaid: true,
+          is_deposit_paid: true,
           depositAmount: 0.0,
-          status: 'CONFIRMED', // Đảm bảo trạng thái là CONFIRMED
-          isDepositPaid: false,
-          isDepositNonRefundable: false
         };
 
-        try {
-          const response = await apiService.createAppointment(freeAppointmentData);
-          console.log('✅ Free appointment created successfully:', response);
-          
-          navigate('/booking-success', {
-            state: {
-              appointment: response,
-              paymentMethod: 'free',
-              paymentStatus: 'completed'
-            }
-          });
-          return;
-          
-        } catch (freeError) {
-          console.error('❌ Free appointment error:', freeError);
-          setError('Có lỗi xảy ra khi đặt lịch miễn phí: ' + freeError.message);
-          return;
-        }
+        const response = await apiService.createAppointment(freeAppointmentData);
+        console.log('✅ Free appointment created successfully:', response);
+        
+        navigate('/booking-success', {
+          state: {
+            appointment: response,
+            paymentMethod: 'free',
+            paymentStatus: 'completed',
+            phoneUpdateSuccess: phoneUpdateSuccess
+          }
+        });
+
+      } else {
+        console.log('💰 Payment required. Navigating to payment page...');
+        
+        navigate('/payment', {
+          state: {
+            appointmentData: appointmentData,
+            appointmentInfo: appointmentInfo,
+            phoneUpdateSuccess: phoneUpdateSuccess
+          }
+        });
       }
-      
-      // Normal payment flow - redirect to payment page
-      navigate('/payment', {
-        state: {
-          appointmentData: appointmentData,
-          appointmentInfo: appointmentInfo
-        }
-      });
       
     } catch (err) {
       console.error('❌ Create appointment error:', err);
@@ -984,7 +972,7 @@ const BookAppointmentDetails = () => {
             }
           } catch {
             // Use original error message if parsing fails
-          errorMessage = err.message;
+            errorMessage = err.message;
           }
         }
       }
@@ -996,6 +984,49 @@ const BookAppointmentDetails = () => {
       setLoading(false);
     }
   };
+
+  // UI khi đang tải cấu hình
+  if (loadingConfig) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <Loader2 className="w-16 h-16 text-blue-600 animate-spin" />
+          <p className="mt-4 text-lg text-gray-700 font-semibold">Đang tải cấu hình...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // UI khi có lỗi tải cấu hình
+  if (configError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Lỗi tải dữ liệu</h2>
+            <p className="text-gray-600 mb-8 leading-relaxed">{configError}</p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => navigate(-1)}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-2xl hover:bg-gray-200 transition-all duration-300"
+              >
+                Quay lại
+              </button>
+              <button
+                onClick={fetchPaymentConfig}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
+              >
+                Thử lại
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Kiểm tra có dữ liệu từ location không
   if (!slotData || !doctorData) {
@@ -1250,27 +1281,26 @@ const BookAppointmentDetails = () => {
                     </div>
                   </div>
 
-                  {/* Phone Input - Conditional Rendering */}
+                  {/* Phone Input - Always Editable */}
                   <div className="space-y-2">
                     <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700">
                       <Phone className="w-4 h-4" />
                       <span>Số điện thoại</span>
                       {/* Thêm dấu * nếu SĐT chưa có */}
-                      {!userInfo.phone_number && <span className="text-red-500">*</span>}
+                      <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="tel"
                       name="patientPhone"
-                      value={formData.patientPhone}
+                      value={formData.patientPhone || ''}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      placeholder={userInfo.phone_number ? '' : 'Nhập số điện thoại của bạn'}
-                      required={!userInfo.phone_number}
-                      disabled={!!userInfo.phone_number}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                      placeholder="Nhập số điện thoại của bạn"
+                      required
                     />
                     <p className="text-xs text-gray-500">
                       {userInfo.phone_number 
-                        ? 'Số điện thoại đã được lưu trong hồ sơ của bạn.'
+                        ? `Sử dụng SĐT đã lưu: ${userInfo.phone_number}. Bạn có thể cập nhật nếu cần.`
                         : 'Số điện thoại này sẽ được lưu vào hồ sơ của bạn.'}
                     </p>
                   </div>
@@ -1318,7 +1348,7 @@ const BookAppointmentDetails = () => {
                         </>
                       ) : (
                         <>
-                          <span>Tiếp tục thanh toán</span>
+                          <span>{isPaymentRequired ? 'Tiếp tục thanh toán' : 'Xác nhận đặt lịch'}</span>
                           <ArrowRight className="w-5 h-5" />
                         </>
                       )}

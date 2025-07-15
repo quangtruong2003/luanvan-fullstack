@@ -19,8 +19,17 @@ public class SystemConfigurationController {
     /**
      * Lấy cấu hình hiện tại của hệ thống (chỉ Admin)
      */
-    @GetMapping
+    @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<SystemConfiguration> getCurrentConfigurationForAdmin() {
+        SystemConfiguration config = systemConfigurationService.getCurrentConfiguration();
+        return ResponseEntity.ok(config);
+    }
+
+    /**
+     * Lấy cấu hình thanh toán (Public - không cần authentication)
+     */
+    @GetMapping
     public ResponseEntity<SystemConfiguration> getCurrentConfiguration() {
         SystemConfiguration config = systemConfigurationService.getCurrentConfiguration();
         return ResponseEntity.ok(config);

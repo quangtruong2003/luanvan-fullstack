@@ -96,11 +96,11 @@ public class UserServiceImpl implements UserService {
             user.setEmail(userUpdateDTO.getEmail());
         }
         if (userUpdateDTO.getPhoneNumber() != null) {
-            // Kiểm tra số điện thoại đã tồn tại chưa (nếu khác số hiện tại) - sử dụng Objects.equals để tránh NullPointerException
-            if (!Objects.equals(userUpdateDTO.getPhoneNumber(), user.getPhoneNumber()) &&
-                    userRepository.existsByPhoneNumber(userUpdateDTO.getPhoneNumber())) {
-                throw new RuntimeException("Số điện thoại đã được sử dụng bởi người dùng khác");
-            }
+            // Bỏ qua kiểm tra số điện thoại đã tồn tại để cho phép trùng lặp
+            // if (!Objects.equals(userUpdateDTO.getPhoneNumber(), user.getPhoneNumber()) &&
+            //         userRepository.existsByPhoneNumber(userUpdateDTO.getPhoneNumber())) {
+            //     throw new RuntimeException("Số điện thoại đã được sử dụng bởi người dùng khác");
+            // }
             user.setPhoneNumber(userUpdateDTO.getPhoneNumber());
         }
         if (userUpdateDTO.getDateOfBirth() != null) {
@@ -125,9 +125,10 @@ public class UserServiceImpl implements UserService {
             String newPhone = contactInfo.getPhoneNumber();
             // Chỉ kiểm tra trùng lặp nếu số điện thoại thực sự thay đổi
             if (!Objects.equals(newPhone, user.getPhoneNumber())) {
-                if (userRepository.existsByPhoneNumber(newPhone)) {
-                    throw new RuntimeException("Số điện thoại đã được sử dụng");
-                }
+                // Bỏ qua kiểm tra số điện thoại đã tồn tại để cho phép trùng lặp
+                // if (userRepository.existsByPhoneNumber(newPhone)) {
+                //     throw new RuntimeException("Số điện thoại đã được sử dụng");
+                // }
                 user.setPhoneNumber(newPhone);
             }
         }

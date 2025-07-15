@@ -257,8 +257,38 @@ export const authService = {
       throw error;
     }
   },
-  // Lấy thông tin user hiện tại
-  // Get current user (use localStorage data instead of problematic API)
+  
+  // Lấy thông tin user hiện tại từ API với thông tin đầy đủ
+  async getCurrentUserFromAPI() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No token found');
+      }
+
+      console.log('🔄 Fetching current user from API /users/me');
+      const data = await apiRequest(`${API_BASE_URL}/users/me`);
+      console.log('✅ Successfully fetched user from API:', data);
+      
+      return {
+        user_id: data.userId || data.user_id,
+        id: data.userId || data.user_id,
+        full_name: data.fullName || data.full_name || '',
+        fullName: data.fullName || data.full_name || '',
+        email: data.email || '',
+        phone_number: data.phoneNumber || data.phone_number || '',
+        phoneNumber: data.phoneNumber || data.phone_number || '',
+        role_name: data.role?.roleName || data.role_name || '',
+        role: data.role?.roleName || data.role_name || '',
+        isActive: data.isActive || data.active || true
+      };
+    } catch (error) {
+      console.error('❌ Error fetching user from API:', error);
+      throw error;
+    }
+  },
+
+  // Lấy thông tin user hiện tại - chỉ sử dụng API
   async getCurrentUser() {
     try {
       const token = localStorage.getItem('token');
@@ -266,68 +296,11 @@ export const authService = {
         throw new Error('No token found');
       }
 
-      // Use localStorage data instead of API call to avoid user not found errors
-      const backendUserId = localStorage.getItem('backendUserId');
-      const userName = localStorage.getItem('userName');
-      const userEmail = localStorage.getItem('userEmail');
-      const userRole = localStorage.getItem('userRole');
-      
-      console.log('🔍 getCurrentUser - localStorage data:', {
-        backendUserId,
-        userName,
-        userEmail,
-        userRole
-      });
-      
-      if (backendUserId && userRole) {
-        return {
-          user_id: parseInt(backendUserId),
-          id: parseInt(backendUserId),
-          full_name: userName || 'User',
-          fullName: userName || 'User',
-          email: userEmail,
-          phone_number: '', // Will be fetched from API if needed
-          phoneNumber: '', // Will be fetched from API if needed
-          role_name: userRole,
-          role: userRole
-        };
-      }
-
-      // If no localStorage data, try API as fallback and handle errors gracefully
-      try {
-        console.log('🔄 Attempting fallback API call to /users/me');
-        const data = await apiRequest(`${API_BASE_URL}/users/me`);
-        console.log('✅ Successfully fetched from /users/me:', data);
-        
-        // Format the response to include both snake_case and camelCase fields
-        return {
-          user_id: data.userId || data.user_id,
-          id: data.userId || data.user_id,
-          full_name: data.fullName || data.full_name,
-          fullName: data.fullName || data.full_name,
-          email: data.email,
-          phone_number: data.phoneNumber || data.phone_number || '',
-          phoneNumber: data.phoneNumber || data.phone_number || '',
-          role_name: data.role?.roleName || userRole,
-          role: data.role?.roleName || userRole
-        };
-      } catch (apiError) {
-        console.warn('API /users/me failed, using localStorage fallback:', apiError.message);
-        return {
-          user_id: backendUserId ? parseInt(backendUserId) : null,
-          id: backendUserId ? parseInt(backendUserId) : null,
-          full_name: userName || '',
-          fullName: userName || '',
-          email: userEmail || '',
-          phone_number: '',
-          phoneNumber: '',
-          role_name: userRole || '',
-          role: userRole || ''
-        };
-      }
+      // Chỉ sử dụng API, không có fallback localStorage
+      return await this.getCurrentUserFromAPI();
     } catch (error) {
-      console.error('Get current user error:', error);
-      return null;
+      console.error('❌ Error in getCurrentUser:', error);
+      throw error;
     }
   },
 
@@ -340,6 +313,7 @@ export const authService = {
       localStorage.removeItem('backendUserId');
       localStorage.removeItem('userEmail');
       localStorage.removeItem('userName');
+      localStorage.removeItem('userPhone');
       
       return { success: true };
     } catch (error) {
