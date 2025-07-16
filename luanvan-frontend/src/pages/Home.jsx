@@ -41,11 +41,8 @@ const Home = () => {
             id: doc.doctor_id,
             name: doc.user.full_name,
             specialty: doc.specialties?.map(s => s.name).join(' & ') || 'Chuyên khoa chung',
-            rating: (Math.random() * (5.0 - 4.7) + 4.7).toFixed(1),
             experience: `${doc.years_of_experience || 5} năm kinh nghiệm`,
-            patients: `${(doc.years_of_experience || 5) * 250 + Math.floor(Math.random() * 500)}+ bệnh nhân`,
             image: doc.user.image_url || `https://source.unsplash.com/400x400/?doctor,person,${doc.doctor_id}`,
-            achievements: ['Chuyên gia hàng đầu', 'Bằng cấp quốc tế'].slice(0, Math.floor(Math.random() * 2) + 1)
           }));
           setDoctors(formattedDoctors);
         } else {
@@ -177,29 +174,10 @@ const Home = () => {
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
               </Link>
               
-              <button className="group flex items-center gap-3 px-8 py-4 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl font-semibold text-lg hover:bg-white/20 transition-all duration-300 hover:scale-105">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors duration-300">
-                  <Play className="w-5 h-5 ml-0.5" />
-                </div>
-                Xem demo 2 phút
-              </button>
             </div>
 
             {/* Trust Indicators */}
-            <div className={`mt-16 flex flex-wrap justify-center items-center gap-8 text-blue-200/80 transform transition-all duration-1000 delay-800 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-              <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-green-400" />
-                <span className="text-sm font-medium">Bảo mật chuẩn quốc tế</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-5 h-5 text-green-400" />
-                <span className="text-sm font-medium">Được cấp phép hoạt động</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Award className="w-5 h-5 text-yellow-400" />
-                <span className="text-sm font-medium">Giải thưởng uy tín 2024</span>
-              </div>
-            </div>
+           
           </div>
         </div>
 
@@ -305,6 +283,7 @@ const Home = () => {
                                         overflow: 'hidden'
                                       }}>
                                     {clinic.name}
+                                      
                                   </h3>
                                 </div>
                                 
@@ -321,29 +300,7 @@ const Home = () => {
                                   </p>
                                 </div>
                                 
-                                {/* Specialties - Flexible at bottom */}
-                                <div className="mt-auto">
-                                  <div className="flex flex-wrap justify-center gap-2 min-h-[2.5rem] items-center">
-                                    {clinic.specialties?.slice(0, 2).map((specialty) => (
-                                      <span 
-                                        key={`clinic-${clinic.clinic_id}-specialty-${specialty.specialty_id}`}
-                                        className="px-3 py-1 bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 text-xs font-medium rounded-full border border-blue-200 whitespace-nowrap"
-                                      >
-                                        {specialty.name}
-                                      </span>
-                                    ))}
-                                    {clinic.specialties?.length > 2 && (
-                                      <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full border border-gray-200 whitespace-nowrap">
-                                        +{clinic.specialties.length - 2} khoa
-                                      </span>
-                                    )}
-                                    {(!clinic.specialties || clinic.specialties.length === 0) && (
-                                      <span className="px-3 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded-full border border-gray-200">
-                                        Đa chuyên khoa
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
+                         
                                 
                                 {/* Hover overlay */}
                                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
@@ -352,13 +309,7 @@ const Home = () => {
                           ))}
                           
                           {/* Fill empty slots if needed */}
-                          {slideClinics.length < clinicsPerSlide && 
-                            Array.from({ length: clinicsPerSlide - slideClinics.length }, (_, emptyIndex) => (
-                              <div key={`empty-${emptyIndex}`} className="opacity-0">
-                                <div className="h-full min-h-[400px]"></div>
-                              </div>
-                            ))
-                          }
+                      
                         </div>
                       </div>
                     );

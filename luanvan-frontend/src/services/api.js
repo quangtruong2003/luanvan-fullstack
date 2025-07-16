@@ -112,12 +112,12 @@ const handleResponse = async (response) => {
   if (!response.ok) {
     // Handle authentication errors
     if (response.status === 401 || response.status === 403) {
-      console.warn('🔒 Authentication error detected');
+      console.warn(' Authentication error detected');
       handleAuthError(null, response);
     }
     
     const errorData = await response.json().catch(() => ({}));
-    console.error('❌ API Error:', response.status, errorData);
+    console.error(' API Error:', response.status, errorData);
     
     // Create descriptive error message
     const error = new Error(errorData.message || `HTTP error! status: ${response.status}`);
