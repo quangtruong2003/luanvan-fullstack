@@ -1,22 +1,35 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   CheckCircle, Calendar, Clock, User, Building, 
   Stethoscope, CreditCard, ArrowLeft, Home 
 } from 'lucide-react';
+import { useNotification } from '../components/NotificationSystem';
 
 const BookingSuccess = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { showSuccess } = useNotification();
   
   const appointment = location.state?.appointment;
   const paymentMethod = location.state?.paymentMethod;
   const paymentStatus = location.state?.paymentStatus;
+  const phoneUpdateSuccess = location.state?.phoneUpdateSuccess;
 
   // Debug appointment data structure
   console.log('🎉 BookingSuccess - Appointment data:', appointment);
   console.log('🎉 BookingSuccess - Payment method:', paymentMethod);
   console.log('🎉 BookingSuccess - Payment status:', paymentStatus);
+  console.log('🎉 BookingSuccess - Phone update success:', phoneUpdateSuccess);
+
+  useEffect(() => {
+    // Show phone update success notification if applicable
+    if (phoneUpdateSuccess) {
+      setTimeout(() => {
+        showSuccess('Số điện thoại đã được cập nhật thành công!', 'Cập nhật thông tin');
+      }, 1000);
+    }
+  }, [phoneUpdateSuccess, showSuccess]);
 
   const formatDateTime = (dateTime) => {
     if (!dateTime) return 'N/A';
@@ -98,6 +111,10 @@ const BookingSuccess = () => {
   console.log('🩺 Specialty object:', appointment?.specialty);
   console.log('📝 Reason for visit:', appointment?.reasonForVisit || appointment?.reason_for_visit);
   const paymentInfo = getPaymentMethodInfo(paymentMethod);
+
+  useEffect(() => {
+    showSuccess('Thông tin lịch hẹn đã được gửi về email của bạn. Vui lòng kiểm tra hộp thư (bao gồm cả spam/junk).');
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

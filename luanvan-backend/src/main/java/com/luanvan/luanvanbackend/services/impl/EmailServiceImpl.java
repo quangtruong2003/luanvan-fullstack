@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -57,21 +58,26 @@ public class EmailServiceImpl implements EmailService {
     @Async("emailTaskExecutor")
     public void sendAppointmentConfirmationEmail(Appointment appointment) {
         log.info("Sending appointment confirmation email for appointment: {}", appointment.getAppointmentId());
+        System.out.println("📧 EmailServiceImpl: Bắt đầu gửi email xác nhận");
+        System.out.println("📧 To: " + appointment.getPatient().getEmail());
+        System.out.println("📧 From: " + fromEmail);
         
         try {
-            String subject = "Xác nhận lịch hẹn khám bệnh - " + appointment.getClinic().getName();
+            String subject = "🏥 Thông Tin Lịch Hẹn Khám Bệnh - " + appointment.getClinic().getName();
             String content = buildConfirmationEmailContent(appointment);
             
-            CompletableFuture.runAsync(() -> {
+            System.out.println("📧 Subject: " + subject);
+            System.out.println("📧 Content length: " + content.length());
+            
+            // Gửi email ngay lập tức thay vì async để debug
                 sendHtmlEmail(appointment.getPatient().getEmail(), subject, content);
                 log.info("Confirmation email sent successfully for appointment: {}", appointment.getAppointmentId());
-            }).exceptionally(ex -> {
-                log.error("Failed to send confirmation email for appointment: " + appointment.getAppointmentId(), ex);
-                return null;
-            });
+            System.out.println("✅ Email xác nhận đã gửi thành công");
             
         } catch (Exception e) {
             log.error("Error sending confirmation email for appointment: " + appointment.getAppointmentId(), e);
+            System.err.println("❌ Lỗi gửi email xác nhận: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -160,19 +166,46 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendHtmlEmail(String to, String subject, String htmlContent) {
+        System.out.println("📧 ===== SEND HTML EMAIL =====");
+        System.out.println("📧 To: " + to);
+        System.out.println("📧 From: " + fromEmail);
+        System.out.println("📧 Subject: " + subject);
+        System.out.println("📧 Content length: " + htmlContent.length());
+        
         try {
+            System.out.println("📧 Tạo MimeMessage...");
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
+            System.out.println("📧 Set From: " + fromEmail);
             helper.setFrom(fromEmail);
+            
+            System.out.println("📧 Set To: " + to);
             helper.setTo(to);
+            
+            System.out.println("📧 Set Subject: " + subject);
             helper.setSubject(subject);
+            
+            System.out.println("📧 Set HTML content...");
             helper.setText(htmlContent, true);
+
+            System.out.println("📧 Đang gửi email qua SMTP...");
+            System.out.println("📧 SMTP Host: " + ((JavaMailSenderImpl) mailSender).getHost());
+            System.out.println("📧 SMTP Port: " + ((JavaMailSenderImpl) mailSender).getPort());
+            System.out.println("📧 SMTP Username: " + ((JavaMailSenderImpl) mailSender).getUsername());
 
             mailSender.send(message);
             log.info("HTML email sent successfully to: {}", to);
+            System.out.println("✅ Email đã gửi thành công qua SMTP");
+            System.out.println("📧 ===== HOÀN THÀNH SEND HTML EMAIL =====");
         } catch (MessagingException e) {
             log.error("Error sending HTML email to: " + to, e);
+            System.err.println("❌ ===== LỖI SEND HTML EMAIL =====");
+            System.err.println("❌ Lỗi SMTP: " + e.getMessage());
+            System.err.println("❌ Exception type: " + e.getClass().getSimpleName());
+            System.err.println("❌ Stack trace:");
+            e.printStackTrace();
+            System.err.println("❌ ===== KẾT THÚC LỖI SEND HTML EMAIL =====");
             throw new RuntimeException("Failed to send HTML email", e);
         }
     }
@@ -205,43 +238,108 @@ public class EmailServiceImpl implements EmailService {
     }
 
     private String buildConfirmationEmailContent(Appointment appointment) {
+        String paymentStatus = appointment.isDepositPaid() ? "Đã thanh toán" : "Chưa thanh toán";
+        String paymentNote = appointment.isDepositPaid() ? 
+            "Lịch hẹn của bạn đã được xác nhận hoàn toàn." : 
+            "Vui lòng thanh toán đặt cọc để xác nhận lịch hẹn.";
+        
+        // Thêm thông tin về số tiền đặt cọc nếu có
+        String depositInfo = "";
+        if (appointment.getDepositAmount() != null && appointment.getDepositAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+            depositInfo = String.format(" (Số tiền: %,.0f VNĐ)", appointment.getDepositAmount());
+        }
+        
         return String.format("""
             <html>
-            <body>
-                <h2>Xác nhận lịch hẹn khám bệnh</h2>
-                <p>Kính chào %s,</p>
-                <p>Lịch hẹn của bạn đã được xác nhận thành công!</p>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h1 style="color: #2c5aa0; margin: 0;">🏥 Thông Tin Lịch Hẹn Khám Bệnh</h1>
+                    </div>
+                    
+                    <p>Kính chào <strong>%s</strong>,</p>
+                    <p>Cảm ơn bạn đã đặt lịch hẹn khám bệnh. Dưới đây là thông tin chi tiết:</p>
                 
-                <div style="border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px;">
-                    <h3>Thông tin lịch hẹn:</h3>
-                    <p><strong>Mã lịch hẹn:</strong> #%d</p>
-                    <p><strong>Bác sĩ:</strong> %s</p>
-                    <p><strong>Chuyên khoa:</strong> %s</p>
-                    <p><strong>Phòng khám:</strong> %s</p>
-                    <p><strong>Thời gian:</strong> %s</p>
-                    <p><strong>Lý do khám:</strong> %s</p>
+                    <div style="background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 25px; border-radius: 10px; margin: 20px 0;">
+                        <h2 style="margin-top: 0; text-align: center;">📋 Thông Tin Lịch Hẹn</h2>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+                            <div>
+                                <strong>🔢 Mã lịch hẹn:</strong><br>
+                                <span style="font-size: 18px; font-weight: bold;">#%d</span>
+                            </div>
+                            <div>
+                                <strong>📅 Ngày giờ:</strong><br>
+                                <span style="font-size: 16px;">%s</span>
+                            </div>
+                            <div>
+                                <strong>👨‍⚕️ Bác sĩ:</strong><br>
+                                <span style="font-size: 16px;">%s</span>
+                            </div>
+                            <div>
+                                <strong>🏥 Chuyên khoa:</strong><br>
+                                <span style="font-size: 16px;">%s</span>
+                            </div>
+                            <div>
+                                <strong>🏢 Phòng khám:</strong><br>
+                                <span style="font-size: 16px;">%s</span>
+                            </div>
+                            <div>
+                                <strong>📍 Địa chỉ:</strong><br>
+                                <span style="font-size: 16px;">%s</span>
+                            </div>
+                            <div>
+                                <strong>💰 Trạng thái thanh toán:</strong><br>
+                                <span style="font-size: 16px; color: %s;">%s%s</span>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                            <strong>📝 Lý do khám:</strong><br>
+                            <span style="font-size: 16px;">%s</span>
+                        </div>
                 </div>
                 
-                <p><strong>Lưu ý quan trọng:</strong></p>
-                <ul>
-                    <li>Vui lòng có mặt trước 15 phút</li>
-                    <li>Mang theo các giấy tờ cần thiết</li>
-                    <li>Liên hệ phòng khám nếu có thay đổi</li>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                        <h3 style="color: #2c5aa0; margin-top: 0;">⚠️ Lưu Ý Quan Trọng</h3>
+                        <ul style="margin: 0; padding-left: 20px;">
+                            <li>⏰ <strong>Vui lòng có mặt trước 15 phút</strong> so với giờ hẹn</li>
+                            <li>📄 <strong>Mang theo:</strong> CMND/CCCD, thẻ BHYT (nếu có)</li>
+                            <li>📞 <strong>Liên hệ:</strong> %s nếu cần thay đổi lịch hẹn</li>
+                            <li>💳 <strong>Thanh toán:</strong> %s</li>
                 </ul>
-                
-                <p>Cảm ơn bạn đã tin tường và sử dụng dịch vụ!</p>
-                <br>
-                <p>Trân trọng,<br>%s</p>
+                    </div>
+                    
+                    <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+                        <p style="margin: 0; color: #2d5a2d; font-weight: bold;">
+                            🎉 Chúc bạn có buổi khám thuận lợi và sức khỏe tốt!
+                        </p>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <p style="color: #666; margin: 0;">
+                            Trân trọng,<br>
+                            <strong>%s</strong><br>
+                            <small>Hệ thống đặt lịch khám bệnh trực tuyến</small>
+                        </p>
+                    </div>
+                </div>
             </body>
             </html>
             """,
             appointment.getPatient().getFullName(),
             appointment.getAppointmentId(),
+            appointment.getAppointmentDateTime().format(DATE_FORMATTER),
             appointment.getDoctor().getFullName(),
             appointment.getSpecialty().getName(),
             appointment.getClinic().getName(),
-            appointment.getAppointmentDateTime().format(DATE_FORMATTER),
+            appointment.getClinic().getAddress() != null ? appointment.getClinic().getAddress() : "Địa chỉ chưa cập nhật",
+            appointment.isDepositPaid() ? "#28a745" : "#ffc107",
+            paymentStatus,
+            depositInfo,
             appointment.getReasonForVisit() != null ? appointment.getReasonForVisit() : "Khám tổng quát",
+            appointment.getClinic().getPhoneNumber() != null ? appointment.getClinic().getPhoneNumber() : "Hotline: 1900 123 456",
+            paymentNote,
             appointment.getClinic().getName()
         );
     }

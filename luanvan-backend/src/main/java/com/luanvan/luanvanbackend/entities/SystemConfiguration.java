@@ -18,23 +18,31 @@ import java.math.BigDecimal;
 public class SystemConfiguration {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "config_id")
     private Long configId;
     
-    @Column(nullable = false)
+    @Column(name = "enable_deposit", nullable = false)
     @ColumnDefault("true")
     private Boolean enableDeposit = true;
     
-    @Column(precision = 10, scale = 2)
+    @Column(name = "default_deposit_amount", precision = 10, scale = 2)
     private BigDecimal defaultDepositAmount;
     
     // MoMo Configuration
-    @Column(nullable = false)
+    @Column(name = "enable_momo", nullable = false)
     @ColumnDefault("true")
     private Boolean enableMomo = true;
     
+    @Column(name = "momo_partner_code")
     private String momoPartnerCode;
+    
+    @Column(name = "momo_access_key")
     private String momoAccessKey;
+    
+    @Column(name = "momo_secret_key")
     private String momoSecretKey;
+    
+    @Column(name = "momo_api_endpoint")
     private String momoApiEndpoint;
 
     // VNPay Configuration
@@ -42,14 +50,22 @@ public class SystemConfiguration {
     @ColumnDefault("true")
     private Boolean enableVNPay = true;
 
+    @Column(name = "vnpay_tmn_code")
     private String vnpayTmnCode;
+    
+    @Column(name = "vnpay_secret_key")
     private String vnpaySecretKey;
     
     // General Payment Settings
+    @Column(name = "default_payment_method")
     private String defaultPaymentMethod;
+    
+    @Column(name = "patient_cancellation_time_limit_hours")
     private Integer patientCancellationTimeLimitHours;
+    
+    @Column(name = "payment_retry_timeout_minutes")
     private Integer paymentRetryTimeoutMinutes;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "non_refundable_deposit_policy_text", columnDefinition = "TEXT")
     private String nonRefundableDepositPolicyText;
 }

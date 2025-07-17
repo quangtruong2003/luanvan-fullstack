@@ -21,6 +21,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('backendUserId');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userName');
+    localStorage.removeItem('userPhone');
     setCurrentUser(null);
   };
   
@@ -33,22 +34,6 @@ export function AuthProvider({ children }) {
         setError(null);
         
         const token = localStorage.getItem('token');
-        const userRole = localStorage.getItem('userRole');
-        const backendUserId = localStorage.getItem('backendUserId');
-        const userEmail = localStorage.getItem('userEmail');
-        const userName = localStorage.getItem('userName');
-        
-        console.log('🔑 Token exists:', !!token);
-        console.log('👤 Stored user role:', userRole);
-        console.log('🆔 Stored backend user ID:', backendUserId);
-        
-        // Kiểm tra và xóa dữ liệu localStorage cũ có vấn đề
-        if (!backendUserId) {
-          console.log('🧹 Clearing invalid localStorage data - user ID is missing');
-          clearAuthData();
-          setLoading(false);
-          return;
-        }
         
         if (!token) {
           console.log('❌ No token found, setting user to null');
@@ -57,28 +42,11 @@ export function AuthProvider({ children }) {
           return;
         }
         
-        // Nếu có đủ thông tin trong localStorage và backendUserId hợp lệ, sử dụng trước
-        if (userRole && backendUserId) {
-          console.log('✅ Found valid user data in localStorage, setting currentUser');
-          setCurrentUser({
-            id: parseInt(backendUserId),
-            fullName: userName || 'User',
-            email: userEmail,
-            role: userRole
-          });
-          setLoading(false);
-          
-          // Skip server verification for now to avoid problematic API calls
-          // The localStorage data should be sufficient for most operations
-          console.log('⏭️ Skipping server verification to avoid API conflicts');
-          return;
-        }
-        
-        // Nếu không có thông tin đầy đủ hoặc hợp lệ, verify với server
-        console.log('🔍 Verifying with server...');
+        // Chỉ sử dụng API để lấy thông tin user
+        console.log('🔍 Fetching user data from API...');
         const userData = await authService.getCurrentUser();
         if (userData) {
-          console.log('✅ Server verification successful:', userData);
+          console.log('✅ User data fetched successfully:', userData);
           setCurrentUser({
             id: userData.user_id || userData.id,
             fullName: userData.full_name || userData.fullName,
@@ -87,7 +55,7 @@ export function AuthProvider({ children }) {
             role: userData.role_name || userData.role
           });
         } else {
-          console.log('❌ Server returned null user data');
+          console.log('❌ API returned null user data');
           clearAuthData();
         }
       } catch (err) {
@@ -95,7 +63,8 @@ export function AuthProvider({ children }) {
         // Nếu có lỗi authentication, xóa dữ liệu cũ
         if (err.message.includes('404') || err.message.includes('not found') || 
             err.message.includes('401') || err.message.includes('unauthorized') ||
-            err.message.includes('User not found with id')) {
+            err.message.includes('User not found with id') ||
+            err.message.includes('No token found')) {
           console.log('🧹 Clearing invalid authentication data due to error');
           clearAuthData();
         } else {
@@ -117,7 +86,7 @@ export function AuthProvider({ children }) {
       const response = await authService.loginWithCredentials(credentials);
       
       if (response.success) {
-        // Lưu token và thông tin người dùng
+        // Lưu token và thông tin người dùng cần thiết
         localStorage.setItem('token', response.token);
         localStorage.setItem('userRole', response.userInfo.role);
         localStorage.setItem('backendUserId', response.userInfo.userId.toString());

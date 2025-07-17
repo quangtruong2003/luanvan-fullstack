@@ -1,5 +1,8 @@
-// API Base URL - cập nhật theo backend của bạn
-export const API_BASE_URL = 'http://localhost:9090/api';
+// API Base URL - sử dụng environment variable hoặc detect production
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
+  (window.location.hostname === 'localhost' 
+    ? 'http://localhost:9090/api' 
+    : 'https://luanvan-backend-1g56.onrender.com/api');
 
 // Notification service for user feedback
 export const notificationService = {
@@ -48,6 +51,13 @@ const getAuthHeaders = () => {
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+};
+
+// Helper function for public API requests (không cần token)
+const getPublicHeaders = () => {
+  return {
+    'Content-Type': 'application/json'
   };
 };
 
@@ -170,6 +180,25 @@ const apiRequest = async (url, options = {}) => {
   }
 };
 
+// Public API request (không cần authentication)
+const publicApiRequest = async (url, options = {}) => {
+  try {
+    console.log('🚀 Public API Request:', url, options.method || 'GET');
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...getPublicHeaders(),
+        ...options.headers
+      }
+    });
+    
+    return await handleResponse(response);
+  } catch (error) {
+    console.error('Public API Request failed:', error);
+    throw error;
+  }
+};
+
 // Debug helper functions - expose to window for testing
 if (typeof window !== 'undefined') {
   window.testApiService = {
@@ -228,8 +257,38 @@ export const authService = {
       throw error;
     }
   },
-  // Lấy thông tin user hiện tại
-  // Get current user (use localStorage data instead of problematic API)
+  
+  // Lấy thông tin user hiện tại từ API với thông tin đầy đủ
+  async getCurrentUserFromAPI() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No token found');
+      }
+
+      console.log('🔄 Fetching current user from API /users/me');
+      const data = await apiRequest(`${API_BASE_URL}/users/me`);
+      console.log('✅ Successfully fetched user from API:', data);
+      
+      return {
+        user_id: data.userId || data.user_id,
+        id: data.userId || data.user_id,
+        full_name: data.fullName || data.full_name || '',
+        fullName: data.fullName || data.full_name || '',
+        email: data.email || '',
+        phone_number: data.phoneNumber || data.phone_number || '',
+        phoneNumber: data.phoneNumber || data.phone_number || '',
+        role_name: data.role?.roleName || data.role_name || '',
+        role: data.role?.roleName || data.role_name || '',
+        isActive: data.isActive || data.active || true
+      };
+    } catch (error) {
+      console.error('❌ Error fetching user from API:', error);
+      throw error;
+    }
+  },
+
+  // Lấy thông tin user hiện tại - chỉ sử dụng API
   async getCurrentUser() {
     try {
       const token = localStorage.getItem('token');
@@ -237,68 +296,11 @@ export const authService = {
         throw new Error('No token found');
       }
 
-      // Use localStorage data instead of API call to avoid user not found errors
-      const backendUserId = localStorage.getItem('backendUserId');
-      const userName = localStorage.getItem('userName');
-      const userEmail = localStorage.getItem('userEmail');
-      const userRole = localStorage.getItem('userRole');
-      
-      console.log('🔍 getCurrentUser - localStorage data:', {
-        backendUserId,
-        userName,
-        userEmail,
-        userRole
-      });
-      
-      if (backendUserId && userRole) {
-        return {
-          user_id: parseInt(backendUserId),
-          id: parseInt(backendUserId),
-          full_name: userName || 'User',
-          fullName: userName || 'User',
-          email: userEmail,
-          phone_number: '', // Will be fetched from API if needed
-          phoneNumber: '', // Will be fetched from API if needed
-          role_name: userRole,
-          role: userRole
-        };
-      }
-
-      // If no localStorage data, try API as fallback and handle errors gracefully
-      try {
-        console.log('🔄 Attempting fallback API call to /users/me');
-        const data = await apiRequest(`${API_BASE_URL}/users/me`);
-        console.log('✅ Successfully fetched from /users/me:', data);
-        
-        // Format the response to include both snake_case and camelCase fields
-        return {
-          user_id: data.userId || data.user_id,
-          id: data.userId || data.user_id,
-          full_name: data.fullName || data.full_name,
-          fullName: data.fullName || data.full_name,
-          email: data.email,
-          phone_number: data.phoneNumber || data.phone_number || '',
-          phoneNumber: data.phoneNumber || data.phone_number || '',
-          role_name: data.role?.roleName || userRole,
-          role: data.role?.roleName || userRole
-        };
-      } catch (apiError) {
-        console.warn('API /users/me failed, using localStorage fallback:', apiError.message);
-        return {
-          user_id: backendUserId ? parseInt(backendUserId) : null,
-          id: backendUserId ? parseInt(backendUserId) : null,
-          full_name: userName || '',
-          fullName: userName || '',
-          email: userEmail || '',
-          phone_number: '',
-          phoneNumber: '',
-          role_name: userRole || '',
-          role: userRole || ''
-        };
-      }
+      // Chỉ sử dụng API, không có fallback localStorage
+      return await this.getCurrentUserFromAPI();
     } catch (error) {
-      console.error('Get current user error:', error);
-      return null;
+      console.error('❌ Error in getCurrentUser:', error);
+      throw error;
     }
   },
 
@@ -311,6 +313,7 @@ export const authService = {
       localStorage.removeItem('backendUserId');
       localStorage.removeItem('userEmail');
       localStorage.removeItem('userName');
+      localStorage.removeItem('userPhone');
       
       return { success: true };
     } catch (error) {
@@ -966,6 +969,51 @@ export const adminService = {
       console.error('Unset default standard work shift error:', error);
       throw error;
     }
+  },
+
+  // Clinic Specialty Management
+  async createClinicSpecialty(clinicId, specialtyData) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/clinics/${clinicId}/specialties`, {
+        method: 'POST',
+        body: JSON.stringify(specialtyData)
+      });
+    } catch (error) {
+      console.error('Create clinic specialty error:', error);
+      throw error;
+    }
+  },
+
+  async getClinicSpecialties(clinicId) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/clinics/${clinicId}/specialties`);
+    } catch (error) {
+      console.error('Get clinic specialties error:', error);
+      throw error;
+    }
+  },
+
+  async updateClinicSpecialty(clinicId, specialtyId, specialtyData) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/clinics/${clinicId}/specialties/${specialtyId}`, {
+        method: 'PUT',
+        body: JSON.stringify(specialtyData)
+      });
+    } catch (error) {
+      console.error('Update clinic specialty error:', error);
+      throw error;
+    }
+  },
+
+  async deleteClinicSpecialty(clinicId, specialtyId) {
+    try {
+      return await apiRequest(`${API_BASE_URL}/clinics/${clinicId}/specialties/${specialtyId}`, {
+        method: 'DELETE'
+      });
+    } catch (error) {
+      console.error('Delete clinic specialty error:', error);
+      throw error;
+    }
   }
 };
 
@@ -1007,7 +1055,8 @@ export const apiService = {
   async getDoctors(params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      return await apiRequest(`${API_BASE_URL}/doctors?${queryParams}`);
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/doctors?${queryParams}`);
     } catch (error) {
       console.error('Get doctors error:', error);
       throw error;
@@ -1025,7 +1074,8 @@ export const apiService = {
 
   async getDoctorsBySpecialty(specialtyId) {
     try {
-      return await apiRequest(`${API_BASE_URL}/doctors/specialty/${specialtyId}`);
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/doctors/specialty/${specialtyId}`);
     } catch (error) {
       console.error('Get doctors by specialty error:', error);
       throw error;
@@ -1062,14 +1112,8 @@ export const apiService = {
   // Specialty APIs  
   async getSpecialties() {
     try {
-      const response = await fetch(`${API_BASE_URL}/specialties`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      return data;
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/specialties`);
     } catch (error) {
       console.error('Error fetching specialties:', error);
       throw error;
@@ -1150,7 +1194,8 @@ export const apiService = {
   async getClinics(params = {}) {
     try {
       const queryParams = new URLSearchParams(params);
-      return await apiRequest(`${API_BASE_URL}/clinics?${queryParams}`);
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/clinics?${queryParams}`);
     } catch (error) {
       console.error('Get clinics error:', error);
       throw error;
@@ -1204,7 +1249,8 @@ export const apiService = {
   // Lấy thông tin phòng khám theo ID
   async getClinicById(clinicId) {
     try {
-      return await apiRequest(`${API_BASE_URL}/clinics/${clinicId}`);
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/clinics/${clinicId}`);
     } catch (error) {
       console.error('Get clinic error:', error);
       throw error;
@@ -1215,7 +1261,8 @@ export const apiService = {
   async getDoctorByUserId(doctorId) {
     try {
       console.log('Gọi API getDoctorByUserId với doctorId:', doctorId);
-      const data = await apiRequest(`${API_BASE_URL}/doctors/${doctorId}`);
+      // Use publicApiRequest since this is a public endpoint
+      const data = await publicApiRequest(`${API_BASE_URL}/doctors/${doctorId}`);
       console.log('Dữ liệu bác sĩ nhận được từ API:', data);
       
       // Nếu đã có clinic object thì trả về ngay
@@ -1248,7 +1295,8 @@ export const apiService = {
     try {
       console.log(`📡 Fetching standard work shifts for clinic ID: ${clinicId}`);
       // This is the correct endpoint based on StandardWorkShiftController.java
-      return await apiRequest(`${API_BASE_URL}/standard-work-shifts/clinic/${clinicId}`);
+      // Use publicApiRequest since this is a public endpoint that doesn't require authentication
+      return await publicApiRequest(`${API_BASE_URL}/standard-work-shifts/clinic/${clinicId}`);
     } catch (error) {
       console.error('Get standard work shifts by clinic error:', error);
       throw error;
@@ -1259,7 +1307,8 @@ export const apiService = {
   async getAvailableSlots(doctorId, date) {
     try {
       console.log(`📡 Fetching available slots for doctor ID: ${doctorId} and date: ${date}`);
-      return await apiRequest(`${API_BASE_URL}/availability/slots/doctor/${doctorId}/date/${date}`);
+      // Use publicApiRequest since this is a public endpoint
+      return await publicApiRequest(`${API_BASE_URL}/availability/slots/doctor/${doctorId}/date/${date}`);
     } catch (error) {
       console.error('Get available slots error:', error);
       throw error;

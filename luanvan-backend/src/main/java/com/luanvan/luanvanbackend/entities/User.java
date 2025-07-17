@@ -26,7 +26,7 @@ public class User {
     private String email;
     
     @Pattern(regexp = "^$|^[0-9]{10,15}$", message = "Số điện thoại phải là 10-15 chữ số hoặc để trống.")
-    @Column(unique = true)
+    @Column() // Removed unique = true to allow duplicate phone numbers
     private String phoneNumber; // Optional cho admin/doctor, bắt buộc cho patient
     
     @Column(unique = true)

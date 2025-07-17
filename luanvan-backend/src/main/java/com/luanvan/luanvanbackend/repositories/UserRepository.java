@@ -72,14 +72,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // Existence checks
     boolean existsByEmail(String email);
-    boolean existsByPhoneNumber(String phoneNumber);
     boolean existsByClerkUserId(String clerkUserId);
+    boolean existsByPhoneNumber(String phoneNumber);
 
     @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.email = :email AND (:excludeUserId IS NULL OR u.userId != :excludeUserId)")
     boolean existsByEmailExcludingUserId(@Param("email") String email, @Param("excludeUserId") Long excludeUserId);
-
-    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.phoneNumber = :phoneNumber AND (:excludeUserId IS NULL OR u.userId != :excludeUserId)")
-    boolean existsByPhoneNumberExcludingUserId(@Param("phoneNumber") String phoneNumber, @Param("excludeUserId") Long excludeUserId);
 
     // Role-based operations
     @Query("SELECT COUNT(u) FROM User u WHERE u.role = :role")

@@ -131,10 +131,10 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public User registerPatient(PatientRegistrationDTO registrationDTO) {
-        // Kiểm tra xem người dùng đã tồn tại chưa
-        if (userRepository.existsByPhoneNumber(registrationDTO.getPhoneNumber())) {
-            throw new RuntimeException("Số điện thoại đã được đăng ký");
-        }
+        // Bỏ qua kiểm tra số điện thoại đã tồn tại để cho phép trùng lặp
+        // if (userRepository.existsByPhoneNumber(registrationDTO.getPhoneNumber())) {
+        //     throw new RuntimeException("Số điện thoại đã được đăng ký");
+        // }
         
         if (registrationDTO.getEmail() != null && !registrationDTO.getEmail().isEmpty() 
                 && userRepository.existsByEmail(registrationDTO.getEmail())) {
@@ -396,7 +396,16 @@ public class AuthServiceImpl implements AuthService {
 
                 user.setEmail(request.getEmail());
                 user.setFullName((request.getFirstName() + " " + request.getLastName()).trim());
-                user.setPhoneNumber(sanitizedPhoneNumber);
+                
+                // CHỈ cập nhật phoneNumber nếu có số điện thoại hợp lệ từ request
+                // Không ghi đè số điện thoại hiện có nếu request không có số điện thoại
+                if (sanitizedPhoneNumber != null) {
+                    user.setPhoneNumber(sanitizedPhoneNumber);
+                    logger.info("Updated phone number to: {}", sanitizedPhoneNumber);
+                } else {
+                    logger.info("No valid phone number in request, keeping existing phone: {}", user.getPhoneNumber());
+                }
+                
                 user.setImageUrl(request.getImageUrl());
                 
                 User savedUser = userRepository.save(user);
@@ -435,7 +444,16 @@ public class AuthServiceImpl implements AuthService {
                     
                     user.setClerkUserId(request.getClerkUserId());
                     user.setFullName((request.getFirstName() + " " + request.getLastName()).trim());
-                    user.setPhoneNumber(sanitizedPhoneNumber);
+                    
+                    // CHỈ cập nhật phoneNumber nếu có số điện thoại hợp lệ từ request
+                    // Không ghi đè số điện thoại hiện có nếu request không có số điện thoại
+                    if (sanitizedPhoneNumber != null) {
+                        user.setPhoneNumber(sanitizedPhoneNumber);
+                        logger.info("Updated phone number to: {}", sanitizedPhoneNumber);
+                    } else {
+                        logger.info("No valid phone number in request, keeping existing phone: {}", user.getPhoneNumber());
+                    }
+                    
                     user.setImageUrl(request.getImageUrl());
                     
                     User savedUser = userRepository.save(user);

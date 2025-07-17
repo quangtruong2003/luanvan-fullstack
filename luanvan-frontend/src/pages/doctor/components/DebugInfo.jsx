@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle, Info, Eye, EyeOff, RefreshCw, ChevronDown, ChevronUp, User, Building, Award, Shield, Clock } from 'lucide-react';
 
+// API Base URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9090/api';
+
 const DebugInfo = ({ show = false, onToggle }) => {
   const [testResult, setTestResult] = useState(null);
   const [testing, setTesting] = useState(false);
@@ -44,7 +47,7 @@ const DebugInfo = ({ show = false, onToggle }) => {
         return;
       }
 
-      const response = await fetch(`http://localhost:9090/api/doctors/user/${backendUserId}`, {
+      const response = await fetch(`${API_BASE_URL}/doctors/user/${backendUserId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -87,7 +90,7 @@ const DebugInfo = ({ show = false, onToggle }) => {
         return;
       }
 
-      const response = await fetch(`http://localhost:9090/api/doctors/user/${backendUserId}`, {
+      const response = await fetch(`${API_BASE_URL}/doctors/user/${backendUserId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

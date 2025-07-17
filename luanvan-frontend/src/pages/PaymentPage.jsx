@@ -7,92 +7,101 @@ import {
   DollarSign, Zap, Star, Heart, 
   MapPin, Phone, Mail, FileText,
   Banknote, Wallet, CreditCardIcon,
-  CheckSquare, Lock, Gift
+  CheckSquare, Lock, Gift, Loader2
 } from 'lucide-react';
-import { apiService } from '../services/api';
+// Import adminService để lấy cấu hình hệ thống
+import { apiService, adminService } from '../services/api';
 import { useNotification } from '../components/NotificationSystem';
 
 const PaymentPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { showError } = useNotification();
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('momo');
+  const { showError, showSuccess } = useNotification();
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
   const [loading, setLoading] = useState(false);
+  // Thêm state cho việc tải cấu hình
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [configError, setConfigError] = useState(null); // State mới để lưu lỗi
   const [paymentConfig, setPaymentConfig] = useState({
-    enableMomo: true,
-    enableVNPay: true,
-    defaultPaymentMethod: 'momo',
-    depositAmount: 50000,
-    examinationFee: 200000
+    enableMomo: false,
+    enableVNPay: false,
+    defaultPaymentMethod: '',
+    depositAmount: 0,
+    examinationFee: 0
   });
 
-  // Get appointment data from location state
+  // Lấy dữ liệu lịch hẹn từ location state
   const appointmentData = location.state?.appointmentData;
   const appointmentInfo = location.state?.appointmentInfo;
+  const phoneUpdateSuccess = location.state?.phoneUpdateSuccess;
 
   useEffect(() => {
-    // If no appointment data, redirect back
+    // Nếu không có dữ liệu lịch hẹn, điều hướng về trang trước
     if (!appointmentData) {
       navigate('/book-appointment', { replace: true });
       return;
     }
 
-    // Fetch payment configuration from admin settings
+    // Hiển thị thông báo cập nhật SĐT thành công nếu có
+    if (phoneUpdateSuccess) {
+      setTimeout(() => {
+        showSuccess('Số điện thoại đã được cập nhật thành công!', 'Cập nhật thông tin');
+      }, 500);
+    }
+
+    // Lấy cấu hình thanh toán trực tiếp từ API
     fetchPaymentConfig();
-  }, [appointmentData, navigate]);
+  }, [appointmentData, navigate, phoneUpdateSuccess]);
 
   const fetchPaymentConfig = async () => {
+    setLoadingConfig(true);
+    setConfigError(null); // Reset lỗi mỗi khi thử lại
     try {
-      // Try to fetch from admin settings API
-      // For now, simulate API call or use localStorage for demo
-      let config = {
-        enableMomo: true,
-        enableVNPay: true,
-        defaultPaymentMethod: 'momo',
-        depositAmount: 50000,
-        examinationFee: 200000
-      };
-
-      // Try to get from localStorage (for demo purposes)
-      const savedSettings = localStorage.getItem('adminSettings');
-      if (savedSettings) {
-        try {
-          const adminSettings = JSON.parse(savedSettings);
-          if (adminSettings.payment) {
-            config = { ...config, ...adminSettings.payment };
-          }
-        } catch (parseError) {
-          console.warn('Failed to parse admin settings from localStorage:', parseError);
-        }
+      // Lấy cấu hình trực tiếp từ API
+      const systemConfigs = await adminService.getSystemConfig();
+      // API có thể trả về một mảng, lấy phần tử đầu tiên
+      const fetchedConfig = Array.isArray(systemConfigs) ? systemConfigs[0] : systemConfigs;
+      
+      console.log('💰 Fetched system config from API:', fetchedConfig);
+      
+      if (!fetchedConfig) {
+          throw new Error("Không nhận được dữ liệu cấu hình từ hệ thống.");
       }
 
-      console.log('💰 Payment config loaded:', config);
+      // Tạo đối tượng cấu hình cuối cùng, đảm bảo các trường không bị undefined
+      const newConfig = {
+        enableMomo: fetchedConfig.enableMomo || false,
+        enableVNPay: fetchedConfig.enableVNPay || false,
+        defaultPaymentMethod: fetchedConfig.defaultPaymentMethod || 'momo',
+        depositAmount: fetchedConfig.depositAmount || 0,
+        examinationFee: fetchedConfig.examinationFee || 200000,
+      };
 
-      setPaymentConfig(config);
+      setPaymentConfig(newConfig);
 
-      // Check if no payment methods are enabled
-      const hasPaymentMethods = config.enableMomo || config.enableVNPay;
+      // Kiểm tra xem có phương thức thanh toán nào được bật không
+      const hasPaymentMethods = newConfig.enableMomo || newConfig.enableVNPay;
+      const hasDeposit = newConfig.depositAmount > 0;
       
-      if (!hasPaymentMethods) {
-        console.log('🆓 No payment methods enabled - Auto-booking with free mode');
-        // Auto-process free appointment
-        setTimeout(() => {
-          handleFreeAppointment();
-        }, 1000);
-      } else {
-        // Set default payment method if any are available
-        if (config.enableMomo && config.defaultPaymentMethod === 'momo') {
+      if (hasPaymentMethods && hasDeposit) {
+        // Đặt phương thức thanh toán mặc định nếu có
+        if (newConfig.defaultPaymentMethod === 'momo' && newConfig.enableMomo) {
           setSelectedPaymentMethod('momo');
-        } else if (config.enableVNPay && config.defaultPaymentMethod === 'vnpay') {
+        } else if (newConfig.defaultPaymentMethod === 'vnpay' && newConfig.enableVNPay) {
           setSelectedPaymentMethod('vnpay');
-        } else if (config.enableMomo) {
+        } else if (newConfig.enableMomo) { // Ưu tiên MoMo nếu không có mặc định
           setSelectedPaymentMethod('momo');
-        } else if (config.enableVNPay) {
+        } else if (newConfig.enableVNPay) {
           setSelectedPaymentMethod('vnpay');
         }
       }
     } catch (error) {
+      const errorMessage = error.message || 'Không thể tải cấu hình thanh toán. Vui lòng thử lại.';
       console.error('Error fetching payment config:', error);
+      showError(errorMessage, 'Lỗi hệ thống');
+      setConfigError(errorMessage); // Lưu lại thông báo lỗi để hiển thị
+    } finally {
+      setLoadingConfig(false);
     }
   };
 
@@ -134,8 +143,10 @@ const PaymentPage = () => {
   };
 
   const handlePayment = async () => {
-    // Check if no payment methods are enabled
-    if (!paymentConfig.enableMomo && !paymentConfig.enableVNPay) {
+    // Kiểm tra xem có cần thanh toán không dựa trên cấu hình đã lấy được
+    const needsPayment = (paymentConfig.enableMomo || paymentConfig.enableVNPay) && paymentConfig.depositAmount > 0;
+    
+    if (!needsPayment) {
       await handleFreeAppointment();
       return;
     }
@@ -148,21 +159,21 @@ const PaymentPage = () => {
     setLoading(true);
 
     try {
-      // Update appointment data with actual deposit amount
+      // Cập nhật dữ liệu lịch hẹn với số tiền đặt cọc thực tế từ cấu hình
       const paymentAppointmentData = {
         ...appointmentData,
-        depositAmount: paymentConfig.depositAmount || 0.0,
+        depositAmount: paymentConfig.depositAmount,
         isDepositPaid: false,
         isDepositNonRefundable: false
       };
 
       console.log('📤 Payment appointment data:', paymentAppointmentData);
 
-      // Step 1: Create appointment first
+      // Bước 1: Tạo lịch hẹn trước
       const appointmentResponse = await apiService.createAppointment(paymentAppointmentData);
       
       if (appointmentResponse && appointmentResponse.appointmentId) {
-        // Step 2: Process payment if needed
+        // Bước 2: Xử lý thanh toán nếu cần
         if (selectedPaymentMethod === 'momo') {
           await processmomoPayment(appointmentResponse);
         } else if (selectedPaymentMethod === 'vnpay') {
@@ -252,6 +263,50 @@ const PaymentPage = () => {
       currency: 'VND'
     }).format(amount);
   };
+
+  if (loadingConfig) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <Loader2 className="w-16 h-16 text-blue-600 animate-spin" />
+          <p className="mt-4 text-lg text-gray-700 font-semibold">Đang tải cấu hình thanh toán...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Giao diện mới khi có lỗi xảy ra
+  if (configError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 text-center">
+            <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Lỗi hệ thống</h2>
+            <p className="text-gray-600 mb-8 leading-relaxed">
+              {configError}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={() => navigate(-1)}
+                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-2xl hover:bg-gray-200 transition-all duration-300"
+              >
+                Quay lại
+              </button>
+              <button
+                onClick={fetchPaymentConfig}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
+              >
+                Thử lại
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!appointmentData) {
     return (

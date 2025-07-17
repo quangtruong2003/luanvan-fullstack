@@ -95,7 +95,8 @@ const ClinicManagement = ({ onAuthError }) => {
 
   const checkApiStatus = async () => {
     try {
-      const response = await fetch('http://localhost:9090/api/health-check', {
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9090/api';
+      const response = await fetch(`${API_BASE_URL}/health-check`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -126,7 +127,8 @@ const ClinicManagement = ({ onAuthError }) => {
       // Try simple fetch first to avoid CORS issues
       console.log('📡 Trying simple fetch first...');
       try {
-        const response = await fetch('http://localhost:9090/api/clinics', {
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9090/api';
+        const response = await fetch(`${API_BASE_URL}/clinics`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -298,7 +300,8 @@ const ClinicManagement = ({ onAuthError }) => {
       if (error.message.includes('Dữ liệu đầu vào không hợp lệ')) {
         // Try to extract specific validation errors from API response
         try {
-          const response = await fetch('http://localhost:9090/api/clinics', {
+          const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:9090/api';
+          const response = await fetch(`${API_BASE_URL}/clinics`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

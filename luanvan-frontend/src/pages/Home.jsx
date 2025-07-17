@@ -475,16 +475,7 @@ const Home = () => {
                       <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md rounded-full px-3 py-1 flex items-center gap-1 shadow-lg">
                         <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
                         <span className="text-sm font-bold text-gray-900">{doctor.rating}</span>
-                      </div>
-                      
-                      {/* Achievement Badges */}
-                      <div className="absolute top-4 left-4 space-y-2">
-                        {doctor.achievements?.map((achievement, idx) => (
-                          <div key={`doctor-${doctor.id}-achievement-${idx}`} className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs px-3 py-1 rounded-full font-medium shadow-md">
-                            {achievement}
-                          </div>
-                        ))}
-                      </div>
+                      </div>                 
                     </div>
                     
                     {/* Content */}

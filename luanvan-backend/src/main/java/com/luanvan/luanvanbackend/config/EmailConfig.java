@@ -33,6 +33,14 @@ public class EmailConfig {
     public JavaMailSender javaMailSender() {
         JavaMailSenderImpl mailSender = new JavaMailSenderImpl();
         
+        System.out.println("📧 EmailConfig: Cấu hình SMTP");
+        System.out.println("📧 Host: " + host);
+        System.out.println("📧 Port: " + port);
+        System.out.println("📧 Username: " + username);
+        System.out.println("📧 Password: " + (password != null ? "***" : "NULL"));
+        System.out.println("📧 Auth: " + auth);
+        System.out.println("📧 StartTLS: " + starttlsEnable);
+        
         mailSender.setHost(host);
         mailSender.setPort(port);
         mailSender.setUsername(username);
@@ -42,7 +50,7 @@ public class EmailConfig {
         props.put("mail.transport.protocol", "smtp");
         props.put("mail.smtp.auth", auth);
         props.put("mail.smtp.starttls.enable", starttlsEnable);
-        props.put("mail.debug", "false");
+        props.put("mail.debug", "true"); // Bật debug để xem chi tiết SMTP
         
         return mailSender;
     }

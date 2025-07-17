@@ -2,6 +2,7 @@ package com.luanvan.luanvanbackend.config;
 
 import com.luanvan.luanvanbackend.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -33,6 +34,9 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
+    
+    @Value("${app.cors.allowed-origins}")
+    private String allowedOrigins;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -42,8 +46,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         // Error handling
                         .requestMatchers("/error").permitAll()
+                        // CORS preflight requests
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         // Authentication endpoints
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
                         // Public endpoints
                         .requestMatchers("/api/public/**").permitAll()
                         // Payment callbacks (must be accessible without auth)
@@ -82,6 +89,13 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/shifts/clinic/*").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/shifts/day/*").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/shifts/default").permitAll()
+                        // Public read-only endpoints for standard work shifts
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts/clinic/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts/day/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts/default").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/standard-work-shifts/specialty/*").permitAll()
                         // Admin availability endpoints (will be protected by @PreAuthorize)
                         .requestMatchers("/api/availability/admin/**").authenticated()
                         .requestMatchers("/api/availability/slots/clinic/*").authenticated()
@@ -124,9 +138,10 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Chỉ sử dụng allowedOrigins hoặc allowedOriginPatterns, không dùng cả hai
-        // Ở đây chúng ta sử dụng allowedOrigins để chỉ định chính xác origin
-        configuration.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174"));
+        
+        // Sử dụng biến môi trường để cấu hình CORS origins
+        List<String> origins = Arrays.asList(allowedOrigins.split(","));
+        configuration.setAllowedOrigins(origins);
         
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));

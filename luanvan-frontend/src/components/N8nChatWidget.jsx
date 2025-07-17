@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import '@n8n/chat/style.css';
 import { createChat } from '@n8n/chat';
 
 const N8nChatWidget = () => {
+  const [isChatVisible, setIsChatVisible] = useState(false); // Thêm trạng thái quản lý hiển thị
   const chatInitialized = useRef(false);
   const chatContainer = useRef(null);
 
@@ -83,9 +84,16 @@ const N8nChatWidget = () => {
 
   return (
     <>
-      {/* Container cho n8n chat widget */}
-      <div id="n8n-chat" ref={chatContainer}></div>
-      
+      {/* Nút thu gọn/mở rộng */}
+      <button onClick={() => setIsChatVisible(!isChatVisible)}>
+        {isChatVisible ? 'Thu gọn' : 'Mở rộng'}
+      </button>
+
+      {/* Hiển thị widget chat dựa trên trạng thái */}
+      {isChatVisible && (
+        <div id="n8n-chat" ref={chatContainer}></div>
+      )}
+
       {/* CSS customization cho chat widget */}
       <style jsx global>{`
         :root {
