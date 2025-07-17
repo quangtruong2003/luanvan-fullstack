@@ -642,13 +642,13 @@ export const adminService = {
 
   // Appointment Management
   async getAllAppointments(params = {}) {
-    try {
-      const queryParams = new URLSearchParams(params);
-      return await apiRequest(`${API_BASE_URL}/appointments?${queryParams}`);
-    } catch (error) {
-      console.error('Get all appointments error:', error);
-      throw error;
-    }
+    const queryParams = new URLSearchParams({
+      page: params.page || 0,
+      size: params.size || 200, // <--- Tăng giới hạn mặc định
+      sort: params.sort || 'appointmentDateTime,desc',
+      ...params,
+    }).toString();
+    return apiRequest(`${API_BASE_URL}/appointments?${queryParams}`);
   },
 
   async createAppointment(appointmentData) {

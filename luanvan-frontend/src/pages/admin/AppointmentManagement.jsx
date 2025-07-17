@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Search, Filter, Edit, Trash2, Calendar, 
-  Clock, User, CheckCircle, XCircle, AlertCircle, Save, Building, Stethoscope, Sun, Moon
+  Clock, User, CheckCircle, XCircle, AlertCircle, Save, Building, Stethoscope, Sun, Moon, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { adminService, apiService, API_BASE_URL } from '../../services/api';
 import { useNotification } from '../../components/NotificationSystem';
@@ -12,6 +12,8 @@ const AppointmentManagement = ({ filters, setFilters }) => {
   
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const appointmentsPerPage = 10;
   
   // Local filter states are now controlled by the parent component's state
   const searchTerm = filters?.searchTerm || '';
@@ -47,6 +49,11 @@ const AppointmentManagement = ({ filters, setFilters }) => {
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
   const [slotsLoading, setSlotsLoading] = useState(false);
+
+  // Effect to reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, dateFilter, clinicFilter, doctorFilter, timeOfDayFilter, specialtyFilter]);
 
   const statusOptions = [
     { value: 'PENDING_PAYMENT', label: 'Chờ thanh toán', color: 'orange' },
@@ -498,6 +505,19 @@ const AppointmentManagement = ({ filters, setFilters }) => {
     return matchesSearch && matchesStatus && matchesDate && matchesClinic && matchesDoctor && matchesTimeOfDay && matchesSpecialty;
   });
 
+  // Pagination logic
+  const indexOfLastAppointment = currentPage * appointmentsPerPage;
+  const indexOfFirstAppointment = indexOfLastAppointment - appointmentsPerPage;
+  const currentAppointments = filteredAppointments.slice(indexOfFirstAppointment, indexOfLastAppointment);
+  const totalPages = Math.ceil(filteredAppointments.length / appointmentsPerPage);
+
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber > 0 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
+  };
+
+
   // Debug filtered appointments
   console.log('📊 All appointments:', appointments);
   console.log('📊 Filtered appointments:', filteredAppointments);
@@ -824,7 +844,7 @@ const AppointmentManagement = ({ filters, setFilters }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredAppointments.map((appointment) => {
+              {currentAppointments.map((appointment) => {
                 console.log('🔍 Rendering appointment:', appointment);
                 return (
                 <tr key={appointment.appointmentId || appointment.appointment_id || appointment.id} className="hover:bg-gray-50">
@@ -946,6 +966,37 @@ const AppointmentManagement = ({ filters, setFilters }) => {
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-700">
+                Hiển thị {indexOfFirstAppointment + 1} đến {Math.min(indexOfLastAppointment, filteredAppointments.length)} của {filteredAppointments.length} kết quả
+              </span>
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="p-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-white hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                
+                <span className="text-sm px-2">
+                  Trang {currentPage} / {totalPages}
+                </span>
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="p-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-white hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {filteredAppointments.length === 0 && (
           <div className="text-center py-12">

@@ -61,7 +61,7 @@ public class AppointmentController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<Appointment>> getAllAppointments(
-            @PageableDefault(size = 10) Pageable pageable) {
+            @PageableDefault(size = 200, sort = "appointmentDateTime", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<Appointment> appointments = appointmentService.getAllAppointments(pageable);
         return ResponseEntity.ok(appointments);
     }
@@ -85,7 +85,7 @@ public class AppointmentController {
     @PreAuthorize("hasRole('ADMIN') or #patientId == authentication.principal.userId")
     public ResponseEntity<Page<Appointment>> getAppointmentsByPatient(
             @PathVariable Long patientId,
-            @PageableDefault(size = 10) Pageable pageable) {
+            @PageableDefault(size = 200, sort = "appointmentDateTime", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<Appointment> appointments = appointmentService.getAppointmentsByPatient(patientId, pageable);
         return ResponseEntity.ok(appointments);
     }
@@ -98,7 +98,7 @@ public class AppointmentController {
                   "@doctorService.getDoctorByUserId(authentication.principal.userId).doctorId == #doctorId")
     public ResponseEntity<Page<Appointment>> getAppointmentsByDoctor(
             @PathVariable Long doctorId,
-            @PageableDefault(size = 10) Pageable pageable) {
+            @PageableDefault(size = 200, sort = "appointmentDateTime", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<Appointment> appointments = appointmentService.getAppointmentsByDoctor(doctorId, pageable);
         return ResponseEntity.ok(appointments);
     }
