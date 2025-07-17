@@ -1,6 +1,10 @@
 package com.luanvan.luanvanbackend.services;
 
+import com.luanvan.luanvanbackend.entities.Appointment;
+import com.luanvan.luanvanbackend.entities.AvailabilitySlot;
 import com.luanvan.luanvanbackend.entities.Payment;
+import com.luanvan.luanvanbackend.repositories.AppointmentRepository;
+import com.luanvan.luanvanbackend.repositories.AvailabilitySlotRepository;
 import com.luanvan.luanvanbackend.repositories.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,101 +21,61 @@ import java.util.List;
 public class PaymentSchedulerService {
 
     private final PaymentRepository paymentRepository;
+    private final AppointmentRepository appointmentRepository;
+    private final AvailabilitySlotRepository availabilitySlotRepository;
+
+    private static final int PAYMENT_TIMEOUT_MINUTES = 15;
 
     /**
-     * Chạy mỗi 5 phút để kiểm tra payment hết hạn
+     * Chạy mỗi phút để kiểm tra và hủy các thanh toán/lịch hẹn quá hạn.
+     * fixedRate = 60000 ms = 1 phút
      */
-    @Scheduled(fixedDelay = 300000) // 5 phút
-    @Transactional(rollbackFor = Exception.class)
-    public void processExpiredPayments() {
-        try {
-            LocalDateTime currentTime = LocalDateTime.now();
-            List<Payment> expiredPayments = paymentRepository.findExpiredPayments(currentTime);
-            
-            if (!expiredPayments.isEmpty()) {
-                log.info("Found {} expired payments to process", expiredPayments.size());
-                
-                for (Payment payment : expiredPayments) {
-                    log.info("Marking payment {} as expired", payment.getOrderId());
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void cancelExpiredPendingPayments() {
+        LocalDateTime expirationTime = LocalDateTime.now().minusMinutes(PAYMENT_TIMEOUT_MINUTES);
+        log.info("Running scheduled task to cancel expired payments created before: {}", expirationTime);
+
+        List<Payment> expiredPayments = paymentRepository.findAllByStatusAndCreatedAtBefore(
+                Payment.PaymentStatus.PENDING,
+                expirationTime
+        );
+
+        if (expiredPayments.isEmpty()) {
+            log.info("No expired pending payments found.");
+            return;
+        }
+
+        log.info("Found {} expired payments to cancel.", expiredPayments.size());
+
+        for (Payment payment : expiredPayments) {
+            try {
+                Appointment appointment = payment.getAppointment();
+                if (appointment != null && appointment.getStatus() == Appointment.AppointmentStatus.PENDING_PAYMENT) {
+
+                    // 1. Cập nhật trạng thái Payment
                     payment.setStatus(Payment.PaymentStatus.EXPIRED);
-                    payment.setUpdatedAt(LocalDateTime.now());
                     paymentRepository.save(payment);
-                }
-                
-                log.info("Processed {} expired payments", expiredPayments.size());
-            } else {
-                log.debug("No expired payments found");
-            }
-        } catch (Exception e) {
-            log.error("Error processing expired payments: ", e);
-            throw e; // Rethrow để trigger rollback
-        }
-    }
+                    log.info("Payment ID {} has been marked as EXPIRED.", payment.getPaymentId());
 
-    /**
-     * Chạy mỗi 30 phút để xử lý retry payment failed
-     */
-    @Scheduled(fixedDelay = 1800000) // 30 phút  
-    @Transactional(rollbackFor = Exception.class)
-    public void processFailedPaymentsRetry() {
-        try {
-            // Chỉ retry trong vòng 24 giờ
-            LocalDateTime cutoffTime = LocalDateTime.now().minusHours(24);
-            int maxRetry = 3;
-            
-            List<Payment> failedPayments = paymentRepository.findPaymentsNeedRetry(maxRetry, cutoffTime);
-            
-            if (!failedPayments.isEmpty()) {
-                log.info("Found {} failed payments that need retry", failedPayments.size());
-                
-                for (Payment payment : failedPayments) {
-                    log.info("Incrementing retry count for payment {}", payment.getOrderId());
-                    payment.setRetryCount(payment.getRetryCount() + 1);
-                    payment.setUpdatedAt(LocalDateTime.now());
-                    
-                    // Nếu đã retry quá số lần cho phép, mark as CANCELLED
-                    if (payment.getRetryCount() >= maxRetry) {
-                        payment.setStatus(Payment.PaymentStatus.CANCELLED);
-                        log.info("Payment {} cancelled after {} retry attempts", 
-                                payment.getOrderId(), payment.getRetryCount());
+                    // 2. Hủy Lịch hẹn
+                    appointment.setStatus(Appointment.AppointmentStatus.CANCELLED_BY_CLINIC);
+                    appointment.setCancellationReason("Thanh toán quá hạn.");
+                    appointmentRepository.save(appointment);
+                    log.info("Appointment ID {} has been CANCELLED due to payment expiration.", appointment.getAppointmentId());
+
+                    // 3. Trả lại Slot
+                    AvailabilitySlot slot = appointment.getSlot();
+                    if (slot != null) {
+                        slot.setStatus(AvailabilitySlot.SlotStatus.AVAILABLE);
+                        availabilitySlotRepository.save(slot);
+                        log.info("AvailabilitySlot ID {} has been returned to AVAILABLE.", slot.getSlotId());
                     }
-                    
-                    paymentRepository.save(payment);
                 }
-            } else {
-                log.debug("No failed payments found that need retry");
+            } catch (Exception e) {
+                log.error("Error processing expired payment ID {}: {}", payment.getPaymentId(), e.getMessage(), e);
             }
-        } catch (Exception e) {
-            log.error("Error processing failed payments retry: ", e);
-            throw e; // Rethrow để trigger rollback
         }
-    }
-
-    /**
-     * Chạy mỗi ngày lúc 2:00 AM để thống kê payment
-     */
-    @Scheduled(cron = "0 0 2 * * ?")
-    public void generatePaymentStatistics() {
-        try {
-            LocalDateTime endDate = LocalDateTime.now();
-            LocalDateTime startDate = endDate.minusDays(1);
-            
-            List<Object[]> statsProvider = paymentRepository.getPaymentStatsByProvider(startDate, endDate);
-            List<Object[]> statsStatus = paymentRepository.getPaymentCountByStatus(startDate, endDate);
-            
-            log.info("=== Payment Statistics for {} ===", startDate.toLocalDate());
-            log.info("By Provider:");
-            for (Object[] stat : statsProvider) {
-                log.info("  {}: {} VND", stat[0], stat[1]);
-            }
-            
-            log.info("By Status:");
-            for (Object[] stat : statsStatus) {
-                log.info("  {}: {} transactions", stat[0], stat[1]);
-            }
-            
-        } catch (Exception e) {
-            log.error("Error generating payment statistics: ", e);
-        }
+        log.info("Finished processing expired payments.");
     }
 } 

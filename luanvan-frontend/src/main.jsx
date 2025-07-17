@@ -41,6 +41,7 @@ const router = createBrowserRouter([
       { path: "book-appointment-details", element: <BookAppointmentDetails /> },
       { path: "payment", element: <PaymentPage /> },
       { path: "booking-success", element: <BookingSuccess /> },
+      { path: "booking-confirm", element: <BookingSuccess /> },
       { path: "book-appointment/doctor/:doctorId", element: <DoctorSchedule /> },
       { path: "book-appointment/specialty/:specialtyId", element: <SpecialtyDoctors /> },
       { path: "my-appointments", element: <MyAppointments /> },

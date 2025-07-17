@@ -15,7 +15,7 @@ const PaymentManagement = () => {
   const [paymentSettings, setPaymentSettings] = useState({
     enableDeposit: true,
     enableMomo: true,
-    enableVNPay: true,
+    enableVnPay: true, // Sửa ở đây
     momoApiKey: '',
     momoSecretKey: '',
     momoPartnerCode: '',
@@ -36,12 +36,13 @@ const PaymentManagement = () => {
       
       const config = await adminService.getSystemConfig();
       console.log('✅ System config loaded:', config);
+      console.log('🕵️‍♂️ DEBUG: Raw config from API:', JSON.stringify(config, null, 2)); // Dòng debug mới
       
       if (config) {
         const settings = {
           enableDeposit: config.enableDeposit === true || config.enable_deposit == 1,
           enableMomo: config.enableMomo === true || config.enable_momo == 1,
-          enableVNPay: config.enableVNPay === true || config.enable_vn_pay == 1,
+          enableVnPay: config.enableVnPay === true || config.enable_vn_pay == 1, // Sửa ở đây
           momoApiKey: config.momoApiKey || config.momo_access_key || '',
           momoSecretKey: config.momoSecretKey || config.momo_secret_key || '',
           momoPartnerCode: config.momoPartnerCode || config.momo_partner_code || '',
@@ -64,7 +65,7 @@ const PaymentManagement = () => {
           const settings = {
             enableDeposit: newConfig.enableDeposit === true || newConfig.enable_deposit == 1,
             enableMomo: newConfig.enableMomo === true || newConfig.enable_momo == 1,
-            enableVNPay: newConfig.enableVNPay === true || newConfig.enable_vn_pay == 1,
+            enableVnPay: newConfig.enableVnPay === true || newConfig.enable_vn_pay == 1, // Sửa ở đây
             momoApiKey: newConfig.momoApiKey || newConfig.momo_access_key || '',
             momoSecretKey: newConfig.momoSecretKey || newConfig.momo_secret_key || '',
             momoPartnerCode: newConfig.momoPartnerCode || newConfig.momo_partner_code || '',
@@ -85,7 +86,7 @@ const PaymentManagement = () => {
       setPaymentSettings({
         enableDeposit: true,
         enableMomo: true,
-        enableVNPay: true,
+        enableVnPay: true, // Sửa ở đây
         momoApiKey: '',
         momoSecretKey: '',
         momoPartnerCode: '',
@@ -115,7 +116,7 @@ const PaymentManagement = () => {
       const configData = {
         enable_deposit: paymentSettings.enableDeposit,
         enable_momo: paymentSettings.enableMomo,
-        enable_vn_pay: paymentSettings.enableVNPay,
+        enable_vn_pay: paymentSettings.enableVnPay, // Sửa ở đây
         momo_partner_code: paymentSettings.momoPartnerCode,
         momo_access_key: paymentSettings.momoApiKey,
         momo_secret_key: paymentSettings.momoSecretKey,
@@ -162,7 +163,7 @@ const PaymentManagement = () => {
       const configData = {
         enable_deposit: updatedSettings.enableDeposit,
         enable_momo: updatedSettings.enableMomo,
-        enable_vn_pay: updatedSettings.enableVNPay,
+        enable_vn_pay: updatedSettings.enableVnPay, // Sửa ở đây
         momo_partner_code: updatedSettings.momoPartnerCode,
         momo_access_key: updatedSettings.momoApiKey,
         momo_secret_key: updatedSettings.momoSecretKey,
@@ -406,23 +407,23 @@ const PaymentManagement = () => {
               </div>
               <div className="flex items-center space-x-3">
                 <ToggleSwitch
-                  id="enableVNPay"
-                  checked={paymentSettings.enableVNPay}
-                  onChange={(e) => handleToggleChange('enableVNPay', e.target.checked)}
+                  id="enableVnPay"
+                  checked={paymentSettings.enableVnPay}
+                  onChange={(e) => handleToggleChange('enableVnPay', e.target.checked)}
                 />
                 <span className="text-sm font-medium text-gray-700">
-                  {paymentSettings.enableVNPay ? 'Đã bật' : 'Tắt'}
+                  {paymentSettings.enableVnPay ? 'Đã bật' : 'Tắt'}
                 </span>
               </div>
             </div>
-            <div className={`space-y-3 ${!paymentSettings.enableVNPay ? 'opacity-50' : ''}`}>
+            <div className={`space-y-3 ${!paymentSettings.enableVnPay ? 'opacity-50' : ''}`}>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
                   TMN Code
                 </label>
                 <input
                   type="text"
-                  disabled={!paymentSettings.enableVNPay}
+                  disabled={!paymentSettings.enableVnPay}
                   value={paymentSettings.vnpayTmnCode}
                   onChange={(e) => handleInputChange('vnpayTmnCode', e.target.value)}
                   className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
@@ -435,7 +436,7 @@ const PaymentManagement = () => {
                 </label>
                 <input
                   type="password"
-                  disabled={!paymentSettings.enableVNPay}
+                  disabled={!paymentSettings.enableVnPay}
                   value={paymentSettings.vnpaySecretKey}
                   onChange={(e) => handleInputChange('vnpaySecretKey', e.target.value)}
                   className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
@@ -476,17 +477,17 @@ const PaymentManagement = () => {
             value={paymentSettings.defaultPaymentMethod}
             onChange={(e) => handleInputChange('defaultPaymentMethod', e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            disabled={!paymentSettings.enableMomo && !paymentSettings.enableVNPay}
+            disabled={!paymentSettings.enableMomo && !paymentSettings.enableVnPay}
           >
             <option value="momo" disabled={!paymentSettings.enableMomo}>
               MoMo {!paymentSettings.enableMomo ? '(Đã tắt)' : ''}
             </option>
-            <option value="vnpay" disabled={!paymentSettings.enableVNPay}>
-              VNPay {!paymentSettings.enableVNPay ? '(Đã tắt)' : ''}
+            <option value="vnpay" disabled={!paymentSettings.enableVnPay}>
+              VNPay {!paymentSettings.enableVnPay ? '(Đã tắt)' : ''}
             </option>
           </select>
           <p className="text-xs text-gray-500 mt-1">
-            {(!paymentSettings.enableMomo && !paymentSettings.enableVNPay) ? 
+            {(!paymentSettings.enableMomo && !paymentSettings.enableVnPay) ? 
               'Không có phương thức thanh toán nào được bật - Đặt lịch sẽ miễn phí' :
               'Phương thức thanh toán được chọn mặc định khi người dùng đặt cọc'
             }
@@ -502,14 +503,14 @@ const PaymentManagement = () => {
               <span className="font-medium">
                 {[
                   paymentSettings.enableMomo && 'MoMo',
-                  paymentSettings.enableVNPay && 'VNPay'
+                  paymentSettings.enableVnPay && 'VNPay'
                 ].filter(Boolean).join(', ') || 'Không có'}
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
               <span>Tổng số phương thức:</span>
               <span className="font-medium">
-                {(paymentSettings.enableMomo ? 1 : 0) + (paymentSettings.enableVNPay ? 1 : 0)} / 2
+                {(paymentSettings.enableMomo ? 1 : 0) + (paymentSettings.enableVnPay ? 1 : 0)} / 2
               </span>
             </div>
             <div className="flex items-center justify-between text-sm">
@@ -522,7 +523,7 @@ const PaymentManagement = () => {
               <span>Lưu trữ dữ liệu:</span>
               <span className="font-medium text-green-600">Database</span>
             </div>
-            {(!paymentSettings.enableMomo && !paymentSettings.enableVNPay) && (
+            {(!paymentSettings.enableMomo && !paymentSettings.enableVnPay) && (
               <div className="flex items-center text-sm text-amber-600 mt-3 p-2 bg-amber-50 rounded">
                 <AlertCircle className="h-4 w-4 mr-1 flex-shrink-0" />
                 <span>Chế độ miễn phí: Tất cả phương thức thanh toán đã tắt - Không thu tiền đặt cọc</span>

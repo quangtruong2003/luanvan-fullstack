@@ -1,7 +1,9 @@
 package com.luanvan.luanvanbackend.controllers;
 
 import com.luanvan.luanvanbackend.dto.*;
+import com.luanvan.luanvanbackend.entities.Appointment;
 import com.luanvan.luanvanbackend.services.PaymentService;
+import com.luanvan.luanvanbackend.dto.AppointmentDTO;
 import com.luanvan.luanvanbackend.utils.PaymentUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -60,26 +62,35 @@ public class PaymentController {
     @PreAuthorize("hasRole('PATIENT') or hasRole('ADMIN')")
     public ResponseEntity<PaymentResponseDTO> createVNPayPayment(
             @Valid @RequestBody PaymentRequestDTO request,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpServletRequest) {
         
-        // Tự động detect device type và IP
-        String userAgent = httpRequest.getHeader("User-Agent");
-        String clientIp = getClientIpAddress(httpRequest);
-        
-        request.setUserAgent(userAgent);
-        request.setClientIp(clientIp);
-        request.setDeviceType(PaymentUtils.detectDeviceType(userAgent));
-        request.setPaymentProvider("VNPAY");
+        try {
+            // Chuẩn hóa IP address
+            String clientIp = httpServletRequest.getRemoteAddr();
+            if (clientIp == null || clientIp.equals("0:0:0:0:0:0:0:1")) {
+                clientIp = "127.0.0.1";
+            }
+            request.setClientIp(clientIp);
+            log.info("Creating VNPay payment for appointment: {} from IP: {}", request.getAppointmentId(), clientIp);
 
-        log.info("Creating VNPay payment for appointment: {} from IP: {}", 
-                request.getAppointmentId(), clientIp);
-
-        PaymentResponseDTO response = paymentService.createVNPayPayment(request);
-        
-        if (response.isSuccess()) {
+            PaymentResponseDTO response = paymentService.createVNPayPayment(request);
             return ResponseEntity.ok(response);
-        } else {
-            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            log.error("Error creating VNPay payment: ", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(PaymentResponseDTO.builder().success(false).errorMessage(e.getMessage()).build());
+        }
+    }
+
+    @GetMapping("/vnpay/callback")
+    public ResponseEntity<?> handleVNPayCallback(@RequestParam Map<String, String> vnp_params) {
+        try {
+            log.info("Received VNPay callback with params: {}", vnp_params);
+            AppointmentDTO updatedAppointmentDTO = paymentService.handleVNPayReturn(vnp_params);
+            return ResponseEntity.ok(updatedAppointmentDTO);
+        } catch (Exception e) {
+            log.error("Error handling VNPay callback: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error processing VNPay return: " + e.getMessage());
         }
     }
 
@@ -238,44 +249,58 @@ public class PaymentController {
         log.info("Creating {} payment for appointment: {} from device: {}", 
                 provider, request.getAppointmentId(), deviceType);
 
-        PaymentResponseDTO response;
-        if ("MOMO".equalsIgnoreCase(provider)) {
-            response = paymentService.createMomoPayment(request);
-        } else if ("VNPAY".equalsIgnoreCase(provider)) {
-            response = paymentService.createVNPayPayment(request);
-        } else {
-            response = PaymentResponseDTO.builder()
-                    .success(false)
-                    .errorCode("INVALID_PROVIDER")
-                    .errorMessage("Provider không hợp lệ: " + provider)
-                    .build();
-        }
-        
-        if (response.isSuccess()) {
-            return ResponseEntity.ok(response);
-        } else {
-            return ResponseEntity.badRequest().body(response);
+        try {
+            PaymentResponseDTO response;
+            if ("MOMO".equalsIgnoreCase(provider)) {
+                response = paymentService.createMomoPayment(request);
+            } else if ("VNPAY".equalsIgnoreCase(provider)) {
+                response = paymentService.createVNPayPayment(request);
+            } else {
+                response = PaymentResponseDTO.builder()
+                        .success(false)
+                        .errorCode("INVALID_PROVIDER")
+                        .errorMessage("Provider không hợp lệ: " + provider)
+                        .build();
+            }
+            
+            if (response.isSuccess()) {
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.badRequest().body(response);
+            }
+        } catch (Exception e) {
+            log.error("Error creating payment", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(PaymentResponseDTO.builder()
+                        .success(false)
+                        .errorCode("PAYMENT_CREATION_FAILED")
+                        .errorMessage(e.getMessage())
+                        .build());
         }
     }
 
     // Helper methods
     private String getClientIpAddress(HttpServletRequest request) {
-        String[] headerNames = {
-            "X-Forwarded-For", "X-Real-IP", "Proxy-Client-IP", 
-            "WL-Proxy-Client-IP", "HTTP_X_FORWARDED_FOR", "HTTP_X_FORWARDED", 
-            "HTTP_X_CLUSTER_CLIENT_IP", "HTTP_CLIENT_IP", "HTTP_FORWARDED_FOR", 
-            "HTTP_FORWARDED", "HTTP_VIA", "REMOTE_ADDR"
-        };
-        
-        for (String header : headerNames) {
-            String ip = request.getHeader(header);
-            if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-                // Lấy IP đầu tiên nếu có nhiều
-                return ip.split(",")[0].trim();
+        String ipAddress = request.getHeader("X-Forwarded-For");
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getHeader("Proxy-Client-IP");
+        }
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ipAddress == null || ipAddress.isEmpty() || "unknown".equalsIgnoreCase(ipAddress)) {
+            ipAddress = request.getRemoteAddr();
+            if ("0:0:0:0:0:0:0:1".equals(ipAddress)) {
+                ipAddress = "127.0.0.1";
             }
         }
         
-        return request.getRemoteAddr();
+        // "123.123.123.123, 456.456.456.456"
+        if (ipAddress != null && ipAddress.contains(",")) {
+            return ipAddress.split(",")[0].trim();
+        }
+        
+        return ipAddress;
     }
 
     private PaymentCallbackDTO parseMomoCallback(Map<String, String> params) {

@@ -46,7 +46,6 @@ export const notificationService = {
 // Helper function để thêm token vào headers
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
-  console.log(token);
   
   return {
     'Content-Type': 'application/json',
@@ -117,7 +116,7 @@ const handleAuthError = (error, response) => {
 
 // Helper function để xử lý response
 const handleResponse = async (response) => {
-  console.log('📡 Response:', response.url, response.status);
+  // console.log('📡 Response:', response.url, response.status); // Giữ lại log này có thể hữu ích
   
   if (!response.ok) {
     // Handle authentication errors
@@ -145,18 +144,18 @@ const handleResponse = async (response) => {
   if (hasContent && contentType && contentType.includes('application/json')) {
     try {
       const data = await response.json();
-      console.log('✅ API Success (JSON):', response.url, data);
+      // console.log('✅ API Success (JSON):', response.url, data); // Giữ lại log này
       return data;
     } catch (error) {
       console.warn('⚠️ Failed to parse JSON, trying text:', error);
       const text = await response.text();
-      console.log('✅ API Success (Text):', response.url, text);
+      // console.log('✅ API Success (Text):', response.url, text); // Giữ lại log này
       return { message: text, success: true };
     }
   } else {
     // For responses without JSON content (like PUT requests)
     const text = await response.text();
-    console.log('✅ API Success (Text):', response.url, text);
+    // console.log('✅ API Success (Text):', response.url, text); // Giữ lại log này
     return { message: text || 'Operation completed successfully', success: true };
   }
 };
@@ -164,7 +163,7 @@ const handleResponse = async (response) => {
 // Simple fetch wrapper
 const apiRequest = async (url, options = {}) => {
   try {
-    console.log('🚀 API Request:', url, options.method || 'GET');
+    // console.log('🚀 API Request:', url, options.method || 'GET'); // Giữ lại log này
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -183,7 +182,7 @@ const apiRequest = async (url, options = {}) => {
 // Public API request (không cần authentication)
 const publicApiRequest = async (url, options = {}) => {
   try {
-    console.log('🚀 Public API Request:', url, options.method || 'GET');
+    // console.log('🚀 Public API Request:', url, options.method || 'GET'); // Giữ lại log này
     const response = await fetch(url, {
       ...options,
       headers: {
@@ -236,7 +235,6 @@ if (typeof window !== 'undefined') {
 export const authService = {
   // Đăng nhập với email/password
   async loginWithCredentials(credentials) {
-    console.log(credentials);
     
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -246,10 +244,8 @@ export const authService = {
         },
         body: JSON.stringify(credentials)
       });
-      console.log(response);
       
       const data = await handleResponse(response);
-      console.log(data);
       
       return data;
     } catch (error) {
@@ -261,29 +257,11 @@ export const authService = {
   // Lấy thông tin user hiện tại từ API với thông tin đầy đủ
   async getCurrentUserFromAPI() {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('No token found');
-      }
-
-      console.log('🔄 Fetching current user from API /users/me');
       const data = await apiRequest(`${API_BASE_URL}/users/me`);
-      console.log('✅ Successfully fetched user from API:', data);
-      
-      return {
-        user_id: data.userId || data.user_id,
-        id: data.userId || data.user_id,
-        full_name: data.fullName || data.full_name || '',
-        fullName: data.fullName || data.full_name || '',
-        email: data.email || '',
-        phone_number: data.phoneNumber || data.phone_number || '',
-        phoneNumber: data.phoneNumber || data.phone_number || '',
-        role_name: data.role?.roleName || data.role_name || '',
-        role: data.role?.roleName || data.role_name || '',
-        isActive: data.isActive || data.active || true
-      };
+      // console.log('Current user data from API:', data); // Xóa log này
+      return data;
     } catch (error) {
-      console.error('❌ Error fetching user from API:', error);
+      console.error("Failed to fetch current user from API:", error);
       throw error;
     }
   },
@@ -817,16 +795,12 @@ export const adminService = {
     }
   },
 
-  async toggleVNPayPayment(enableVNPay) {
-    try {
-      const value = enableVNPay ? 1 : 0;
-      return await apiRequest(`${API_BASE_URL}/system-config/payment/vnpay/toggle?enableVNPay=${value}`, {
-        method: 'PUT'
-      });
-    } catch (error) {
-      console.error('Toggle VNPay payment error:', error);
-      throw error;
-    }
+  async toggleVNPayPayment(enableVnPay) {
+    console.log("🚀 ~ file: api.js:820 ~ adminService.toggleVNPayPayment ~ enableVnPay:", enableVnPay)
+    const value = enableVnPay ? 1 : 0;
+    return await apiRequest(`${API_BASE_URL}/system-config/payment/vnpay/toggle?enableVnPay=${value}`, {
+      method: 'PUT'
+    });
   },
 
   async updateDefaultPaymentMethod(defaultPaymentMethod) {
@@ -840,28 +814,15 @@ export const adminService = {
     }
   },
 
-  async updateMomoConfiguration(momoConfig) {
-    try {
-      const params = new URLSearchParams();
-      if (momoConfig.partnerCode) params.append('partnerCode', momoConfig.partnerCode);
-      if (momoConfig.accessKey) params.append('accessKey', momoConfig.accessKey);
-      if (momoConfig.secretKey) params.append('secretKey', momoConfig.secretKey);
-      if (momoConfig.apiEndpoint) params.append('apiEndpoint', momoConfig.apiEndpoint);
-      
-      return await apiRequest(`${API_BASE_URL}/system-config/payment/momo?${params}`, {
-        method: 'PUT'
-      });
-    } catch (error) {
-      console.error('Update MoMo configuration error:', error);
-      throw error;
-    }
+  async updateMomoConfig(config) {
+    return await apiRequest(`${API_BASE_URL}/system-config/payment/momo`, { method: 'PUT', body: config });
   },
 
-  async updateVNPayConfiguration(vnpayConfig) {
+  async updateVNPayConfig(config) {
     try {
       const params = new URLSearchParams();
-      if (vnpayConfig.tmnCode) params.append('tmnCode', vnpayConfig.tmnCode);
-      if (vnpayConfig.secretKey) params.append('secretKey', vnpayConfig.secretKey);
+      if (config.tmnCode) params.append('tmnCode', config.tmnCode);
+      if (config.secretKey) params.append('secretKey', config.secretKey);
       
       return await apiRequest(`${API_BASE_URL}/system-config/payment/vnpay?${params}`, {
         method: 'PUT'
@@ -1148,44 +1109,96 @@ export const apiService = {
     }
   },
 
+  /**
+   * Tạo một lịch hẹn mới.
+   * @param {object} appointmentData - Dữ liệu lịch hẹn.
+   * @returns {Promise<object>} - Lịch hẹn đã được tạo.
+   */
   async createAppointment(appointmentData) {
+    const debugData = { ...appointmentData };
+    // Không log toàn bộ token
+    console.log('DEBUG: createAppointment with data:', debugData);
+    
+    const token = localStorage.getItem('token');
+    
+    console.log('🚀 REQUEST DETAILS:');
+    console.log(`  - URL: ${API_BASE_URL}/appointments`);
+    console.log(`  - Method: POST`);
+    console.log(`  - Headers:`, { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token ? token.substring(0, 30) + '...' : 'N/A'}`
+    });
+    console.log('  - Body (JSON):', JSON.stringify(appointmentData));
+    console.log('  - Body (parsed):', appointmentData);
+
     try {
-      console.log('DEBUG: createAppointment với dữ liệu:', appointmentData);
-      
-      const requestBody = JSON.stringify(appointmentData);
-      const headers = getAuthHeaders();
-      
-      console.log('🚀 REQUEST DETAILS:');
-      console.log('  - URL:', `${API_BASE_URL}/appointments`);
-      console.log('  - Method: POST');
-      console.log('  - Headers:', headers);
-      console.log('  - Body (JSON):', requestBody);
-      console.log('  - Body (parsed):', JSON.parse(requestBody));
-      
-      const response = await fetch(`${API_BASE_URL}/appointments`, {
+      const url = `${API_BASE_URL}/appointments`;
+      const appointment = await apiRequest(url, {
         method: 'POST',
-        headers: headers,
-        body: requestBody
+        body: JSON.stringify(appointmentData),
       });
-      
-      // Log chi tiết lỗi nếu có
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', response.status, errorText);
-        
-        try {
-          // Thử phân tích lỗi dạng JSON nếu có
-          const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.message || `Lỗi ${response.status}: ${errorText}`);
-        } catch (_parseError) {
-          // Nếu không phải JSON, trả về lỗi dạng text
-          throw new Error(`Lỗi ${response.status}: ${errorText}`);
-        }
-      }
-      
-      return handleResponse(response);
+      console.log('✅ Appointment created successfully:', appointment);
+      return appointment;
     } catch (error) {
-      console.error('Create appointment error:', error);
+      console.error('Error in createAppointment:', error);
+      handleApiError(error, 'CREATE_APPOINTMENT');
+      throw error;
+    }
+  },
+
+  /**
+   * Tạo yêu cầu thanh toán qua MoMo.
+   * @param {object} paymentRequest - Dữ liệu yêu cầu thanh toán (appointmentId, amount, etc.).
+   * @returns {Promise<object>} - Phản hồi từ API thanh toán MoMo.
+   */
+  async createMomoPayment(paymentRequest) {
+    try {
+      const url = `${API_BASE_URL}/payments/momo/create`;
+      const response = await apiRequest(url, {
+        method: 'POST',
+        body: JSON.stringify(paymentRequest),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error creating Momo payment:', error);
+      handleApiError(error, 'CREATE_MOMO_PAYMENT');
+      throw error;
+    }
+  },
+
+  /**
+   * Tạo yêu cầu thanh toán qua VNPay.
+   * @param {object} paymentRequest - Dữ liệu yêu cầu thanh toán (appointmentId, amount, etc.).
+   * @returns {Promise<object>} - Phản hồi từ API thanh toán VNPay.
+   */
+  async createVNPayPayment(paymentRequest) {
+    try {
+      const url = `${API_BASE_URL}/payments/vnpay/create`;
+      const response = await apiRequest(url, {
+        method: 'POST',
+        body: JSON.stringify(paymentRequest),
+      });
+      return response;
+    } catch (error) {
+      console.error('Error creating VNPay payment:', error);
+      handleApiError(error, 'CREATE_VNPAY_PAYMENT');
+      throw error;
+    }
+  },
+
+  /**
+   * Xử lý khi VNPay trả về. Gửi query params để backend xác thực.
+   */
+  async handleVNPayReturn(params) {
+    try {
+      const url = `${API_BASE_URL}/payments/vnpay/callback?${params}`;
+      const response = await apiRequest(url, {
+        method: 'GET'
+      });
+      return response;
+    } catch (error) {
+      console.error('Error handling VNPay return:', error);
+      handleApiError(error, 'HANDLE_VNPAY_RETURN');
       throw error;
     }
   },
@@ -1426,22 +1439,24 @@ export const doctorService = {
 
   // Clear cache (useful for logout or profile updates)
   _clearCache() {
-    this._doctorInfoCache = null;
-    this._cacheTimestamp = null;
-  },
-  // Get doctor's schedule using admin API
-  async getMySchedule(params = {}) {
-    try {
-      const doctorInfo = await this._getDoctorInfo();
-      const queryParams = new URLSearchParams(params);
-      return await apiRequest(`${API_BASE_URL}/availability/slots/doctor/${doctorInfo.doctorId}?${queryParams}`);
-    } catch (error) {
-      console.error('Get my schedule error:', error);
-      throw handleApiError(error, 'getMySchedule');
-    }
+    this._cache = { profile: null, specialties: null, appointments: {}, schedule: {} };
+    this._cacheTimestamps = { profile: 0, specialties: 0, appointments: 0, schedule: 0 };
+    console.log('Doctor service cache cleared');
   },
 
-  // Get doctor's appointments using admin API
+  // Lấy lịch làm việc của bác sĩ
+  async getMySchedule(params = {}) {
+    const key = `schedule_${JSON.stringify(params)}`;
+    if (this._isCacheValid(key) && this._cache.schedule[key]) {
+      return this._cache.schedule[key];
+    }
+    const data = await apiRequest(`${API_BASE_URL}/doctors/my-schedule`, { params });
+    this._cache.schedule[key] = data;
+    this._cacheTimestamps[key] = Date.now();
+    return data;
+  },
+
+  // Lấy danh sách lịch hẹn của bác sĩ
   async getMyAppointments(params = {}) {
     try {
       const doctorInfo = await this._getDoctorInfo();
@@ -1459,6 +1474,7 @@ export const doctorService = {
       const doctorInfo = await this._getDoctorInfo();
       
       // Separate doctor data and user data
+      // eslint-disable-next-line no-unused-vars
       const { bio, yearsOfExperience, fullName, phoneNumber, ...otherData } = profileData;
       
       // Update doctor profile (bio, yearsOfExperience)
@@ -1520,6 +1536,7 @@ export const doctorService = {
       console.log('🔄 Updating user profile:', userId, userData);
       
       // Remove email from userData if present (doctor can't change email)
+      // eslint-disable-next-line no-unused-vars
       const { email, ...userDataWithoutEmail } = userData;
       
       const response = await apiRequest(`${API_BASE_URL}/users/${userId}`, {

@@ -18,7 +18,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     /**
      * Tìm payment theo order ID
      */
-    Optional<Payment> findByOrderId(String orderId);
+    @Query("SELECT p FROM Payment p LEFT JOIN FETCH p.appointment a LEFT JOIN FETCH a.patient LEFT JOIN FETCH a.doctor LEFT JOIN FETCH a.clinic LEFT JOIN FETCH a.specialty WHERE p.orderId = :orderId")
+    Optional<Payment> findByOrderId(@Param("orderId") String orderId);
     
     /**
      * Tìm payment theo gateway order ID
@@ -95,4 +96,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
      */
     @Query("SELECT p FROM Payment p WHERE p.appointment.appointmentId = :appointmentId ORDER BY p.createdAt DESC")
     List<Payment> findLatestPaymentByAppointment(@Param("appointmentId") Long appointmentId, Pageable pageable);
+
+    List<Payment> findAllByStatusAndCreatedAtBefore(Payment.PaymentStatus status, LocalDateTime createdAt);
 } 

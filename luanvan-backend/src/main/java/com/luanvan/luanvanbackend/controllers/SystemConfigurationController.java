@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 
 @RestController
 @RequestMapping("/api/system-config")
@@ -42,7 +44,7 @@ public class SystemConfigurationController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SystemConfiguration> updateConfiguration(
             @Valid @RequestBody SystemConfigurationDTO configDTO) {
-        SystemConfiguration config = systemConfigurationService.updateConfiguration(configDTO);
+        SystemConfiguration config = systemConfigurationService.updateSystemConfig(configDTO);
         return ResponseEntity.ok(config);
     }
 
@@ -84,16 +86,18 @@ public class SystemConfigurationController {
      */
     @PutMapping("/payment/vnpay/toggle")
     @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Bật hoặc tắt phương thức thanh toán VNPay")
     public ResponseEntity<SystemConfiguration> toggleVNPayPayment(
-            @RequestParam boolean enableVNPay) {
-        SystemConfiguration config = systemConfigurationService.toggleVNPayPayment(enableVNPay);
+            @Parameter(description = "True để bật, False để tắt") 
+            @RequestParam boolean enableVnPay) {
+        SystemConfiguration config = systemConfigurationService.toggleVNPayPayment(enableVnPay);
         return ResponseEntity.ok(config);
     }
 
     /**
      * Cập nhật phương thức thanh toán mặc định (chỉ Admin)
      */
-    @PutMapping("/payment/default-method")
+    @PutMapping("/payment/method/default")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SystemConfiguration> updateDefaultPaymentMethod(
             @RequestParam String defaultPaymentMethod) {

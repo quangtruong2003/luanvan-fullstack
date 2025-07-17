@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   CreditCard, 
@@ -17,7 +17,7 @@ import {
   Building2,
   Loader2
 } from 'lucide-react';
-import { apiService, authService, adminService } from '../services/api';
+import { authService, adminService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../components/NotificationSystem';
 
@@ -30,13 +30,7 @@ const BookAppointmentDetails = () => {
   
   // Nhận thông tin từ trang trước
   const { slotData, doctorData, clinicData, date } = location.state || {};
-  function countWords(str) {
-    const trimmed = str.trim();
-    if (trimmed === "") return 0;
-    // Bước 3: Tách thành mảng các từ (dựa vào dấu cách/tab/xuống dòng)
-    const wordsArray = trimmed.split(/\s+/);
-    return wordsArray.length;
-  }
+  
   // State cho thông tin người dùng (fallback khi currentUser chưa có)
   const [userInfo, setUserInfo] = useState({
     user_id: null,
@@ -56,7 +50,7 @@ const BookAppointmentDetails = () => {
   });  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [specialtyId, setSpecialtyId] = useState(null);
-  const [isPaymentRequired, setIsPaymentRequired] = useState(true);
+  const [paymentConfig, setPaymentConfig] = useState(null); // Sửa: Dùng state object để lưu toàn bộ config
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [configError, setConfigError] = useState(null);
   
@@ -109,44 +103,23 @@ const BookAppointmentDetails = () => {
     }
   }, [userInfo]);
 
-  const fetchPaymentConfig = useCallback(async () => {
+  // Sửa: fetchPaymentConfig giờ chỉ lấy và lưu trữ, không quyết định logic
+  useEffect(() => {
+    const loadConfig = async () => {
     setLoadingConfig(true);
     setConfigError(null);
     try {
         const systemConfigs = await adminService.getSystemConfig();
         const fetchedConfig = Array.isArray(systemConfigs) ? systemConfigs[0] : systemConfigs;
 
-        console.log('🔍 Raw system config response:', systemConfigs);
-        console.log('🔍 Fetched config:', fetchedConfig);
-
         if (!fetchedConfig) {
             throw new Error("Không thể tải cấu hình hệ thống.");
         }
 
-        const newConfig = {
-            enableDeposit: fetchedConfig.enableDeposit || fetchedConfig.enable_deposit || false,
-            // Kiểm tra tất cả các biến thể tên có thể có
-            enableMomo: fetchedConfig.enableMomo || fetchedConfig.enable_momo || false,
-            enableVNPay: fetchedConfig.enableVNPay || fetchedConfig.enableVnPay || fetchedConfig.enable_vn_pay || false,
-            depositAmount: fetchedConfig.defaultDepositAmount || fetchedConfig.default_deposit_amount || 0,
-        };
+        console.log('💰 [BookAppointmentDetails] Raw config from API:', fetchedConfig);
 
-        console.log('💰 Payment config fetched:', newConfig);
-
-        // Kiểm tra xem có yêu cầu thanh toán không
-        const isDepositGloballyEnabled = newConfig.enableDeposit;
-        const hasPaymentMethod = newConfig.enableMomo || newConfig.enableVNPay;
-        const hasDepositAmount = newConfig.depositAmount > 0;
-        
-        // Console.log để test theo yêu cầu
-        console.log('💰 Payment requirement check:', {
-            isDepositGloballyEnabled,
-            hasPaymentMethod,
-            hasDepositAmount,
-            finalResult: isDepositGloballyEnabled && hasPaymentMethod && hasDepositAmount
-        });
-
-        setIsPaymentRequired(isDepositGloballyEnabled && hasPaymentMethod && hasDepositAmount);
+        // Lưu trữ toàn bộ cấu hình thô
+        setPaymentConfig(fetchedConfig);
 
     } catch (error) {
         const errorMessage = error.message || 'Không thể tải cấu hình hệ thống. Vui lòng thử lại.';
@@ -156,12 +129,10 @@ const BookAppointmentDetails = () => {
     } finally {
         setLoadingConfig(false);
     }
+    };
+    
+    loadConfig();
   }, [showError]);
-
-  // Effect để lấy cấu hình thanh toán từ API khi component được mount
-  useEffect(() => {
-    fetchPaymentConfig();
-  }, [fetchPaymentConfig]);
   
   // Lấy specialtyId từ slot nếu có
   useEffect(() => {
@@ -250,803 +221,235 @@ const BookAppointmentDetails = () => {
     // Enhanced clinic info resolution logging
     console.log('🏥 CLINIC INFO RESOLUTION:');
     const resolvedClinicName = clinicData?.name || 
-                              clinicData?.clinic_name ||
                               slotData?.clinic?.name || 
-                              slotData?.clinic?.clinic_name ||
-                              doctorData?.clinic?.name ||
-                              doctorData?.clinic?.clinic_name ||
-                              doctorData?.specialties?.[0]?.clinic?.name ||
-                              doctorData?.specialties?.[0]?.clinic?.clinic_name ||
-                              slotData?.clinicName ||
-                              slotData?.clinic_name ||
-                              doctorData?.clinicName ||
-                              doctorData?.clinic_name ||
-                              'Phòng khám mặc định'
-                              
+                               doctorData?.clinic?.name || 'N/A';
     const resolvedClinicAddress = clinicData?.address || 
-                                 clinicData?.clinic_address ||
                                  slotData?.clinic?.address || 
-                                 slotData?.clinic?.clinic_address ||
-                                 doctorData?.clinic?.address ||
-                                 doctorData?.clinic?.clinic_address ||
-                                 doctorData?.specialties?.[0]?.clinic?.address ||
-                                 doctorData?.specialties?.[0]?.clinic?.clinic_address ||
-                                 slotData?.clinicAddress ||
-                                 slotData?.clinic_address ||
-                                 doctorData?.clinicAddress ||
-                                 doctorData?.clinic_address ||
-                                 'Chưa cập nhật địa chỉ'
-    
-    console.log('Resolved clinic name:', resolvedClinicName);
-    console.log('Resolved clinic address:', resolvedClinicAddress);
-    
-    // Test each source individually
-    console.log('📋 Individual clinic name sources:');
-    console.log('  - clinicData?.name:', clinicData?.name);
-    console.log('  - clinicData?.clinic_name:', clinicData?.clinic_name);
-    console.log('  - slotData?.clinic?.name:', slotData?.clinic?.name);
-    console.log('  - slotData?.clinic?.clinic_name:', slotData?.clinic?.clinic_name);
-    console.log('  - doctorData?.clinic?.name:', doctorData?.clinic?.name);
-    console.log('  - doctorData?.clinic?.clinic_name:', doctorData?.clinic?.clinic_name);
-    console.log('  - doctorData?.specialties?.[0]?.clinic?.name:', doctorData?.specialties?.[0]?.clinic?.name);
-    console.log('  - doctorData?.specialties?.[0]?.clinic?.clinic_name:', doctorData?.specialties?.[0]?.clinic?.clinic_name);
-    
-    console.log('📋 Individual clinic address sources:');
-    console.log('  - clinicData?.address:', clinicData?.address);
-    console.log('  - clinicData?.clinic_address:', clinicData?.clinic_address);
-    console.log('  - slotData?.clinic?.address:', slotData?.clinic?.address);
-    console.log('  - slotData?.clinic?.clinic_address:', slotData?.clinic?.clinic_address);
-    console.log('  - doctorData?.clinic?.address:', doctorData?.clinic?.address);
-    console.log('  - doctorData?.clinic?.clinic_address:', doctorData?.clinic?.clinic_address);
-    console.log('  - doctorData?.specialties?.[0]?.clinic?.address:', doctorData?.specialties?.[0]?.clinic?.address);
-    console.log('  - doctorData?.specialties?.[0]?.clinic?.clinic_address:', doctorData?.specialties?.[0]?.clinic?.clinic_address);
-    
-  }, [currentUser, userInfo, formData, doctorData, clinicData, slotData, date]);
-  // Xử lý khi người dùng thay đổi input
+                                  doctorData?.clinic?.address || 'N/A';
+    console.log({resolvedClinicName, resolvedClinicAddress});
+    console.log('=======================================');
+  }, [date, slotData, doctorData, clinicData, currentUser, userInfo, formData]);
+
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-  // Xử lý đặt lịch
+
   const handleBookAppointment = async (e) => {
     e.preventDefault();
     
-    // Kiểm tra thông tin bắt buộc
-    if (!formData.reasonForVisit || formData.reasonForVisit.trim() === '') {
-      setError('Vui lòng nhập lý do khám bệnh');
+    // Ngăn chặn việc submit nếu cấu hình chưa được tải xong
+    if (loadingConfig) {
+      showError("Hệ thống đang tải cấu hình, vui lòng đợi trong giây lát.", "Vui lòng đợi");
       return;
     }
 
-    // Xử lý số điện thoại - QUAN TRỌNG: Không được cập nhật số điện thoại thành null/rỗng
-    const inputPhone = formData.patientPhone?.trim() || '';
-    const currentPhone = userInfo.phone_number?.trim() || '';
-    
-    // Nếu user không nhập gì, sử dụng SĐT hiện tại từ database
-    const finalPhone = inputPhone || currentPhone;
-    
-    if (!finalPhone) {
-      setError('Vui lòng nhập số điện thoại');
+    // Xử lý lỗi nếu không tải được cấu hình
+    if (configError || !paymentConfig) {
+      showError("Không thể xác định thông tin thanh toán do lỗi cấu hình. Vui lòng thử lại.", "Lỗi cấu hình");
       return;
     }
     
-    // Chuẩn hóa số điện thoại: chỉ giữ lại các chữ số
-    const normalizedPhone = finalPhone.replace(/\D/g, '');
-    
-    // Kiểm tra độ dài số điện thoại sau khi chuẩn hóa
-    if (normalizedPhone.length < 10 || normalizedPhone.length > 11) {
-      setError('Số điện thoại phải có 10-11 chữ số');
-      return;
-    }
-    
-    // Kiểm tra format số điện thoại Việt Nam
-    const phoneRegex = /^(0[3|5|7|8|9][0-9]{8}|84[3|5|7|8|9][0-9]{8})$/;
-    if (!phoneRegex.test(normalizedPhone)) {
-      setError('Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam hợp lệ');
-      return;
-    }
-    
-    console.log('📞 Phone validation passed:', {
-      inputPhone,
-      currentPhone,
-      finalPhone,
-      normalizedPhone,
-      willUpdate: inputPhone && inputPhone !== currentPhone
-    });
-    
-    // === BƯỚC 1: XÁC ĐỊNH USER ID ===
-    const userId = userInfo.user_id;
-    
-    if (!userId || isNaN(parseInt(userId))) {
-      setError('Không tìm thấy thông tin người dùng hợp lệ. Vui lòng đăng nhập lại.');
-      return;
-    }
-
-    // === BƯỚC 2: KIỂM TRA SLOT VÀ DOCTOR DATA ===
-    if (!slotData || !doctorData) {
-      setError('Thông tin lịch khám không hợp lệ');
-      return;
-    }
-
-    // === BƯỚC 3: XÁC ĐỊNH DOCTOR ID ===
-    let doctorId = null;
-    
-    // Thử tất cả các khả năng đặt tên cho doctor ID
-    const possibleDoctorIdFields = [
-      'doctor_id', 'doctorId', 'id', 'user_id', 'userId',
-      'Doctor_id', 'DoctorId', 'ID', 'User_id', 'UserId'
-    ];
-    
-    for (const field of possibleDoctorIdFields) {
-      if (doctorData[field] != null && !isNaN(parseInt(doctorData[field]))) {
-        doctorId = doctorData[field];
-        console.log(`✅ Found doctorId in field: ${field} = ${doctorId}`);
-        break;
-      }
-    }
-    
-    // Nếu vẫn không tìm thấy, thử trong nested objects
-    if (!doctorId && doctorData.user) {
-      for (const field of possibleDoctorIdFields) {
-        if (doctorData.user[field] != null && !isNaN(parseInt(doctorData.user[field]))) {
-          doctorId = doctorData.user[field];
-          console.log(`✅ Found doctorId in user.${field} = ${doctorId}`);
-          break;
-        }
-      }
-    }
-    
-    console.log('🔍 Doctor ID Resolution:', {
-      doctorData_doctor_id: doctorData.doctor_id,
-      doctorData_doctorId: doctorData.doctorId,
-      doctorData_id: doctorData.id,
-      doctorData_user_id: doctorData.user_id,
-      doctorData_user: doctorData.user,
-      finalDoctorId: doctorId
-    });
-    
-    if (!doctorId || isNaN(parseInt(doctorId))) {
-      console.error('❌ No valid doctor ID found in:', doctorData);
-      setError('Không thể xác định thông tin bác sĩ. Vui lòng chọn lại bác sĩ.');
-      return;
-    }
-
-    // === BƯỚC 4: XÁC ĐỊNH SLOT ID ===
-    let slotId = null;
-    
-    // Thử tất cả các khả năng đặt tên cho slot ID
-    const possibleSlotIdFields = [
-      'slot_id', 'slotId', 'id', 'availability_slot_id', 'availabilitySlotId',
-      'Slot_id', 'SlotId', 'ID', 'Availability_slot_id', 'AvailabilitySlotId'
-    ];
-    
-    for (const field of possibleSlotIdFields) {
-      if (slotData[field] != null && !isNaN(parseInt(slotData[field]))) {
-        slotId = slotData[field];
-        console.log(`✅ Found slotId in field: ${field} = ${slotId}`);
-        break;
-      }
-    }
-    
-    console.log('🔍 Slot ID Resolution:', {
-      slotData_slot_id: slotData.slot_id,
-      slotData_slotId: slotData.slotId,
-      slotData_id: slotData.id,
-      slotData_availability_slot_id: slotData.availability_slot_id,
-      finalSlotId: slotId
-    });
-    
-    if (!slotId || isNaN(parseInt(slotId))) {
-      console.error('❌ No valid slot ID found in:', slotData);
-      setError('Không thể xác định thông tin slot thời gian. Vui lòng chọn lại slot.');
-      return;
-    }
-
-    // === BƯỚC 5: XÁC ĐỊNH SPECIALTY ID ===
-    let actualSpecialtyId = specialtyId;
-    
-    const possibleSpecialtyIdFields = [
-      'specialty_id', 'specialtyId', 'id', 'Specialty_id', 'SpecialtyId', 'ID'
-    ];
-    
-    if (!actualSpecialtyId) {
-      // Thử lấy từ slot data trực tiếp
-      for (const field of possibleSpecialtyIdFields) {
-        if (slotData[field] != null && !isNaN(parseInt(slotData[field]))) {
-          actualSpecialtyId = slotData[field];
-          console.log(`✅ Found specialtyId in slotData.${field} = ${actualSpecialtyId}`);
-          break;
-        }
-      }
-      
-      // Thử lấy từ slot data.specialty object
-      if (!actualSpecialtyId && slotData.specialty) {
-        for (const field of possibleSpecialtyIdFields) {
-          if (slotData.specialty[field] != null && !isNaN(parseInt(slotData.specialty[field]))) {
-            actualSpecialtyId = slotData.specialty[field];
-            console.log(`✅ Found specialtyId in slotData.specialty.${field} = ${actualSpecialtyId}`);
-            break;
-          }
-        }
-      }
-      
-      // Thử lấy từ doctor's specialties
-    if (!actualSpecialtyId && doctorData.specialties && doctorData.specialties.length > 0) {
-        const firstSpecialty = doctorData.specialties[0];
-        for (const field of possibleSpecialtyIdFields) {
-          if (firstSpecialty[field] != null && !isNaN(parseInt(firstSpecialty[field]))) {
-            actualSpecialtyId = firstSpecialty[field];
-            console.log(`✅ Found specialtyId in doctorData.specialties[0].${field} = ${actualSpecialtyId}`);
-            break;
-          }
-        }
-      }
-    }
-    
-    console.log('🔍 Specialty ID Resolution:', {
-      current_specialtyId: specialtyId,
-      slotData_specialty_id: slotData.specialty_id,
-      slotData_specialtyId: slotData.specialtyId,
-      slotData_specialty_object: slotData.specialty,
-      doctorData_specialties: doctorData.specialties,
-      finalSpecialtyId: actualSpecialtyId
-    });
-    
-    if (!actualSpecialtyId || isNaN(parseInt(actualSpecialtyId))) {
-      console.error('❌ No valid specialty ID found');
-      console.error('SlotData:', slotData);
-      console.error('DoctorData specialties:', doctorData.specialties);
-      setError('Không thể xác định chuyên khoa. Vui lòng thử lại.');
-      return;
-    }
-    
-    // === BƯỚC 6: XÁC ĐỊNH CLINIC ID ===
-    let actualClinicId = null;
-    
-    const possibleClinicIdFields = [
-      'clinic_id', 'clinicId', 'id', 'Clinic_id', 'ClinicId', 'ID'
-    ];
-    
-    // Thử lấy từ clinicData trước
-    if (clinicData) {
-      for (const field of possibleClinicIdFields) {
-        if (clinicData[field] != null && !isNaN(parseInt(clinicData[field]))) {
-          actualClinicId = clinicData[field];
-          console.log(`✅ Found clinicId in clinicData.${field} = ${actualClinicId}`);
-          break;
-        }
-      }
-    }
-    
-    // Nếu chưa có, thử lấy từ slot data trực tiếp
-    if (!actualClinicId) {
-      for (const field of possibleClinicIdFields) {
-        if (slotData[field] != null && !isNaN(parseInt(slotData[field]))) {
-          actualClinicId = slotData[field];
-          console.log(`✅ Found clinicId in slotData.${field} = ${actualClinicId}`);
-          break;
-        }
-      }
-    }
-    
-    // Thử lấy từ slot.clinic object
-    if (!actualClinicId && slotData.clinic) {
-      for (const field of possibleClinicIdFields) {
-        if (slotData.clinic[field] != null && !isNaN(parseInt(slotData.clinic[field]))) {
-          actualClinicId = slotData.clinic[field];
-          console.log(`✅ Found clinicId in slotData.clinic.${field} = ${actualClinicId}`);
-          break;
-        }
-      }
-    }
-    
-    // Thử lấy từ doctor data trực tiếp
-    if (!actualClinicId) {
-      for (const field of possibleClinicIdFields) {
-        if (doctorData[field] != null && !isNaN(parseInt(doctorData[field]))) {
-          actualClinicId = doctorData[field];
-          console.log(`✅ Found clinicId in doctorData.${field} = ${actualClinicId}`);
-          break;
-        }
-      }
-    }
-    
-    // Thử lấy từ doctor.clinic object
-    if (!actualClinicId && doctorData.clinic) {
-      for (const field of possibleClinicIdFields) {
-        if (doctorData.clinic[field] != null && !isNaN(parseInt(doctorData.clinic[field]))) {
-          actualClinicId = doctorData.clinic[field];
-          console.log(`✅ Found clinicId in doctorData.clinic.${field} = ${actualClinicId}`);
-          break;
-        }
-      }
-    }
-    
-    // Thử lấy từ specialty của doctor
-    if (!actualClinicId && doctorData.specialties && doctorData.specialties.length > 0) {
-      const firstSpecialty = doctorData.specialties[0];
-      if (firstSpecialty.clinic) {
-        for (const field of possibleClinicIdFields) {
-          if (firstSpecialty.clinic[field] != null && !isNaN(parseInt(firstSpecialty.clinic[field]))) {
-            actualClinicId = firstSpecialty.clinic[field];
-            console.log(`✅ Found clinicId in doctorData.specialties[0].clinic.${field} = ${actualClinicId}`);
-            break;
-          }
-        }
-      }
-    }
-
-    console.log('🔍 Clinic ID Resolution:', {
-      clinicData: clinicData,
-      clinicData_clinic_id: clinicData?.clinic_id,
-      clinicData_clinicId: clinicData?.clinicId,
-      slotData_clinic: slotData.clinic,
-      doctorData_clinic: doctorData.clinic,
-      doctorData_specialties_clinic: doctorData.specialties?.[0]?.clinic,
-      finalClinicId: actualClinicId
-    });
-    
-    if (!actualClinicId || isNaN(parseInt(actualClinicId))) {
-      console.error('❌ No valid clinic ID found');
-      console.error('ClinicData:', clinicData);
-      console.error('SlotData clinic:', slotData.clinic);
-      console.error('DoctorData clinic:', doctorData.clinic);
-      console.error('DoctorData specialties clinic:', doctorData.specialties?.[0]?.clinic);
-      setError('Không thể xác định phòng khám. Vui lòng thử lại.');
-      return;
-    }
-
-    // === BƯỚC 7: VALIDATION NGÀY VÀ TẠO APPOINTMENT DATETIME ===
-    let appointmentDateTime;
-    const startTime = slotData.start_time || slotData.startTime || '08:00:00';
-    
-    try {
-      // Load admin settings để lấy minimum advance booking days
-      let minimumAdvanceBookingDays = 1; // default
-      
-      try {
-        const savedSettings = localStorage.getItem('adminSettings');
-        if (savedSettings) {
-          const adminSettings = JSON.parse(savedSettings);
-          if (adminSettings.general?.minimumAdvanceBookingDays !== undefined) {
-            minimumAdvanceBookingDays = adminSettings.general.minimumAdvanceBookingDays;
-          }
-        }
-      } catch (settingsError) {
-        console.warn('Failed to load admin settings for date validation:', settingsError);
-      }
-
-      console.log('📅 Minimum advance booking days:', minimumAdvanceBookingDays);
-
-      // Parse ngày đã chọn (tránh timezone issues)
-      let formattedDate;
-      if (typeof date === 'string') {
-        // Nếu date là string format YYYY-MM-DD, sử dụng trực tiếp
-        if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-          formattedDate = date;
-        } else {
-          // Parse date string khác
-          const appointmentDate = new Date(date);
-          if (isNaN(appointmentDate.getTime())) {
-            throw new Error('Invalid date format: ' + date);
-          }
-          // Sử dụng local date string để tránh timezone issues
-          const year = appointmentDate.getFullYear();
-          const month = String(appointmentDate.getMonth() + 1).padStart(2, '0');
-          const day = String(appointmentDate.getDate()).padStart(2, '0');
-          formattedDate = `${year}-${month}-${day}`;
-        }
-      } else {
-        // date là Date object
-        const appointmentDate = new Date(date);
-        if (isNaN(appointmentDate.getTime())) {
-          throw new Error('Invalid date object: ' + date);
-        }
-        // Sử dụng local date để tránh timezone conversion
-        const year = appointmentDate.getFullYear();
-        const month = String(appointmentDate.getMonth() + 1).padStart(2, '0');
-        const day = String(appointmentDate.getDate()).padStart(2, '0');
-        formattedDate = `${year}-${month}-${day}`;
-      }
-
-      console.log('📅 Original date input:', date);
-      console.log('📅 Formatted date (should match selected):', formattedDate);
-
-      // Validate minimum advance booking
-      const selectedDate = new Date(formattedDate + 'T00:00:00');
-      const today = new Date();
-      // Reset time để so sánh chỉ ngày
-      today.setHours(0, 0, 0, 0);
-      selectedDate.setHours(0, 0, 0, 0);
-      
-      const daysDifference = Math.ceil((selectedDate - today) / (1000 * 60 * 60 * 24));
-      
-      console.log('📅 Date validation:', {
-        today: today.toDateString(),
-        selectedDate: selectedDate.toDateString(),
-        daysDifference,
-        minimumRequired: minimumAdvanceBookingDays,
-        isValid: daysDifference >= minimumAdvanceBookingDays
-      });
-
-      if (daysDifference < minimumAdvanceBookingDays) {
-        const message = minimumAdvanceBookingDays === 0 
-          ? 'Không thể đặt lịch cho ngày trong quá khứ.'
-          : `Vui lòng đặt lịch trước ít nhất ${minimumAdvanceBookingDays} ngày. Ngày sớm nhất có thể đặt là ${new Date(today.getTime() + minimumAdvanceBookingDays * 24 * 60 * 60 * 1000).toLocaleDateString('vi-VN')}.`;
-        setError(message);
-        return;
-      }
-      
-      // Đảm bảo time format đúng (HH:mm:ss)
-      let formattedTime = startTime;
-      if (formattedTime.length === 5) { // HH:mm
-        formattedTime = `${formattedTime}:00`; // HH:mm:ss
-      } else if (formattedTime.includes('.')) {
-        formattedTime = formattedTime.split('.')[0]; // Remove milliseconds
-      }
-      
-      // Backend expects format: YYYY-MM-DDTHH:mm:ss (LocalDateTime format)
-      appointmentDateTime = `${formattedDate}T${formattedTime}`;
-      
-      // Final validation: ensure appointment datetime is in future (for backend @Future constraint)
-      const appointmentDateTimeObj = new Date(appointmentDateTime);
-      const now = new Date();
-      
-      console.log('🕒 Final DateTime validation:', {
-        originalDate: date,
-        formattedDate: formattedDate,
-        formattedTime: formattedTime,
-        appointmentDateTime: appointmentDateTime,
-        now: now.toISOString(),
-        appointmentDateTimeObj: appointmentDateTimeObj.toISOString(),
-        isFuture: appointmentDateTimeObj > now,
-        clientTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        timezoneOffset: now.getTimezoneOffset()
-      });
-      
-      // More strict validation for time on same day
-      if (daysDifference === 0) {
-        // If booking for today, check if time is still available
-        const nowTime = now.getHours() * 60 + now.getMinutes();
-        const [appointmentHour, appointmentMinute] = formattedTime.split(':').map(Number);
-        const appointmentTimeMinutes = appointmentHour * 60 + appointmentMinute;
-        
-        if (appointmentTimeMinutes <= nowTime + 30) { // 30 minutes buffer
-          setError('Không thể đặt lịch cho giờ đã qua hoặc quá gần hiện tại. Vui lòng chọn giờ ít nhất 30 phút sau.');
-          return;
-        }
-      }
-      
-      console.log('🕒 DateTime formatting:', {
-        originalDate: date,
-        originalTime: startTime,
-        formattedDate,
-        formattedTime,
-        appointmentDateTime,
-        isValidFuture: appointmentDateTimeObj > now
-      });
-      
-    } catch (dateError) {
-      console.error('Date formatting error:', dateError);
-      setError('Lỗi định dạng ngày giờ. Vui lòng thử lại.');
-      return;
-    }
-
-    // === BƯỚC 8: TẠO APPOINTMENT DATA ===
-    // Parse integers với validation
-    const parsedPatientId = parseInt(userId);
-    const parsedDoctorId = parseInt(doctorId);
-    const parsedSlotId = parseInt(slotId);
-    const parsedSpecialtyId = parseInt(actualSpecialtyId);
-    const parsedClinicId = parseInt(actualClinicId);
-    
-    console.log('🔍 Parsed IDs check:');
-    console.log('  - userId:', userId, '→ parsedPatientId:', parsedPatientId, 'isNaN:', isNaN(parsedPatientId));
-    console.log('  - doctorId:', doctorId, '→ parsedDoctorId:', parsedDoctorId, 'isNaN:', isNaN(parsedDoctorId));
-    console.log('  - slotId:', slotId, '→ parsedSlotId:', parsedSlotId, 'isNaN:', isNaN(parsedSlotId));
-    console.log('  - actualSpecialtyId:', actualSpecialtyId, '→ parsedSpecialtyId:', parsedSpecialtyId, 'isNaN:', isNaN(parsedSpecialtyId));
-    console.log('  - actualClinicId:', actualClinicId, '→ parsedClinicId:', parsedClinicId, 'isNaN:', isNaN(parsedClinicId));
-    
-    // Kiểm tra payment config để xác định trạng thái mặc định
-    // Sử dụng isPaymentRequired đã được tính toán trong fetchPaymentConfig
-    let defaultStatus = 'PENDING_PAYMENT'; // Mặc định
-    
-    console.log('💰 Payment requirement check:', {
-      isPaymentRequired,
-      willRequirePayment: isPaymentRequired
-    });
-
-    // Nếu không cần thanh toán, set status = CONFIRMED
-    if (!isPaymentRequired) {
-      defaultStatus = 'CONFIRMED';
-      console.log('💰 No payment required - Setting appointment status to CONFIRMED');
-    } else {
-      console.log('💰 Payment required - Setting appointment status to PENDING_PAYMENT');
-    }
-    
-    // Gửi theo format backend mong đợi với snake_case fields và proper data types
-    const appointmentData = {
-      // Backend hỗ trợ cả camelCase và snake_case với @JsonAlias
-      patientId: parsedPatientId,
-      patient_id: parsedPatientId,
-      
-      doctorId: parsedDoctorId,
-      doctor_id: parsedDoctorId,
-      
-      slotId: parsedSlotId,
-      slot_id: parsedSlotId,
-      
-      specialtyId: parsedSpecialtyId,
-      specialty_id: parsedSpecialtyId,
-      
-      clinicId: parsedClinicId,
-      clinic_id: parsedClinicId,
-      
-      appointmentDateTime: appointmentDateTime,
-      appointment_date_time: appointmentDateTime,
-      
-      reasonForVisit: formData.reasonForVisit.trim(),
-      reason_for_visit: formData.reasonForVisit.trim(),
-      
-      status: defaultStatus, // Sử dụng trạng thái đã xác định
-      
-      // Không gửi depositAmount để backend hiểu là null (bypass validation @DecimalMin)
-      // depositAmount: null sẽ không trigger validation @DecimalMin
-      
-      isDepositPaid: defaultStatus === 'CONFIRMED', // Nếu CONFIRMED thì coi như đã "thanh toán"
-      is_deposit_paid: defaultStatus === 'CONFIRMED'
-    };
-
-    console.log('📤 Final appointment data to send:', appointmentData);
-    console.log('📤 Final appointment data - detailed check:');
-    console.log('  - patientId:', appointmentData.patientId, '(type:', typeof appointmentData.patientId, ')');
-    console.log('  - doctorId:', appointmentData.doctorId, '(type:', typeof appointmentData.doctorId, ')');
-    console.log('  - slotId:', appointmentData.slotId, '(type:', typeof appointmentData.slotId, ')');
-    console.log('  - specialtyId:', appointmentData.specialtyId, '(type:', typeof appointmentData.specialtyId, ')');
-    console.log('  - clinicId:', appointmentData.clinicId, '(type:', typeof appointmentData.clinicId, ')');
-    console.log('  - appointmentDateTime:', appointmentData.appointmentDateTime, '(type:', typeof appointmentData.appointmentDateTime, ')');
-
-    // === BƯỚC 9: VALIDATION CUỐI CÙNG ===
-    const invalidFields = [];
-    
-    // Kiểm tra các ID trước khi tạo appointmentData
-    if (isNaN(parsedPatientId) || parsedPatientId <= 0) {
-      invalidFields.push(`patientId: NaN or invalid (${userId} → ${parsedPatientId})`);
-    }
-    if (isNaN(parsedDoctorId) || parsedDoctorId <= 0) {
-      invalidFields.push(`doctorId: NaN or invalid (${doctorId} → ${parsedDoctorId})`);
-    }
-    if (isNaN(parsedSlotId) || parsedSlotId <= 0) {
-      invalidFields.push(`slotId: NaN or invalid (${slotId} → ${parsedSlotId})`);
-    }
-    if (isNaN(parsedSpecialtyId) || parsedSpecialtyId <= 0) {
-      invalidFields.push(`specialtyId: NaN or invalid (${actualSpecialtyId} → ${parsedSpecialtyId})`);
-    }
-    if (isNaN(parsedClinicId) || parsedClinicId <= 0) {
-      invalidFields.push(`clinicId: NaN or invalid (${actualClinicId} → ${parsedClinicId})`);
-    }
-    if (!appointmentDateTime || appointmentDateTime.trim() === '') {
-      invalidFields.push(`appointmentDateTime: empty or null (${appointmentDateTime})`);
-    }
-    
-    if (invalidFields.length > 0) {
-      console.error('❌ Validation failed - Invalid fields:', invalidFields);
-      console.error('❌ Full appointment data:', appointmentData);
-      setError(`Dữ liệu không hợp lệ: ${invalidFields.join(', ')}. Vui lòng thử lại hoặc chọn lại từ đầu.`);
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
+    // Chuẩn hóa số điện thoại để so sánh
+    const normalizePhone = (phone) => phone.replace(/[^0-9]/g, '');
+    const currentPhone = normalizePhone(userInfo.phone_number || '');
+    const inputPhone = normalizePhone(formData.patientPhone || '');
+    const phoneNeedsUpdate = inputPhone && currentPhone !== inputPhone;
+    console.log(`Phone validation passed: {inputPhone: '${formData.patientPhone}', currentPhone: '${userInfo.phone_number}', finalPhone: '${inputPhone || currentPhone}', normalizedPhone: '${inputPhone}', willUpdate: ${phoneNeedsUpdate}}`);
+
     try {
-      // === BƯỚC 10: CẬP NHẬT PHONE NUMBER NẾU CẦN ===
-      let phoneUpdateSuccess = false;
-      
-      // CHỈ cập nhật nếu:
-      // 1. User thực sự nhập số điện thoại mới (inputPhone không rỗng)
-      // 2. Số điện thoại mới khác với số hiện tại
-      // 3. Số điện thoại mới đã được validate và chuẩn hóa
-      
-      // Chỉ cập nhật khi user thực sự nhập số mới VÀ số đó khác với số hiện tại
-      if (inputPhone && inputPhone !== currentPhone && normalizedPhone && normalizedPhone.length >= 10) {
-        try {
-          console.log('📞 Updating user phone number...');
-          console.log('📞 Current phone:', currentPhone);
-          console.log('📞 New phone (input):', inputPhone);
-          console.log('📞 New phone (normalized):', normalizedPhone);
-          
-          await adminService.updateUserContactInfo(userId, {
-            phoneNumber: normalizedPhone
-          });
-          
-          console.log('✅ Phone number updated successfully');
-          phoneUpdateSuccess = true;
-          
-          // Cập nhật thông tin local
-          setUserInfo(prev => ({
-            ...prev,
-            phone_number: normalizedPhone
-          }));
-          
-        } catch (phoneUpdateError) {
-          console.error('❌ Failed to update phone number:', phoneUpdateError);
-          showError('Không thể cập nhật số điện thoại của bạn lúc này. Lịch hẹn sẽ vẫn được tạo.', 'Cảnh báo');
+        if (!date || !slotData || !doctorData) {
+            throw new Error("Thông tin lịch hẹn không đầy đủ. Vui lòng thử lại.");
         }
-      } else {
-        console.log('📞 No phone update needed:', {
-          inputPhone,
-          currentPhone,
-          normalizedPhone,
-          hasInput: !!inputPhone,
-          isDifferent: inputPhone !== currentPhone,
-          isValidNormalized: normalizedPhone && normalizedPhone.length >= 10
-        });
-      }
-
-      // === BƯỚC 11: KIỂM TRA PAYMENT CONFIG VÀ CHUYỂN HƯỚNG ===
-      console.log('🚀 Checking payment requirement:', { isPaymentRequired });
-
-      // Chuẩn bị thông tin để hiển thị (sử dụng SĐT đã chuẩn hóa)
-      const clinicName = clinicData?.name || clinicData?.clinic_name || slotData?.clinic?.name || slotData?.clinic?.clinic_name || doctorData?.clinic?.name || doctorData?.clinic?.clinic_name || doctorData?.specialties?.[0]?.clinic?.name || doctorData?.specialties?.[0]?.clinic?.clinic_name || 'Phòng khám mặc định';
-      const doctorName = doctorData?.user?.full_name || doctorData?.user?.fullName || doctorData?.user?.name || doctorData?.fullName || doctorData?.full_name || doctorData?.name || 'Bác sĩ không xác định';
-      const specialtyName = doctorData?.specialties?.map(s => s.name || s.specialty_name).join(', ') || doctorData?.specialty?.name || doctorData?.specialty?.specialty_name || slotData?.specialty?.name || slotData?.specialty?.specialty_name || 'Chuyên khoa chung';
-      
-      const appointmentInfo = {
-        patientName: formData.patientName || userInfo.full_name,
-        patientPhone: finalPhone, // Sử dụng số điện thoại cuối cùng (có thể là input hoặc current)
-        patientEmail: formData.patientEmail || userInfo.email,
-        doctorName: doctorName,
-        specialtyName: specialtyName,
-        clinicName: clinicName,
-        appointmentDateTime: appointmentDateTime,
-        reasonForVisit: formData.reasonForVisit
-      };
-
-      if (!isPaymentRequired) {
-        console.log('🆓 No payment required. Creating appointment directly...');
         
-        const freeAppointmentData = {
-          ...appointmentData,
-          status: 'CONFIRMED',
-          isDepositPaid: true,
-          is_deposit_paid: true,
-          depositAmount: 0.0,
+        // =================================================================
+        // ID Resolution Logic - Nhất quán và an toàn hơn
+        // =================================================================
+        const getDoctorId = (doc) => doc?.user_id || doc?.doctorId || doc?.id || doc?.user?.user_id;
+        const getSlotId = (slot) => slot?.slot_id || slot?.slotId || slot?.id || slot?.availability_slot_id;
+
+        const resolvedDoctorId = getDoctorId(doctorData);
+        console.log(`✅ Found doctorId: ${resolvedDoctorId}`);
+
+        const finalSlotId = getSlotId(slotData);
+        console.log(`✅ Found slotId: ${finalSlotId}`);
+        
+        const getSpecialtyId = () => {
+          // Ưu tiên 1: Chuyên khoa được chọn tường minh qua state (nếu có)
+          if (specialtyId) return specialtyId;
+      
+          // Ưu tiên 2: Chuyên khoa đi kèm trong slot (chính xác nhất)
+          if (slotData?.specialty?.specialty_id) return slotData.specialty.specialty_id;
+          if (slotData?.specialtyId) return slotData.specialtyId;
+          if (slotData?.specialty_id) return slotData.specialty_id;
+          if (slotData?.specialty?.id) return slotData.specialty.id;
+      
+          // Ưu tiên 3: Lấy chuyên khoa đầu tiên trong danh sách của bác sĩ
+          if (doctorData?.specialties?.[0]?.specialty_id) return doctorData.specialties[0].specialty_id;
+          if (doctorData?.specialties?.[0]?.id) return doctorData.specialties[0].id;
+          
+          // Ưu tiên 4: Chuyên khoa đi kèm bác sĩ (không phải list)
+          if (doctorData?.specialty?.specialty_id) return doctorData.specialty.specialty_id;
+          if (doctorData?.specialty?.id) return doctorData.specialty.id;
+      
+          return null;
+        };
+        const actualSpecialtyId = getSpecialtyId();
+        console.log(`✅ Found specialtyId: ${actualSpecialtyId}`);
+        
+        const getClinicId = () => {
+            // Ưu tiên 1: Clinic đi kèm trong slot (chính xác nhất)
+            if (slotData?.clinic?.clinic_id) return slotData.clinic.clinic_id;
+            if (slotData?.clinicId) return slotData.clinicId;
+            if (slotData?.clinic?.id) return slotData.clinic.id;
+        
+            // Ưu tiên 2: Clinic đi kèm trong thông tin bác sĩ
+            if (doctorData?.clinic?.clinic_id) return doctorData.clinic.clinic_id;
+            if (doctorData?.clinicId) return doctorData.clinicId;
+            if (doctorData?.clinic?.id) return doctorData.clinic.id;
+        
+            // Ưu tiên 3: Clinic được truyền từ trang trước (ít ưu tiên hơn)
+            if (clinicData?.clinic_id) return clinicData.clinic_id;
+            if (clinicData?.id) return clinicData.id;
+        
+            // Ưu tiên 4: Clinic từ specialty của bác sĩ (fallback cuối cùng)
+            if (doctorData?.specialties?.[0]?.clinic?.clinic_id) return doctorData.specialties[0].clinic.clinic_id;
+            if (doctorData?.specialties?.[0]?.clinic?.id) return doctorData.specialties[0].clinic.id;
+            
+            return null;
+        };
+        const actualClinicId = getClinicId();
+        console.log(`✅ Found clinicId: ${actualClinicId}`);
+        
+        //=================================================================
+        // Date and Time Validation
+        //=================================================================
+        
+        const minAdvanceDays = paymentConfig.minimum_advance_booking_days ?? 1;
+        console.log(`📅 Minimum advance booking days: ${minAdvanceDays}`);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+        const selectedDate = new Date(date);
+      selectedDate.setHours(0, 0, 0, 0);
+      
+        const daysDifference = (selectedDate.getTime() - today.getTime()) / (1000 * 3600 * 24);
+        
+        console.log(`📅 Original date input: ${date}`);
+        const formattedDate = new Date(date).toISOString().split('T')[0];
+        console.log(`📅 Formatted date (should match selected): ${formattedDate}`);
+
+        if (daysDifference < minAdvanceDays) {
+          throw new Error(`Phải đặt lịch trước ít nhất ${minAdvanceDays} ngày.`);
+        }
+        
+        //=================================================================
+        // DateTime Construction and Validation
+        //=================================================================
+        const startTime = slotData.start_time || slotData.startTime;
+        const formattedTime = startTime.split("T").length > 1 ? startTime.split("T")[1] : startTime;
+        const appointmentDateTime = `${formattedDate}T${formattedTime}`;
+        
+      const now = new Date();
+        const appointmentDateObj = new Date(appointmentDateTime);
+
+        if (appointmentDateObj < now) {
+          throw new Error("Không thể đặt lịch trong quá khứ.");
+        }
+        
+        //=================================================================
+        // Final Data Assembly & Navigation
+        //=================================================================
+        const parsedPatientId = parseInt(userInfo.user_id, 10);
+        const parsedDoctorId = parseInt(resolvedDoctorId, 10);
+        const parsedSlotId = parseInt(finalSlotId, 10);
+        const parsedSpecialtyId = parseInt(actualSpecialtyId, 10);
+        const parsedClinicId = parseInt(actualClinicId, 10);
+
+        if (isNaN(parsedPatientId) || isNaN(parsedDoctorId) || isNaN(parsedSlotId) || isNaN(parsedSpecialtyId) || isNaN(parsedClinicId)) {
+            throw new Error("Thông tin ID không hợp lệ. Không thể tạo lịch hẹn.");
+        }
+
+        // Dữ liệu cốt lõi để tạo lịch hẹn
+    const appointmentData = {
+      patient_id: parsedPatientId,
+      doctor_id: parsedDoctorId,
+      slot_id: parsedSlotId,
+      specialty_id: parsedSpecialtyId,
+      clinic_id: parsedClinicId,
+      appointment_date_time: appointmentDateTime,
+      reason_for_visit: formData.reasonForVisit.trim(),
+            // Các trường này sẽ được quyết định ở trang thanh toán
+            status: 'PENDING_PAYMENT',
+            is_deposit_paid: false,
+            deposit_amount: paymentConfig.default_deposit_amount || 0,
         };
 
-        const response = await apiService.createAppointment(freeAppointmentData);
-        console.log('✅ Free appointment created successfully:', response);
-        
-        navigate('/booking-success', {
-          state: {
-            appointment: response,
-            paymentMethod: 'free',
-            paymentStatus: 'completed',
-            phoneUpdateSuccess: phoneUpdateSuccess
-          }
-        });
+        // Thông tin bổ sung để hiển thị trên trang thanh toán
+      const appointmentInfo = {
+          patientName: formData.patientName,
+          patientPhone: inputPhone || currentPhone,
+          doctorName: doctorData.full_name || doctorData.user?.full_name,
+          specialtyName: slotData.specialty?.name || (doctorData.specialties && doctorData.specialties[0]?.name),
+          clinicName: slotData.clinic?.name || doctorData.clinic?.name || clinicData?.name,
+          clinicAddress: slotData.clinic?.address || doctorData.clinic?.address || clinicData?.address,
+        };
 
-      } else {
-        console.log('💰 Payment required. Navigating to payment page...');
-        
+        setLoading(false);
+
+        // Luôn điều hướng đến trang thanh toán
+        // Trang thanh toán sẽ tự quyết định hiển thị cổng thanh toán hay xác nhận miễn phí
         navigate('/payment', {
           state: {
-            appointmentData: appointmentData,
-            appointmentInfo: appointmentInfo,
-            phoneUpdateSuccess: phoneUpdateSuccess
-          }
-        });
-      }
-      
-    } catch (err) {
-      console.error('❌ Create appointment error:', err);
-      
-      // Xử lý lỗi chi tiết và thân thiện với người dùng
-      let errorMessage = 'Đặt lịch thất bại. Vui lòng thử lại.';
-      
-      if (err.message) {
-        if (err.message.includes('400')) {
-          errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin và thử lại.';
-        } else if (err.message.includes('401') || err.message.includes('403')) {
-          errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
-          setTimeout(() => navigate('/'), 2000);
-        } else if (err.message.includes('404')) {
-          errorMessage = 'Không tìm thấy thông tin lịch khám hoặc bác sĩ. Vui lòng chọn lại.';
-        } else if (err.message.includes('409') || err.message.includes('conflict')) {
-          errorMessage = 'Lịch khám này đã được đặt bởi người khác. Vui lòng chọn slot khác.';
-        } else if (err.message.includes('422')) {
-          errorMessage = 'Dữ liệu không đúng định dạng. Vui lòng kiểm tra lại.';
-        } else if (err.message.includes('500')) {
-          errorMessage = 'Lỗi hệ thống. Vui lòng thử lại sau ít phút.';
-        } else {
-          // Extract meaningful error message from API response
-          try {
-            const match = err.message.match(/\{.*\}/);
-            if (match) {
-              const errorObj = JSON.parse(match[0]);
-              if (errorObj.message) {
-                errorMessage = errorObj.message;
-              } else if (errorObj.details) {
-                const detailMessages = Object.values(errorObj.details);
-                errorMessage = `Lỗi validation: ${detailMessages.join(', ')}`;
-              }
+                appointmentData,
+                appointmentInfo,
+                phoneUpdateSuccess: phoneNeedsUpdate,
             }
-          } catch {
-            // Use original error message if parsing fails
-            errorMessage = err.message;
-          }
-        }
-      }
-      
-      setError(errorMessage);
-      showError(errorMessage, 'Lỗi đặt lịch');
-      
-    } finally {
+        });
+
+    } catch (error) {
+        console.error('Error in handleBookAppointment:', error);
+        setError(error.message);
+        showError(error.message, 'Lỗi đặt lịch');
       setLoading(false);
     }
   };
 
-  // UI khi đang tải cấu hình
-  if (loadingConfig) {
+  if (loadingConfig || !userInfo.user_id) { // Thêm điều kiện chờ userInfo
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <div className="flex flex-col items-center">
-          <Loader2 className="w-16 h-16 text-blue-600 animate-spin" />
-          <p className="mt-4 text-lg text-gray-700 font-semibold">Đang tải cấu hình...</p>
+      <div className="flex justify-center items-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
+          <p className="mt-4 text-lg text-gray-700 font-semibold">
+            {loadingConfig ? "Đang tải cấu hình..." : "Đang tải thông tin người dùng..."}
+          </p>
         </div>
       </div>
     );
   }
 
-  // UI khi có lỗi tải cấu hình
-  if (configError) {
+  // Giao diện khi có lỗi tải cấu hình hoặc dữ liệu ban đầu
+  if (configError || !date || !slotData || !doctorData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-orange-50 flex items-center justify-center px-4">
+      <div className="flex justify-center items-center min-h-screen bg-red-50">
         <div className="max-w-md w-full">
           <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 text-center">
             <div className="w-20 h-20 bg-gradient-to-br from-red-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertCircle className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">Lỗi tải dữ liệu</h2>
-            <p className="text-gray-600 mb-8 leading-relaxed">{configError}</p>
-            <div className="flex gap-4">
-              <button
-                onClick={() => navigate(-1)}
-                className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-semibold rounded-2xl hover:bg-gray-200 transition-all duration-300"
-              >
-                Quay lại
-              </button>
-              <button
-                onClick={fetchPaymentConfig}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300"
-              >
-                Thử lại
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Kiểm tra có dữ liệu từ location không
-  if (!slotData || !doctorData) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4">
-        <div className="max-w-md w-full">
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-8 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <AlertCircle className="w-10 h-10 text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-3">Thông tin không hợp lệ</h2>
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              Không tìm thấy thông tin lịch khám. Vui lòng quay lại trang chọn lịch để thử lại.
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Đã xảy ra lỗi</h2>
+            <p className="text-gray-600 mb-6">
+              {configError || "Thiếu thông tin cần thiết để đặt lịch. Vui lòng quay lại và thử lại."}
             </p>
             <button 
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold py-4 px-6 rounded-2xl hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/book-appointment')}
+              className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors"
             >
-              <ChevronLeft className="w-5 h-5" />
-              <span>Quay lại</span>
+              Quay về trang đặt lịch
             </button>
           </div>
         </div>
@@ -1337,19 +740,19 @@ const BookAppointmentDetails = () => {
                     
                     <button
                       type="submit"
-                      disabled={loading}
+                      disabled={loading || loadingConfig}
                       className={`flex-1 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 ${
-                        loading ? 'opacity-70 cursor-not-allowed' : 'hover:from-blue-700 hover:to-purple-700'
+                        loading || loadingConfig ? 'opacity-70 cursor-not-allowed' : 'hover:from-blue-700 hover:to-purple-700'
                       }`}
                     >
-                      {loading ? (
+                      {loading || loadingConfig ? (
                         <>
                           <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-                          <span>Đang xử lý...</span>
+                          <span>{loadingConfig ? 'Đang kiểm tra...' : 'Đang xử lý...'}</span>
                         </>
                       ) : (
                         <>
-                          <span>{isPaymentRequired ? 'Tiếp tục thanh toán' : 'Xác nhận đặt lịch'}</span>
+                          <span>Xác nhận đặt lịch</span>
                           <ArrowRight className="w-5 h-5" />
                         </>
                       )}

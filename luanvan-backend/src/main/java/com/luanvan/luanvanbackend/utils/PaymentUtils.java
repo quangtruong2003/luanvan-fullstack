@@ -169,7 +169,7 @@ public class PaymentUtils {
             }
             hashData.append(entry.getKey())
                    .append("=")
-                   .append(entry.getValue());
+                   .append(urlEncode(entry.getValue())); // Encode the value
             first = false;
         }
         

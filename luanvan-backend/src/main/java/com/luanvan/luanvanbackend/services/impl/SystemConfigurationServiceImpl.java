@@ -2,109 +2,128 @@ package com.luanvan.luanvanbackend.services.impl;
 
 import com.luanvan.luanvanbackend.dto.SystemConfigurationDTO;
 import com.luanvan.luanvanbackend.entities.SystemConfiguration;
+import com.luanvan.luanvanbackend.exception.ResourceNotFoundException;
 import com.luanvan.luanvanbackend.repositories.SystemConfigurationRepository;
 import com.luanvan.luanvanbackend.services.SystemConfigurationService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 @Slf4j
 public class SystemConfigurationServiceImpl implements SystemConfigurationService {
 
     private final SystemConfigurationRepository configRepository;
 
-    public SystemConfigurationServiceImpl(SystemConfigurationRepository configRepository) {
-        this.configRepository = configRepository;
+    @Override
+    public SystemConfiguration getSystemConfig() {
+        // Luôn trả về cấu hình đầu tiên hoặc tạo mới nếu không có
+        return configRepository.findAll().stream()
+                .findFirst()
+                .orElseGet(() -> {
+                    log.warn("No system configuration found, creating a default one.");
+                    return createDefaultConfiguration();
+                });
     }
 
     @Override
     @Transactional
-    public SystemConfiguration getCurrentConfiguration() {
+    public SystemConfiguration updateSystemConfig(SystemConfigurationDTO configDTO) {
         try {
-            log.info("🔍 Fetching current system configuration...");
-            SystemConfiguration config = configRepository.findFirstByOrderByConfigIdAsc();
+            log.info("🔄 Updating system configuration with DTO: {}", configDTO);
+            SystemConfiguration config = getCurrentConfiguration();
             
-            if (config == null) {
-                log.warn("⚠️ No system configuration found. Creating default configuration...");
-                config = createDefaultConfiguration();
-                log.info("✅ Default configuration created successfully");
-            } else {
-                log.info("✅ System configuration found with ID: {}", config.getConfigId());
-            }
+            // General
+            Optional.ofNullable(configDTO.getEnableDeposit()).ifPresent(config::setEnableDeposit);
+            Optional.ofNullable(configDTO.getDefaultDepositAmount()).ifPresent(config::setDefaultDepositAmount);
+            Optional.ofNullable(configDTO.getDefaultPaymentMethod()).ifPresent(config::setDefaultPaymentMethod);
+            Optional.ofNullable(configDTO.getExaminationFee()).ifPresent(config::setExaminationFee);
+            Optional.ofNullable(configDTO.getPaymentRetryTimeoutMinutes()).ifPresent(config::setPaymentRetryTimeoutMinutes);
+            Optional.ofNullable(configDTO.getPatientCancellationTimeLimitHours()).ifPresent(config::setPatientCancellationTimeLimitHours);
+            Optional.ofNullable(configDTO.getNonRefundableDepositPolicy()).ifPresent(config::setNonRefundableDepositPolicy);
+
+            // Momo
+            Optional.ofNullable(configDTO.getEnableMomo()).ifPresent(config::setEnableMomo);
+            Optional.ofNullable(configDTO.getMomoPartnerCode()).ifPresent(config::setMomoPartnerCode);
+            Optional.ofNullable(configDTO.getMomoAccessKey()).ifPresent(config::setMomoAccessKey);
+            Optional.ofNullable(configDTO.getMomoSecretKey()).ifPresent(config::setMomoSecretKey);
+            Optional.ofNullable(configDTO.getMomoApiEndpoint()).ifPresent(config::setMomoApiEndpoint);
+
+            // VNPay
+            Optional.ofNullable(configDTO.getEnableVnPay()).ifPresent(config::setEnableVnPay);
+            Optional.ofNullable(configDTO.getVnpayTmnCode()).ifPresent(config::setVnpayTmnCode);
+            Optional.ofNullable(configDTO.getVnpaySecretKey()).ifPresent(config::setVnpaySecretKey);
             
-            return config;
+            SystemConfiguration savedConfig = configRepository.save(config);
+            log.info("✅ System configuration updated successfully.");
+            return savedConfig;
         } catch (Exception e) {
-            log.error("❌ Error fetching system configuration: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to fetch system configuration", e);
+            log.error("❌ Error updating system configuration: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to update system configuration", e);
+        }
+    }
+
+    @Override
+    public SystemConfiguration getCurrentConfiguration() {
+        return configRepository.findAll().stream().findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("System configuration not found."));
+    }
+
+    @Override
+    @Transactional
+    public SystemConfiguration updateMomoConfiguration(String partnerCode, String accessKey, String secretKey, String apiEndpoint) {
+       try {
+            log.info("🔄 Updating Momo configuration...");
+            SystemConfiguration config = getCurrentConfiguration();
+            
+            Optional.ofNullable(partnerCode).ifPresent(config::setMomoPartnerCode);
+            Optional.ofNullable(accessKey).ifPresent(config::setMomoAccessKey);
+            Optional.ofNullable(secretKey).ifPresent(config::setMomoSecretKey);
+            Optional.ofNullable(apiEndpoint).ifPresent(config::setMomoApiEndpoint);
+            
+            SystemConfiguration savedConfig = configRepository.save(config);
+            log.info("✅ Momo configuration updated successfully");
+            return savedConfig;
+        } catch (Exception e) {
+            log.error("❌ Error updating Momo configuration: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to update Momo configuration", e);
         }
     }
 
     @Override
     @Transactional
-    public SystemConfiguration updateConfiguration(SystemConfigurationDTO configDTO) {
+    public SystemConfiguration toggleMomoPayment(boolean enableMomo) {
         try {
-            log.info("🔄 Updating system configuration with DTO: {}", configDTO);
+            log.info("🔄 Toggling Momo payment to: {}", enableMomo);
             SystemConfiguration config = getCurrentConfiguration();
-
-            // Chỉ cập nhật các trường không null từ DTO
-            if (configDTO.getEnableDeposit() != null) {
-                config.setEnableDeposit(configDTO.getEnableDeposit());
-            }
-            if (configDTO.getDefaultDepositAmount() != null) {
-                config.setDefaultDepositAmount(configDTO.getDefaultDepositAmount());
-            }
-            
-            // MoMo
-            if (configDTO.getEnableMomo() != null) {
-                config.setEnableMomo(configDTO.getEnableMomo());
-            }
-            if (configDTO.getMomoPartnerCode() != null) {
-                config.setMomoPartnerCode(configDTO.getMomoPartnerCode());
-            }
-            if (configDTO.getMomoAccessKey() != null) {
-                config.setMomoAccessKey(configDTO.getMomoAccessKey());
-            }
-            if (configDTO.getMomoSecretKey() != null) {
-                config.setMomoSecretKey(configDTO.getMomoSecretKey());
-            }
-            if (configDTO.getMomoApiEndpoint() != null) {
-                config.setMomoApiEndpoint(configDTO.getMomoApiEndpoint());
-            }
-
-            // VNPay
-            if (configDTO.getEnableVNPay() != null) {
-                config.setEnableVNPay(configDTO.getEnableVNPay());
-            }
-            if (configDTO.getVnpayTmnCode() != null) {
-                config.setVnpayTmnCode(configDTO.getVnpayTmnCode());
-            }
-            if (configDTO.getVnpaySecretKey() != null) {
-                config.setVnpaySecretKey(configDTO.getVnpaySecretKey());
-            }
-
-            // General Payment Settings
-            if (configDTO.getDefaultPaymentMethod() != null) {
-                config.setDefaultPaymentMethod(configDTO.getDefaultPaymentMethod());
-            }
-            if (configDTO.getPatientCancellationTimeLimitHours() != null) {
-                config.setPatientCancellationTimeLimitHours(configDTO.getPatientCancellationTimeLimitHours());
-            }
-            if (configDTO.getPaymentRetryTimeoutMinutes() != null) {
-                config.setPaymentRetryTimeoutMinutes(configDTO.getPaymentRetryTimeoutMinutes());
-            }
-            if (configDTO.getNonRefundableDepositPolicyText() != null) {
-                config.setNonRefundableDepositPolicyText(configDTO.getNonRefundableDepositPolicyText());
-            }
-
+            config.setEnableMomo(enableMomo);
             SystemConfiguration savedConfig = configRepository.save(config);
-            log.info("✅ System configuration updated successfully");
+            log.info("✅ Momo payment toggled successfully");
             return savedConfig;
         } catch (Exception e) {
-            log.error("❌ Error updating system configuration: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to update system configuration", e);
+            log.error("❌ Error toggling Momo payment: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to toggle Momo payment", e);
+        }
+    }
+    
+    @Override
+    @Transactional
+    public SystemConfiguration toggleVNPayPayment(boolean enableVnPay) {
+        try {
+            log.info("🔄 Toggling VNPay payment to: {}", enableVnPay);
+            SystemConfiguration config = getCurrentConfiguration();
+            config.setEnableVnPay(enableVnPay);
+            SystemConfiguration savedConfig = configRepository.save(config);
+            log.info("✅ VNPay payment toggled successfully");
+            return savedConfig;
+        } catch (Exception e) {
+            log.error("❌ Error toggling VNPay payment: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to toggle VNPay payment", e);
         }
     }
 
@@ -142,38 +161,6 @@ public class SystemConfigurationServiceImpl implements SystemConfigurationServic
 
     @Override
     @Transactional
-    public SystemConfiguration toggleMomoPayment(boolean enableMomo) {
-        try {
-            log.info("🔄 Toggling MoMo payment to: {}", enableMomo);
-            SystemConfiguration config = getCurrentConfiguration();
-            config.setEnableMomo(enableMomo);
-            SystemConfiguration savedConfig = configRepository.save(config);
-            log.info("✅ MoMo payment toggled successfully");
-            return savedConfig;
-        } catch (Exception e) {
-            log.error("❌ Error toggling MoMo payment: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to toggle MoMo payment", e);
-        }
-    }
-
-    @Override
-    @Transactional
-    public SystemConfiguration toggleVNPayPayment(boolean enableVNPay) {
-        try {
-            log.info("🔄 Toggling VNPay payment to: {}", enableVNPay);
-            SystemConfiguration config = getCurrentConfiguration();
-            config.setEnableVNPay(enableVNPay);
-            SystemConfiguration savedConfig = configRepository.save(config);
-            log.info("✅ VNPay payment toggled successfully");
-            return savedConfig;
-        } catch (Exception e) {
-            log.error("❌ Error toggling VNPay payment: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to toggle VNPay payment", e);
-        }
-    }
-
-    @Override
-    @Transactional
     public SystemConfiguration updateDefaultPaymentMethod(String defaultPaymentMethod) {
         try {
             log.info("🔄 Updating default payment method to: {}", defaultPaymentMethod);
@@ -190,35 +177,42 @@ public class SystemConfigurationServiceImpl implements SystemConfigurationServic
 
     @Override
     @Transactional
-    public SystemConfiguration updateMomoConfiguration(
-            String partnerCode, String accessKey, String secretKey, String apiEndpoint) {
-        try {
-            log.info("🔄 Updating MoMo configuration...");
-            SystemConfiguration config = getCurrentConfiguration();
-            
-            if (partnerCode != null) {
-                config.setMomoPartnerCode(partnerCode);
-            }
-            
-            if (accessKey != null) {
-                config.setMomoAccessKey(accessKey);
-            }
-            
-            if (secretKey != null) {
-                config.setMomoSecretKey(secretKey);
-            }
-            
-            if (apiEndpoint != null) {
-                config.setMomoApiEndpoint(apiEndpoint);
-            }
-            
-            SystemConfiguration savedConfig = configRepository.save(config);
-            log.info("✅ MoMo configuration updated successfully");
-            return savedConfig;
-        } catch (Exception e) {
-            log.error("❌ Error updating MoMo configuration: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to update MoMo configuration", e);
+    public SystemConfiguration createDefaultConfiguration() {
+        log.info("✨ Creating default system configuration...");
+        if (configRepository.count() > 0) {
+            log.warn("Default configuration already exists, skipping creation.");
+            return configRepository.findAll().get(0);
         }
+        
+        SystemConfiguration config = new SystemConfiguration();
+        
+        // General Default
+        config.setEnableDeposit(true);
+        config.setDefaultDepositAmount(new BigDecimal("50000"));
+        config.setDefaultPaymentMethod("momo");
+        
+        // MoMo Default Configuration
+        config.setEnableMomo(true);
+        config.setMomoPartnerCode("");
+        config.setMomoAccessKey("");
+        config.setMomoSecretKey("");
+        config.setMomoApiEndpoint("");
+        
+        // VNPay Default Configuration
+        config.setEnableVnPay(true);
+        config.setVnpayTmnCode("");
+        config.setVnpaySecretKey("");
+
+        // Other settings
+        config.setExaminationFee(new BigDecimal("200000"));
+        config.setPaymentRetryTimeoutMinutes(15);
+        config.setPatientCancellationTimeLimitHours(24);
+        config.setNonRefundableDepositPolicy("Phí đặt cọc sẽ không được hoàn lại nếu hủy lịch sau thời gian cho phép.");
+        
+        // Save and return
+        SystemConfiguration savedConfig = configRepository.save(config);
+        log.info("✅ Default system configuration created successfully with ID: {}", savedConfig.getConfigId());
+        return savedConfig;
     }
 
     @Override
@@ -228,13 +222,8 @@ public class SystemConfigurationServiceImpl implements SystemConfigurationServic
             log.info("🔄 Updating VNPay configuration...");
             SystemConfiguration config = getCurrentConfiguration();
             
-            if (tmnCode != null) {
-                config.setVnpayTmnCode(tmnCode);
-            }
-            
-            if (secretKey != null) {
-                config.setVnpaySecretKey(secretKey);
-            }
+            Optional.ofNullable(tmnCode).ifPresent(config::setVnpayTmnCode);
+            Optional.ofNullable(secretKey).ifPresent(config::setVnpaySecretKey);
             
             SystemConfiguration savedConfig = configRepository.save(config);
             log.info("✅ VNPay configuration updated successfully");
@@ -283,59 +272,13 @@ public class SystemConfigurationServiceImpl implements SystemConfigurationServic
         try {
             log.info("🔄 Updating non-refundable deposit policy...");
             SystemConfiguration config = getCurrentConfiguration();
-            config.setNonRefundableDepositPolicyText(policyText);
+            config.setNonRefundableDepositPolicy(policyText);
             SystemConfiguration savedConfig = configRepository.save(config);
             log.info("✅ Non-refundable deposit policy updated successfully");
             return savedConfig;
         } catch (Exception e) {
             log.error("❌ Error updating non-refundable deposit policy: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to update non-refundable deposit policy", e);
-        }
-    }
-
-    @Override
-    @Transactional
-    public SystemConfiguration createDefaultConfiguration() {
-        try {
-            log.info("🔄 Creating default system configuration...");
-            
-            // Kiểm tra xem đã có cấu hình chưa
-            SystemConfiguration existingConfig = configRepository.findFirstByOrderByConfigIdAsc();
-            if (existingConfig != null) {
-                log.info("✅ Configuration already exists, returning existing one");
-                return existingConfig;
-            }
-            
-            // Tạo cấu hình mặc định
-            SystemConfiguration config = new SystemConfiguration();
-            config.setEnableDeposit(true);
-            config.setDefaultDepositAmount(new BigDecimal("50000")); // 50,000 VND
-            
-            // MoMo Default Configuration
-            config.setEnableMomo(true);
-            config.setMomoPartnerCode("");
-            config.setMomoAccessKey("");
-            config.setMomoSecretKey("");
-            config.setMomoApiEndpoint("https://test-payment.momo.vn/v2/gateway/api/create");
-            
-            // VNPay Default Configuration
-            config.setEnableVNPay(true);
-            config.setVnpayTmnCode("");
-            config.setVnpaySecretKey("");
-            
-            // Payment Settings
-            config.setDefaultPaymentMethod("momo");
-            config.setPaymentRetryTimeoutMinutes(15);
-            config.setPatientCancellationTimeLimitHours(24);
-            config.setNonRefundableDepositPolicyText(
-                    "Nếu bệnh nhân hủy lịch hẹn ít hơn 24 giờ trước thời gian hẹn, tiền đặt cọc sẽ không được hoàn lại.");
-            
-            SystemConfiguration savedConfig = configRepository.save(config);
-            log.info("✅ Default configuration created successfully with ID: {}", savedConfig.getConfigId());
-            return savedConfig;
-        } catch (Exception e) {
-            log.error("❌ Error creating default configuration: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to create default configuration", e);
         }
     }
 } 

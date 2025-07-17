@@ -48,7 +48,7 @@ public class SystemConfiguration {
     // VNPay Configuration
     @Column(name = "enable_vn_pay", nullable = false)
     @ColumnDefault("true")
-    private Boolean enableVNPay = true;
+    private Boolean enableVnPay = true;
 
     @Column(name = "vnpay_tmn_code")
     private String vnpayTmnCode;
@@ -60,12 +60,15 @@ public class SystemConfiguration {
     @Column(name = "default_payment_method")
     private String defaultPaymentMethod;
     
+    @Column(name = "examination_fee", precision = 10, scale = 2)
+    private BigDecimal examinationFee;
+
     @Column(name = "patient_cancellation_time_limit_hours")
     private Integer patientCancellationTimeLimitHours;
     
     @Column(name = "payment_retry_timeout_minutes")
     private Integer paymentRetryTimeoutMinutes;
 
-    @Column(name = "non_refundable_deposit_policy_text", columnDefinition = "TEXT")
-    private String nonRefundableDepositPolicyText;
+    @Column(name = "non_refundable_deposit_policy", columnDefinition = "TEXT")
+    private String nonRefundableDepositPolicy;
 }

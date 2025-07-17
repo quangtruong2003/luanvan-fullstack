@@ -4,103 +4,104 @@ import com.luanvan.luanvanbackend.dto.SystemConfigurationDTO;
 import com.luanvan.luanvanbackend.entities.SystemConfiguration;
 
 public interface SystemConfigurationService {
-    
+
     /**
-     * Lấy cấu hình hiện tại của hệ thống
-     * @return Thông tin cấu hình
+     * Lấy cấu hình hệ thống hiện tại, hoặc tạo mới nếu chưa có.
+     * @return Cấu hình hệ thống.
+     */
+    SystemConfiguration getSystemConfig();
+
+    /**
+     * Cập nhật toàn bộ cấu hình hệ thống từ một DTO.
+     * @param configDTO DTO chứa thông tin cần cập nhật.
+     * @return Cấu hình đã được cập nhật.
+     */
+    SystemConfiguration updateSystemConfig(SystemConfigurationDTO configDTO);
+
+    /**
+     * Lấy cấu hình hiện tại, ném lỗi nếu không tìm thấy.
+     * Dùng nội bộ trong service để đảm bảo cấu hình luôn tồn tại khi thực hiện các tác vụ.
+     * @return Cấu hình hệ thống.
      */
     SystemConfiguration getCurrentConfiguration();
+
+    /**
+     * Cập nhật cài đặt MoMo
+     * @param partnerCode Partner Code mới
+     * @param accessKey Access Key mới
+     * @param secretKey Secret Key mới
+     * @param apiEndpoint Endpoint API mới
+     * @return Cấu hình đã cập nhật
+     */
+    SystemConfiguration updateMomoConfiguration(String partnerCode, String accessKey, String secretKey, String apiEndpoint);
     
     /**
-     * Cập nhật cấu hình hệ thống
-     * @param configDTO Thông tin cấu hình mới
-     * @return Cấu hình sau khi cập nhật
+     * Bật/tắt thanh toán VNPay
+     * @param enableVnPay true để bật, false để tắt
+     * @return Cấu hình đã cập nhật
      */
-    SystemConfiguration updateConfiguration(SystemConfigurationDTO configDTO);
-    
+    SystemConfiguration toggleVNPayPayment(boolean enableVnPay);
+
+    /**
+     * Bật/tắt thanh toán MoMo
+     * @param enableMomo true để bật, false để tắt
+     * @return Cấu hình đã cập nhật
+     */
+    SystemConfiguration toggleMomoPayment(boolean enableMomo);
+
     /**
      * Bật/tắt tính năng đặt cọc
      * @param enableDeposit true để bật, false để tắt
-     * @return Cấu hình sau khi cập nhật
+     * @return Cấu hình đã cập nhật
      */
     SystemConfiguration toggleDepositFeature(boolean enableDeposit);
-    
+
     /**
      * Cập nhật số tiền đặt cọc mặc định
-     * @param amount Số tiền đặt cọc
-     * @return Cấu hình sau khi cập nhật
+     * @param amount Số tiền mới
+     * @return Cấu hình đã cập nhật
      */
     SystemConfiguration updateDefaultDepositAmount(double amount);
-    
-    /**
-     * Bật/tắt phương thức thanh toán MoMo
-     * @param enableMomo true để bật, false để tắt
-     * @return Cấu hình sau khi cập nhật
-     */
-    SystemConfiguration toggleMomoPayment(boolean enableMomo);
-    
-    /**
-     * Bật/tắt phương thức thanh toán VNPay
-     * @param enableVNPay true để bật, false để tắt
-     * @return Cấu hình sau khi cập nhật
-     */
-    SystemConfiguration toggleVNPayPayment(boolean enableVNPay);
-    
+
     /**
      * Cập nhật phương thức thanh toán mặc định
-     * @param defaultPaymentMethod Phương thức thanh toán ("momo" hoặc "vnpay")
-     * @return Cấu hình sau khi cập nhật
+     * @param defaultPaymentMethod Tên phương thức mặc định (vd: "momo", "vnpay")
+     * @return Cấu hình đã cập nhật
      */
     SystemConfiguration updateDefaultPaymentMethod(String defaultPaymentMethod);
-    
+
     /**
-     * Cập nhật thông tin cấu hình Momo
-     * @param partnerCode Partner code
-     * @param accessKey Access key
-     * @param secretKey Secret key
-     * @param apiEndpoint API endpoint
-     * @return Cấu hình sau khi cập nhật
+     * Tạo cấu hình hệ thống mặc định nếu chưa tồn tại.
+     * @return Cấu hình mặc định đã được tạo.
      */
-    SystemConfiguration updateMomoConfiguration(
-            String partnerCode, 
-            String accessKey, 
-            String secretKey, 
-            String apiEndpoint);
-    
+    SystemConfiguration createDefaultConfiguration();
+
     /**
-     * Cập nhật thông tin cấu hình VNPay
-     * @param tmnCode TMN Code
-     * @param secretKey Secret Key
-     * @return Cấu hình sau khi cập nhật
+     * Cập nhật cài đặt VNPay
+     * @param tmnCode TMN Code mới
+     * @param secretKey Secret Key mới
+     * @return Cấu hình đã cập nhật
      */
-    SystemConfiguration updateVNPayConfiguration(
-            String tmnCode, 
-            String secretKey);
-    
+    SystemConfiguration updateVNPayConfiguration(String tmnCode, String secretKey);
+
     /**
-     * Cập nhật thời gian chờ thanh toán (phút)
-     * @param minutes Số phút chờ thanh toán
-     * @return Cấu hình sau khi cập nhật
+     * Cập nhật thời gian chờ retry thanh toán (tính bằng phút)
+     * @param minutes Số phút
+     * @return Cấu hình đã cập nhật
      */
     SystemConfiguration updatePaymentRetryTimeout(int minutes);
-    
+
     /**
-     * Cập nhật thời gian giới hạn cho phép bệnh nhân hủy lịch hẹn (giờ)
-     * @param hours Số giờ trước lịch hẹn
-     * @return Cấu hình sau khi cập nhật
+     * Cập nhật thời gian giới hạn cho phép bệnh nhân hủy lịch hẹn (tính bằng giờ)
+     * @param hours Số giờ
+     * @return Cấu hình đã cập nhật
      */
     SystemConfiguration updatePatientCancellationTimeLimit(int hours);
-    
+
     /**
      * Cập nhật nội dung chính sách không hoàn cọc
      * @param policyText Nội dung chính sách
-     * @return Cấu hình sau khi cập nhật
+     * @return Cấu hình đã cập nhật
      */
     SystemConfiguration updateNonRefundableDepositPolicy(String policyText);
-    
-    /**
-     * Tạo cấu hình mặc định nếu chưa có
-     * @return Cấu hình mặc định đã được tạo
-     */
-    SystemConfiguration createDefaultConfiguration();
 } 

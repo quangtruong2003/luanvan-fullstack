@@ -24,7 +24,7 @@ const PaymentPage = () => {
   const [configError, setConfigError] = useState(null); // State mới để lưu lỗi
   const [paymentConfig, setPaymentConfig] = useState({
     enableMomo: false,
-    enableVNPay: false,
+    enableVnPay: false,
     defaultPaymentMethod: '',
     depositAmount: 0,
     examinationFee: 0
@@ -62,36 +62,35 @@ const PaymentPage = () => {
       // API có thể trả về một mảng, lấy phần tử đầu tiên
       const fetchedConfig = Array.isArray(systemConfigs) ? systemConfigs[0] : systemConfigs;
       
-      console.log('💰 Fetched system config from API:', fetchedConfig);
-      
       if (!fetchedConfig) {
           throw new Error("Không nhận được dữ liệu cấu hình từ hệ thống.");
       }
 
-      // Tạo đối tượng cấu hình cuối cùng, đảm bảo các trường không bị undefined
+      // Tạo đối tượng cấu hình cuối cùng, chỉ sử dụng snake_case từ API cho nhất quán
       const newConfig = {
-        enableMomo: fetchedConfig.enableMomo || fetchedConfig.enable_momo || false,
-        enableVNPay: fetchedConfig.enableVNPay || fetchedConfig.enableVnPay || fetchedConfig.enable_vn_pay || false,
-        defaultPaymentMethod: fetchedConfig.defaultPaymentMethod || 'momo',
-        depositAmount: fetchedConfig.defaultDepositAmount || fetchedConfig.default_deposit_amount || 0,
-        examinationFee: fetchedConfig.examinationFee || 200000,
+        enableMomo: fetchedConfig.enable_momo || false,
+        enableVnPay: fetchedConfig.enable_vn_pay || false,
+        defaultPaymentMethod: fetchedConfig.default_payment_method || 'momo',
+        depositAmount: fetchedConfig.default_deposit_amount || 0,
+        // Bỏ phí khám, không sử dụng nữa
+        // examinationFee: fetchedConfig.examination_fee || 200000,
       };
 
       setPaymentConfig(newConfig);
 
       // Kiểm tra xem có phương thức thanh toán nào được bật không
-      const hasPaymentMethods = newConfig.enableMomo || newConfig.enableVNPay;
+      const hasPaymentMethods = newConfig.enableMomo || newConfig.enableVnPay;
       const hasDeposit = newConfig.depositAmount > 0;
       
       if (hasPaymentMethods && hasDeposit) {
         // Đặt phương thức thanh toán mặc định nếu có
         if (newConfig.defaultPaymentMethod === 'momo' && newConfig.enableMomo) {
           setSelectedPaymentMethod('momo');
-        } else if (newConfig.defaultPaymentMethod === 'vnpay' && newConfig.enableVNPay) {
+        } else if (newConfig.defaultPaymentMethod === 'vnpay' && newConfig.enableVnPay) {
           setSelectedPaymentMethod('vnpay');
         } else if (newConfig.enableMomo) { // Ưu tiên MoMo nếu không có mặc định
           setSelectedPaymentMethod('momo');
-        } else if (newConfig.enableVNPay) {
+        } else if (newConfig.enableVnPay) {
           setSelectedPaymentMethod('vnpay');
         }
       }
@@ -105,116 +104,80 @@ const PaymentPage = () => {
     }
   };
 
-  const handleFreeAppointment = async () => {
-    setLoading(true);
-    
-    try {
-      console.log('🆓 Processing free appointment...');
-      
-      // Update appointment data for free booking
-      const freeAppointmentData = {
-        ...appointmentData,
-        depositAmount: 0.0,
-        isDepositPaid: false,
-        isDepositNonRefundable: false
-      };
-      
-      console.log('📤 Free appointment data:', freeAppointmentData);
-      
-      // Create appointment directly
-      const appointmentResponse = await apiService.createAppointment(freeAppointmentData);
-      console.log('✅ Free appointment created:', appointmentResponse);
-      
-      // Navigate to success page
-      navigate('/booking-success', {
-        state: {
-          appointment: appointmentResponse,
-          paymentMethod: 'free',
-          paymentStatus: 'completed'
-        }
-      });
-      
-    } catch (error) {
-      console.error('❌ Free appointment error:', error);
-      showError('Có lỗi xảy ra khi đặt lịch: ' + error.message, 'Lỗi đặt lịch');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handlePayment = async () => {
-    // Kiểm tra xem có cần thanh toán không dựa trên cấu hình đã lấy được
-    const needsPayment = (paymentConfig.enableMomo || paymentConfig.enableVNPay) && paymentConfig.depositAmount > 0;
-    
-    if (!needsPayment) {
-      await handleFreeAppointment();
-      return;
-    }
-
-    if (!selectedPaymentMethod) {
-      showError('Vui lòng chọn phương thức thanh toán', 'Chưa chọn phương thức');
-      return;
-    }
-
     setLoading(true);
 
+    const isFreeBooking = (appointmentData?.deposit_amount || 0) <= 0;
+
     try {
-      // Cập nhật dữ liệu lịch hẹn với số tiền đặt cọc thực tế từ cấu hình
-      const paymentAppointmentData = {
-        ...appointmentData,
-        depositAmount: paymentConfig.depositAmount,
-        isDepositPaid: false,
-        isDepositNonRefundable: false
-      };
+        // Dữ liệu gửi đi đã ở định dạng snake_case từ trang trước.
+        // Chúng ta chỉ cần đảm bảo các trạng thái thanh toán được cập nhật đúng.
+        const finalAppointmentData = {
+            ...appointmentData,
+            is_deposit_paid: isFreeBooking, // Nếu miễn phí thì coi như đã thanh toán
+            // Backend sẽ tự xử lý is_deposit_non_refundable dựa trên business logic
+        };
 
-      console.log('📤 Payment appointment data:', paymentAppointmentData);
-
-      // Bước 1: Tạo lịch hẹn trước
-      const appointmentResponse = await apiService.createAppointment(paymentAppointmentData);
-      
-      if (appointmentResponse && appointmentResponse.appointmentId) {
-        // Bước 2: Xử lý thanh toán nếu cần
-        if (selectedPaymentMethod === 'momo') {
-          await processMomoPayment(appointmentResponse);
-        } else if (selectedPaymentMethod === 'vnpay') {
-          await processVNPayPayment(appointmentResponse);
-        } else {
-          // Direct success for free appointments
-          navigate('/booking-success', {
-            state: {
-              appointment: appointmentResponse,
-              paymentMethod: 'free'
-            }
-          });
+        // Bước 1: Luôn tạo lịch hẹn trước
+        const appointmentResponse = await apiService.createAppointment(finalAppointmentData);
+        
+        if (!appointmentResponse || !appointmentResponse.appointment_id) { // Sửa key thành appointment_id
+            throw new Error("Không thể tạo lịch hẹn. Phản hồi từ API không hợp lệ.");
         }
-      }
+
+        // Bước 2: Xử lý dựa trên việc có cần thanh toán hay không
+        if (isFreeBooking) {
+            // Nếu là đặt lịch miễn phí, chuyển thẳng đến trang thành công
+            navigate('/booking-success', {
+                state: {
+                    appointment: appointmentResponse,
+                    paymentMethod: 'free',
+                    paymentStatus: 'completed'
+                }
+            });
+        } else {
+            // Nếu cần thanh toán, xử lý theo phương thức đã chọn
+            if (!selectedPaymentMethod) {
+                showError('Vui lòng chọn phương thức thanh toán', 'Chưa chọn phương thức');
+                setLoading(false);
+                return;
+            }
+
+            if (selectedPaymentMethod === 'momo') {
+                await processMomoPayment(appointmentResponse);
+            } else if (selectedPaymentMethod === 'vnpay') {
+                await processVNPayPayment(appointmentResponse);
+            }
+        }
     } catch (error) {
-      console.error('Error processing appointment and payment:', error);
-      showError('Có lỗi xảy ra: ' + error.message, 'Lỗi xử lý thanh toán');
-    } finally {
-      setLoading(false);
+        console.error('Error processing appointment and payment:', error);
+        showError('Có lỗi xảy ra: ' + error.message, 'Lỗi xử lý thanh toán');
+        setLoading(false);
     }
   };
 
   const processMomoPayment = async (appointment) => {
     try {
-        console.log('🚀 Processing real Momo payment for appointment:', appointment.appointmentId);
+        
+        const safeDescription = `Thanh-toan-dat-coc-cho-lich-hen-${appointment.appointment_id}`;
         
         const paymentRequest = {
-            appointmentId: appointment.appointmentId,
-            amount: paymentConfig.depositAmount,
-            description: `Thanh toán đặt cọc cho lịch hẹn #${appointment.appointmentId}`,
-            returnUrl: `${window.location.origin}/booking-confirm`,
-            cancelUrl: `${window.location.origin}/booking-confirm`,
+            user_id: appointmentData.patient_id, // Thêm user_id
+            payment_provider: 'momo', // Thêm payment_provider
+            appointment_id: appointment.appointment_id, 
+            amount: appointmentData.deposit_amount,
+            description: safeDescription, // Sử dụng chuỗi đã được làm sạch
+            return_url: `${window.location.origin}/booking-confirm`,
+            cancel_url: `${window.location.origin}/booking-confirm`,
         };
 
         const paymentResponse = await apiService.createMomoPayment(paymentRequest);
 
-        if (paymentResponse.success && paymentResponse.paymentUrl) {
+        if (paymentResponse.success && paymentResponse.payment_url) { // Sửa thành payment_url
             // Redirect to Momo payment gateway
-            window.location.href = paymentResponse.paymentUrl;
+            window.location.href = paymentResponse.payment_url; // Sửa thành payment_url
         } else {
-            throw new Error(paymentResponse.errorMessage || 'Không thể tạo thanh toán Momo.');
+            throw new Error(paymentResponse.message || 'Không thể tạo thanh toán Momo.'); // Sửa thành message
         }
     } catch (error) {
         console.error('Momo payment error:', error);
@@ -225,23 +188,26 @@ const PaymentPage = () => {
 
   const processVNPayPayment = async (appointment) => {
     try {
-        console.log('🚀 Processing real VNPay payment for appointment:', appointment.appointmentId);
+        
+        const safeDescription = `Thanh-toan-dat-coc-cho-lich-hen-${appointment.appointment_id}`;
 
         const paymentRequest = {
-            appointmentId: appointment.appointmentId,
-            amount: paymentConfig.depositAmount,
-            description: `Thanh toan dat coc cho lich hen #${appointment.appointmentId}`,
-            returnUrl: `${window.location.origin}/booking-confirm`,
-            cancelUrl: `${window.location.origin}/booking-confirm`,
+            user_id: appointmentData.patient_id, // Thêm user_id
+            payment_provider: 'vnpay', // Thêm payment_provider
+            appointment_id: appointment.appointment_id,
+            amount: appointmentData.deposit_amount,
+            description: safeDescription, // Sử dụng chuỗi đã được làm sạch
+            return_url: `${window.location.origin}/booking-confirm`,
+            cancel_url: `${window.location.origin}/booking-confirm`,
         };
 
         const paymentResponse = await apiService.createVNPayPayment(paymentRequest);
 
-        if (paymentResponse.success && paymentResponse.paymentUrl) {
+        if (paymentResponse.success && paymentResponse.payment_url) { // Sửa thành payment_url
             // Redirect to VNPay payment gateway
-            window.location.href = paymentResponse.paymentUrl;
+            window.location.href = paymentResponse.payment_url; // Sửa thành payment_url
         } else {
-            throw new Error(paymentResponse.errorMessage || 'Không thể tạo thanh toán VNPay.');
+            throw new Error(paymentResponse.message || 'Không thể tạo thanh toán VNPay.'); // Sửa thành message
         }
     } catch (error) {
         console.error('VNPay payment error:', error);
@@ -436,13 +402,13 @@ const PaymentPage = () => {
                       </div>
                       <div>
                         <p className="text-sm text-orange-600 font-medium">Thời gian</p>
-                        <p className="font-bold text-gray-900">{formatDateTime(appointmentData?.appointmentDateTime)}</p>
+                        <p className="font-bold text-gray-900">{formatDateTime(appointmentData?.appointment_date_time)}</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {appointmentData?.reasonForVisit && (
+                {appointmentData?.reason_for_visit && (
                   <div className="p-4 bg-gradient-to-r from-yellow-50 to-amber-50 rounded-2xl border border-yellow-100">
                     <div className="flex items-start space-x-3">
                       <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
@@ -450,7 +416,7 @@ const PaymentPage = () => {
                       </div>
                       <div>
                         <p className="text-sm text-yellow-600 font-medium mb-1">Lý do khám</p>
-                        <p className="text-gray-700 leading-relaxed">{appointmentData.reasonForVisit}</p>
+                        <p className="text-gray-700 leading-relaxed">{appointmentData.reason_for_visit}</p>
                       </div>
                     </div>
                   </div>
@@ -524,7 +490,7 @@ const PaymentPage = () => {
                 )}
 
                 {/* VNPay Payment */}
-                {paymentConfig.enableVNPay && (
+                {paymentConfig.enableVnPay && (
                   <div
                     className={`relative rounded-2xl border-2 transition-all duration-300 cursor-pointer transform hover:scale-105 ${
                       selectedPaymentMethod === 'vnpay'
@@ -572,7 +538,7 @@ const PaymentPage = () => {
                 )}
 
                 {/* No payment methods available */}
-                {!paymentConfig.enableMomo && !paymentConfig.enableVNPay && (
+                {!paymentConfig.enableMomo && !paymentConfig.enableVnPay && (
                   <div className="text-center py-12">
                     <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-6">
                       <Gift className="w-10 h-10 text-white" />
@@ -604,7 +570,7 @@ const PaymentPage = () => {
               
               {/* Payment Details */}
               <div className="p-6">
-                {(!paymentConfig.enableMomo && !paymentConfig.enableVNPay) ? (
+                {(!paymentConfig.enableMomo && !paymentConfig.enableVnPay) ? (
                   // Free mode display
                   <div className="text-center py-8">
                     <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -616,16 +582,6 @@ const PaymentPage = () => {
                 ) : (
                   // Normal payment display
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Stethoscope className="w-5 h-5 text-blue-600" />
-                        </div>
-                        <span className="text-gray-700 font-medium">Phí khám</span>
-                      </div>
-                      <span className="text-gray-900 font-bold">{formatCurrency(paymentConfig.examinationFee)}</span>
-                    </div>
-                    
                     <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl">
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
@@ -633,21 +589,7 @@ const PaymentPage = () => {
                         </div>
                         <span className="text-gray-700 font-medium">Phí đặt cọc</span>
                       </div>
-                      <span className="text-gray-900 font-bold">{formatCurrency(paymentConfig.depositAmount)}</span>
-                    </div>
-                    
-                    <div className="border-t-2 border-dashed border-gray-200 pt-4">
-                      <div className="flex items-center justify-between p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                            <DollarSign className="w-5 h-5 text-green-600" />
-                          </div>
-                          <span className="text-lg font-bold text-gray-900">Tổng cộng</span>
-                        </div>
-                        <span className="text-2xl font-bold text-green-600">
-                          {formatCurrency(paymentConfig.examinationFee + paymentConfig.depositAmount)}
-                        </span>
-                      </div>
+                      <span className="text-gray-900 font-bold">{formatCurrency(appointmentData?.deposit_amount || 0)}</span>
                     </div>
                   </div>
                 )}
@@ -658,11 +600,11 @@ const PaymentPage = () => {
             <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 p-6">
               <button
                 onClick={handlePayment}
-                disabled={loading}
+                disabled={loading || (!selectedPaymentMethod && (appointmentData?.deposit_amount || 0) > 0)}
                 className={`w-full relative overflow-hidden rounded-2xl py-6 px-8 text-lg font-bold text-white transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-2xl ${
-                  loading 
-                    ? 'bg-gray-400 cursor-not-allowed' 
-                    : (!paymentConfig.enableMomo && !paymentConfig.enableVNPay)
+                  (loading || (!selectedPaymentMethod && (appointmentData?.deposit_amount || 0) > 0))
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : ((appointmentData?.deposit_amount || 0) <= 0)
                       ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
                       : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
                 }`}
@@ -675,19 +617,19 @@ const PaymentPage = () => {
                     <>
                       <div className="animate-spin rounded-full h-6 w-6 border-2 border-white border-t-transparent"></div>
                       <span>
-                        {(!paymentConfig.enableMomo && !paymentConfig.enableVNPay) ? 'Đang đặt lịch...' : 'Đang xử lý...'}
+                        {((appointmentData?.deposit_amount || 0) <= 0) ? 'Đang xác nhận...' : 'Đang xử lý...'}
                       </span>
                     </>
                   ) : (
                     <>
                       <CheckSquare className="h-6 w-6" />
                       <span>
-                        {(!paymentConfig.enableMomo && !paymentConfig.enableVNPay) 
-                          ? 'Xác nhận đặt lịch miễn phí' 
-                          : 'Xác nhận & Thanh toán'
+                        {((appointmentData?.deposit_amount || 0) <= 0) 
+                          ? 'Xác nhận đặt lịch' 
+                          : `Thanh toán ${formatCurrency(appointmentData?.deposit_amount || 0)}`
                         }
                       </span>
-                      <Zap className="h-6 w-6" />
+                      {((appointmentData?.deposit_amount || 0) > 0) && <Zap className="h-6 w-6" />}
                     </>
                   )}
                 </div>

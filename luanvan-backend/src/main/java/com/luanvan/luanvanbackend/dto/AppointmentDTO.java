@@ -10,22 +10,28 @@ import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.Builder;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AppointmentDTO {
+
+    private Long id;
     
     @NotNull(message = "ID bệnh nhân không được để trống")
     @JsonAlias("patient_id")
     private Long patientId;
+    private String patientName;
     
     @NotNull(message = "ID bác sĩ không được để trống")
     @JsonAlias("doctor_id")
     private Long doctorId;
+    private String doctorName;
     
     @NotNull(message = "ID slot thời gian không được để trống")
     @JsonAlias("slot_id")
@@ -34,15 +40,18 @@ public class AppointmentDTO {
     @NotNull(message = "ID chuyên khoa không được để trống")
     @JsonAlias("specialty_id")
     private Long specialtyId;
+    private String specialtyName;
     
     @NotNull(message = "ID phòng khám không được để trống")
     @JsonAlias("clinic_id")
     private Long clinicId;
+    private String clinicName;
+    private String clinicAddress;
     
     @NotNull(message = "Thời gian hẹn không được để trống")
     @Future(message = "Thời gian hẹn phải là thời điểm trong tương lai")
     @JsonAlias("appointment_date_time")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Ho_Chi_Minh")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime appointmentDateTime;
     
     @Size(max = 500, message = "Lý do khám không được vượt quá 500 ký tự")
@@ -55,4 +64,6 @@ public class AppointmentDTO {
     
     @JsonAlias("is_deposit_paid")
     private Boolean isDepositPaid;
+
+    private String status;
 } 

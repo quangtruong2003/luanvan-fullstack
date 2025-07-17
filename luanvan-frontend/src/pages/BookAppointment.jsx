@@ -306,28 +306,6 @@ const BookAppointment = () => {
 
                   {/* Filters Row */}
                   <div className="flex flex-col sm:flex-row gap-3">
-                    {/* Specialty Filter */}
-                    <div className="relative flex-1">
-                      <Stethoscope className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <select
-                        value={selectedSpecialty}
-                        onChange={(e) => setSelectedSpecialty(e.target.value)}
-                        className="w-full pl-10 pr-8 py-3 bg-white/90 backdrop-blur-md border border-white/30 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 text-sm appearance-none cursor-pointer"
-                      >
-                        <option value="">Tất cả chuyên khoa</option>
-                        {filteredSpecialties.map(specialty => (
-                          <option key={specialty.specialty_id || specialty.specialtyId} value={specialty.specialty_id || specialty.specialtyId}>
-                            {specialty.name}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                    </div>
-
                     {/* Clinic Filter */}
                     <div className="relative flex-1">
                       <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -349,7 +327,30 @@ const BookAppointment = () => {
                         </svg>
                       </div>
                     </div>
+                  
+                    {/* Specialty Filter */}
+                    <div className="relative flex-1">
+                      <Stethoscope className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <select
+                        value={selectedSpecialty}
+                        onChange={(e) => setSelectedSpecialty(e.target.value)}
+                        className="w-full pl-10 pr-8 py-3 bg-white/90 backdrop-blur-md border border-white/30 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 text-sm appearance-none cursor-pointer"
+                      >
+                        <option value="">Tất cả chuyên khoa</option>
+                        {filteredSpecialties.map(specialty => (
+                          <option key={specialty.specialty_id || specialty.specialtyId} value={specialty.specialty_id || specialty.specialtyId}>
+                            {specialty.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
+                    
 
                   {/* Search Button */}
                   <button

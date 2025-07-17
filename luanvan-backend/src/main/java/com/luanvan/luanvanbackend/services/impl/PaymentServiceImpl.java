@@ -5,19 +5,38 @@ import com.luanvan.luanvanbackend.config.PaymentConfig;
 import com.luanvan.luanvanbackend.dto.*;
 import com.luanvan.luanvanbackend.entities.Appointment;
 import com.luanvan.luanvanbackend.entities.Payment;
+import com.luanvan.luanvanbackend.entities.SystemConfiguration;
 import com.luanvan.luanvanbackend.repositories.AppointmentRepository;
 import com.luanvan.luanvanbackend.repositories.PaymentRepository;
+import com.luanvan.luanvanbackend.repositories.SystemConfigurationRepository;
 import com.luanvan.luanvanbackend.services.PaymentService;
+import com.luanvan.luanvanbackend.services.EmailService;
 import com.luanvan.luanvanbackend.utils.PaymentUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
+import com.luanvan.luanvanbackend.exception.ResourceNotFoundException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
+import java.lang.StringBuilder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
+import com.luanvan.luanvanbackend.dto.AppointmentDTO;
+
 
 @Service
 @RequiredArgsConstructor
@@ -26,9 +45,18 @@ public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final AppointmentRepository appointmentRepository;
+    private final SystemConfigurationRepository systemConfigurationRepository; // Thêm repo
     private final PaymentConfig paymentConfig;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
+    private final EmailService emailService;
+
+    // Helper method to get the current system configuration
+    private SystemConfiguration getSystemConfiguration() {
+        // Lấy cấu hình đầu tiên tìm thấy, hoặc ném lỗi nếu không có
+        return systemConfigurationRepository.findAll().stream().findFirst()
+                .orElseThrow(() -> new RuntimeException("System configuration not found. Please configure the system first."));
+    }
 
     @Override
     public PaymentResponseDTO createMomoPayment(PaymentRequestDTO request) {
@@ -107,82 +135,199 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public PaymentResponseDTO createVNPayPayment(PaymentRequestDTO request) {
-        try {
+    public PaymentResponseDTO createVNPayPayment(PaymentRequestDTO request) throws Exception {
             log.info("Creating VNPay payment for appointment: {}", request.getAppointmentId());
 
-            // Tìm appointment
-            Appointment appointment = appointmentRepository.findById(request.getAppointmentId())
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy lịch hẹn"));
-
-            // Tạo order ID
-            String orderId = PaymentUtils.generateOrderId("VNPAY");
-
-            // Tạo payment record
-            Payment payment = new Payment();
-            payment.setAppointment(appointment);
-            payment.setOrderId(orderId);
-            payment.setAmount(request.getAmount());
-            payment.setCurrency("VND");
-            payment.setProvider(Payment.PaymentProvider.VNPAY);
-            payment.setStatus(Payment.PaymentStatus.PENDING);
-            payment.setDescription(request.getDescription());
-            payment.setCustomerName(request.getCustomerName());
-            payment.setCustomerEmail(request.getCustomerEmail());
-            payment.setCustomerPhone(request.getCustomerPhone());
-            payment.setClientIp(request.getClientIp());
-            payment.setDeviceType(request.getDeviceType());
-            payment.setUserAgent(request.getUserAgent());
-            payment.setReturnUrl(request.getReturnUrl());
-            payment.setCancelUrl(request.getCancelUrl());
-
-            // Chuẩn bị request VNPay
-            Map<String, String> vnpayParams = buildVNPayRequest(request, orderId);
-            
-            // Tạo secure hash
-            String hashData = PaymentUtils.buildHashData(vnpayParams, "vnp_SecureHash");
-            String secureHash = PaymentUtils.createVNPaySignature(hashData, paymentConfig.getVnpay().getHashSecret());
-            vnpayParams.put("vnp_SecureHash", secureHash);
-
-            // Tạo payment URL
-            String paymentUrl = paymentConfig.getVnpay().getEndpoint() + 
-                               paymentConfig.getVnpay().getPayUrl() + "?" + 
-                               PaymentUtils.buildQueryString(vnpayParams);
-
-            // Tạo deep link nếu cần
-            String deepLink = buildVNPayDeepLink(request.getDeviceType(), vnpayParams);
-
-            // Lưu payment
-            payment.setPaymentUrl(paymentUrl);
-            payment.setDeepLink(deepLink);
-            payment.setGatewayResponse(objectMapper.writeValueAsString(vnpayParams));
-            Payment savedPayment = paymentRepository.save(payment);
-
-            log.debug("VNPay payment URL: {}", paymentUrl);
-
-            return PaymentResponseDTO.builder()
-                    .success(true)
-                    .orderId(orderId)
-                    .amount(request.getAmount())
-                    .currency("VND")
-                    .paymentUrl(paymentUrl)
-                    .deepLink(deepLink)
-                    .status("PENDING")
-                    .message("Tạo thanh toán VNPay thành công")
-                    .provider("VNPAY")
-                    .createdAt(savedPayment.getCreatedAt())
-                    .expiredAt(savedPayment.getExpiredAt())
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Error creating VNPay payment: ", e);
-            return PaymentResponseDTO.builder()
-                    .success(false)
-                    .errorCode("VNPAY_ERROR")
-                    .errorMessage("Lỗi tạo thanh toán VNPay: " + e.getMessage())
-                    .provider("VNPAY")
-                    .build();
+        // 1. Lấy cấu hình từ database
+        SystemConfiguration systemConfig = systemConfigurationRepository.findFirstByOrderByConfigIdAsc();
+        if (systemConfig == null) {
+            throw new ResourceNotFoundException("System configuration not found.");
         }
+        String tmnCode = systemConfig.getVnpayTmnCode();
+        String hashSecret = systemConfig.getVnpaySecretKey();
+
+        // 2. Lấy thông tin lịch hẹn
+            Appointment appointment = appointmentRepository.findById(request.getAppointmentId())
+                .orElseThrow(() -> new ResourceNotFoundException("Appointment not found with id: " + request.getAppointmentId()));
+
+        // 3. Chuẩn bị các tham số cho VNPay
+            String orderId = PaymentUtils.generateOrderId("VNPAY");
+        String clientIp = request.getClientIp();
+        String returnUrl = request.getReturnUrl();
+
+        Map<String, String> vnp_Params = new HashMap<>();
+        vnp_Params.put("vnp_Version", paymentConfig.getVnpay().getVersion());
+        vnp_Params.put("vnp_Command", paymentConfig.getVnpay().getCommand());
+        vnp_Params.put("vnp_TmnCode", tmnCode);
+        vnp_Params.put("vnp_Amount", String.valueOf(appointment.getDepositAmount().longValue() * 100));
+        vnp_Params.put("vnp_CurrCode", "VND");
+        vnp_Params.put("vnp_TxnRef", orderId);
+        
+        // Làm sạch vnp_OrderInfo để tránh lỗi chữ ký
+        String orderInfo = request.getDescription().replaceAll("[^a-zA-Z0-9\\s]", "");
+        vnp_Params.put("vnp_OrderInfo", orderInfo);
+        
+        vnp_Params.put("vnp_OrderType", paymentConfig.getVnpay().getOrderType());
+        vnp_Params.put("vnp_Locale", paymentConfig.getVnpay().getLocale());
+        vnp_Params.put("vnp_ReturnUrl", returnUrl);
+        vnp_Params.put("vnp_IpAddr", clientIp);
+
+        LocalDateTime now = LocalDateTime.now();
+        vnp_Params.put("vnp_CreateDate", PaymentUtils.formatDateTime(now, "yyyyMMddHHmmss"));
+
+        LocalDateTime expireDate = now.plusMinutes(paymentConfig.getCommon().getPaymentTimeout());
+        vnp_Params.put("vnp_ExpireDate", PaymentUtils.formatDateTime(expireDate, "yyyyMMddHHmmss"));
+        
+        // 4. Tạo chữ ký (Hash)
+        // Dữ liệu để hash phải được sắp xếp theo tên và giá trị phải được URL-encode.
+        List<String> fieldNames = new ArrayList<>(vnp_Params.keySet());
+        Collections.sort(fieldNames);
+        StringBuilder hashDataBuilder = new StringBuilder();
+        Iterator<String> itr = fieldNames.iterator();
+        while (itr.hasNext()) {
+            String fieldName = itr.next();
+            String fieldValue = vnp_Params.get(fieldName);
+            if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                //Build hash data
+                hashDataBuilder.append(fieldName);
+                hashDataBuilder.append('=');
+                hashDataBuilder.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8.toString()));
+                if (itr.hasNext()) {
+                    hashDataBuilder.append('&');
+                }
+            }
+        }
+        String hashData = hashDataBuilder.toString();
+        log.info("FINAL VNPay Raw HashData for signing: [{}]", hashData);
+        String vnp_SecureHash = PaymentUtils.createVNPaySignature(hashData, hashSecret);
+        
+        // Thêm chữ ký vào map để tạo URL cuối cùng
+        vnp_Params.put("vnp_SecureHash", vnp_SecureHash);
+
+        // 5. Tạo URL thanh toán (đã mã hóa các tham số)
+        String queryUrl = vnp_Params.entrySet().stream()
+                .map(entry -> {
+                    try {
+                        return entry.getKey() + "=" + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8.toString());
+                    } catch (UnsupportedEncodingException e) {
+                        // This should not happen with UTF-8, so we throw a runtime exception
+                        throw new RuntimeException(e);
+                    }
+                })
+                .reduce((p1, p2) -> p1 + "&" + p2)
+                .orElse("");
+
+        String paymentUrl = paymentConfig.getVnpay().getEndpoint() + paymentConfig.getVnpay().getPayUrl() + "?" + queryUrl;
+        log.info("Constructed VNPay URL: {}", paymentUrl);
+
+        // 6. Lưu thông tin giao dịch vào DB
+            Payment payment = new Payment();
+        payment.setOrderId(orderId);
+            payment.setAppointment(appointment);
+            payment.setProvider(Payment.PaymentProvider.VNPAY);
+        payment.setAmount(appointment.getDepositAmount().doubleValue());
+            payment.setStatus(Payment.PaymentStatus.PENDING);
+        payment.setCreatedAt(now);
+        payment.setExpiredAt(expireDate);
+        payment.setClientIp(clientIp);
+        payment.setPaymentUrl(paymentUrl);
+        payment.setReturnUrl(returnUrl); // Lưu URL gốc, chưa mã hóa
+            payment.setDescription(request.getDescription());
+        paymentRepository.save(payment);
+
+        // 7. Trả về response cho Frontend
+        PaymentResponseDTO responseDTO = new PaymentResponseDTO();
+        responseDTO.setSuccess(true);
+        responseDTO.setMessage("VNPay payment URL created successfully.");
+        responseDTO.setProvider("VNPAY");
+        responseDTO.setOrderId(orderId);
+        responseDTO.setAmount(appointment.getDepositAmount().doubleValue());
+        responseDTO.setCurrency("VND");
+        responseDTO.setPaymentUrl(paymentUrl);
+        responseDTO.setStatus(Payment.PaymentStatus.PENDING.name());
+        responseDTO.setCreatedAt(now);
+        responseDTO.setExpiredAt(expireDate);
+
+        return responseDTO;
+    }
+
+    @Override
+    @Transactional
+    public AppointmentDTO handleVNPayReturn(Map<String, String> vnp_params) {
+        // Lấy secret key từ DB
+        SystemConfiguration systemConfig = getSystemConfiguration();
+        String hashSecret = systemConfig.getVnpaySecretKey();
+
+        // 1. Xác thực chữ ký
+        String vnp_SecureHash = vnp_params.get("vnp_SecureHash");
+        // Loại bỏ vnp_SecureHash và vnp_SecureHashType khỏi map để tạo lại chuỗi hash
+        vnp_params.remove("vnp_SecureHash");
+        vnp_params.remove("vnp_SecureHashType");
+
+        String hashData = PaymentUtils.buildHashData(vnp_params);
+        String calculatedSignature = PaymentUtils.createVNPaySignature(hashData, hashSecret);
+
+        if (!calculatedSignature.equals(vnp_SecureHash)) {
+            throw new RuntimeException("VNPay signature validation failed.");
+        }
+
+        // 2. Kiểm tra kết quả giao dịch
+        String vnp_ResponseCode = vnp_params.get("vnp_ResponseCode");
+        String vnp_TxnRef = vnp_params.get("vnp_TxnRef"); // Đây là orderId của chúng ta
+
+        Payment payment = paymentRepository.findByOrderId(vnp_TxnRef)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found with orderId: " + vnp_TxnRef));
+
+        // Lấy thông tin cuộc hẹn từ thanh toán
+        Appointment appointment = payment.getAppointment();
+        if (appointment == null) {
+            throw new ResourceNotFoundException("Appointment not found for this payment.");
+        }
+
+        if ("00".equals(vnp_ResponseCode)) {
+            // Cập nhật trạng thái thanh toán và cuộc hẹn
+            payment.setStatus(Payment.PaymentStatus.SUCCESS);
+            payment.setGatewayTransactionId(vnp_params.get("vnp_TransactionNo"));
+            payment.setPaidAt(LocalDateTime.now());
+            payment.setCallbackData(vnp_params.toString());
+            payment.setErrorCode(vnp_ResponseCode);
+
+            appointment.setStatus(Appointment.AppointmentStatus.CONFIRMED);
+            appointment.setDepositPaid(true);
+
+            // Gửi email xác nhận
+            emailService.sendAppointmentConfirmationEmail(appointment);
+
+        } else {
+            // Cập nhật trạng thái cuộc hẹn là thanh toán thất bại
+            payment.setStatus(Payment.PaymentStatus.FAILED);
+            payment.setErrorCode(vnp_ResponseCode);
+            payment.setCallbackData(vnp_params.toString());
+            appointment.setStatus(Appointment.AppointmentStatus.PAYMENT_FAILED);
+            
+            // Gửi email thông báo hủy/thất bại
+            emailService.sendAppointmentCancellationEmail(appointment, "Thanh toán không thành công qua VNPay.");
+        }
+        
+        paymentRepository.save(payment);
+        appointmentRepository.save(appointment);
+        
+        return AppointmentDTO.builder()
+                .id(appointment.getAppointmentId())
+                .patientId(appointment.getPatient() != null ? appointment.getPatient().getUserId() : null)
+                .patientName(appointment.getPatient() != null ? appointment.getPatient().getFullName() : null)
+                .doctorId(appointment.getDoctor() != null ? appointment.getDoctor().getUserId() : null)
+                .doctorName(appointment.getDoctor() != null ? appointment.getDoctor().getFullName() : null)
+                .clinicId(appointment.getClinic() != null ? appointment.getClinic().getClinicId() : null)
+                .clinicName(appointment.getClinic() != null ? appointment.getClinic().getName() : null)
+                .clinicAddress(appointment.getClinic() != null ? appointment.getClinic().getAddress() : null)
+                .specialtyId(appointment.getSpecialty() != null ? appointment.getSpecialty().getSpecialtyId() : null)
+                .specialtyName(appointment.getSpecialty() != null ? appointment.getSpecialty().getName() : null)
+                .appointmentDateTime(appointment.getAppointmentDateTime())
+                .reasonForVisit(appointment.getReasonForVisit())
+                .status(appointment.getStatus().name())
+                .isDepositPaid(appointment.isDepositPaid())
+                .build();
     }
 
     @Override
@@ -332,12 +477,14 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     public boolean verifySignature(String data, String signature, String provider) {
         try {
+            SystemConfiguration systemConfig = getSystemConfiguration();
             switch (provider.toUpperCase()) {
                 case "MOMO":
+                    // Momo config can also be moved to DB if needed in the future
                     String momoSignature = PaymentUtils.createMomoSignature(data, paymentConfig.getMomo().getSecretKey());
                     return signature.equals(momoSignature);
                 case "VNPAY":
-                    String vnpaySignature = PaymentUtils.createVNPaySignature(data, paymentConfig.getVnpay().getHashSecret());
+                    String vnpaySignature = PaymentUtils.createVNPaySignature(data, systemConfig.getVnpaySecretKey());
                     return signature.equals(vnpaySignature);
                 default:
                     return false;
@@ -381,11 +528,11 @@ public class PaymentServiceImpl implements PaymentService {
                "&requestType=" + params.get("requestType");
     }
 
-    private Map<String, String> buildVNPayRequest(PaymentRequestDTO request, String orderId) {
+    private Map<String, String> buildVNPayRequest(PaymentRequestDTO request, String orderId, SystemConfiguration systemConfig) {
         Map<String, String> params = new HashMap<>();
         params.put("vnp_Version", paymentConfig.getVnpay().getVersion());
         params.put("vnp_Command", paymentConfig.getVnpay().getCommand());
-        params.put("vnp_TmnCode", paymentConfig.getVnpay().getTmnCode());
+        params.put("vnp_TmnCode", systemConfig.getVnpayTmnCode()); // Sử dụng TmnCode từ DB
         params.put("vnp_Amount", String.valueOf(Math.round(request.getAmount() * 100))); // VNPay yêu cầu x100
         params.put("vnp_CurrCode", paymentConfig.getVnpay().getCurrCode());
         params.put("vnp_TxnRef", orderId);
@@ -394,7 +541,8 @@ public class PaymentServiceImpl implements PaymentService {
         params.put("vnp_Locale", paymentConfig.getVnpay().getLocale());
         params.put("vnp_ReturnUrl", request.getReturnUrl() != null ? request.getReturnUrl() : paymentConfig.getVnpay().getReturnUrl());
         params.put("vnp_IpAddr", request.getClientIp());
-        params.put("vnp_CreateDate", PaymentUtils.formatDateTime(LocalDateTime.now(), "yyyyMMddHHmmss"));
+        LocalDateTime now = LocalDateTime.now();
+        params.put("vnp_CreateDate", PaymentUtils.formatDateTime(now, "yyyyMMddHHmmss"));
         
         return params;
     }
@@ -470,30 +618,52 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     private boolean verifyMomoSignature(PaymentCallbackDTO callbackData) {
-        // Implement Momo signature verification
-        String rawSignature = "accessKey=" + callbackData.getAccessKey() +
-                             "&amount=" + callbackData.getAmount() +
+        try {
+            // Lấy secret key từ config (có thể chuyển vào DB trong tương lai nếu cần)
+            String secretKey = paymentConfig.getMomo().getSecretKey();
+            
+            // Xây dựng chuỗi raw hash từ các tham số mà Momo gửi về
+            // Thứ tự các trường phải chính xác như trong tài liệu của Momo
+            String rawHash = "accessKey=" + paymentConfig.getMomo().getAccessKey() +
+                           "&amount=" + callbackData.getAmount().longValue() +
                              "&extraData=" + callbackData.getExtraData() +
                              "&message=" + callbackData.getMessage() +
                              "&orderId=" + callbackData.getOrderId() +
                              "&orderInfo=" + callbackData.getOrderInfo() +
                              "&orderType=" + callbackData.getOrderType() +
                              "&partnerCode=" + callbackData.getPartnerCode() +
-                             "&payType=web" +
+                           "&payType=" + callbackData.getRawData().get("payType") + // Lấy từ raw data
                              "&requestId=" + callbackData.getRequestId() +
-                             "&responseTime=" + callbackData.getPayTime() +
+                           "&responseTime=" + callbackData.getRawData().get("responseTime") + // Lấy từ raw data
                              "&resultCode=" + callbackData.getResultCode() +
                              "&transId=" + callbackData.getTransactionId();
         
-        String expectedSignature = PaymentUtils.createMomoSignature(rawSignature, paymentConfig.getMomo().getSecretKey());
-        return callbackData.getSignature().equals(expectedSignature);
+            String calculatedSignature = PaymentUtils.createMomoSignature(rawHash, secretKey);
+            
+            return callbackData.getSignature().equals(calculatedSignature);
+            
+        } catch (Exception e) {
+            log.error("Error verifying Momo signature: ", e);
+            return false;
+        }
     }
 
     private boolean verifyVNPaySignature(PaymentCallbackDTO callbackData) {
-        // Build hash data từ callback parameters, loại bỏ vnp_SecureHash
+        try {
+            SystemConfiguration systemConfig = getSystemConfiguration();
+            String secretKey = systemConfig.getVnpaySecretKey();
+            if (secretKey == null || secretKey.isEmpty()) {
+                log.error("VNPay secret key is not configured in the database.");
+                return false;
+            }
+            String secureHash = callbackData.getSecureHash();
         String hashData = PaymentUtils.buildHashData(callbackData.getRawData(), "vnp_SecureHash");
-        String expectedSignature = PaymentUtils.createVNPaySignature(hashData, paymentConfig.getVnpay().getHashSecret());
-        return callbackData.getSecureHash().equals(expectedSignature);
+            String calculatedSignature = PaymentUtils.createVNPaySignature(hashData, secretKey);
+            return secureHash.equals(calculatedSignature);
+        } catch (Exception e) {
+            log.error("Error verifying VNPay signature: ", e);
+            return false;
+        }
     }
 
     private void updatePaymentFromMomoCallback(Payment payment, PaymentCallbackDTO callbackData) {
@@ -534,4 +704,9 @@ public class PaymentServiceImpl implements PaymentService {
         }
         appointmentRepository.save(appointment);
     }
-} 
+
+    private String hashAllFields(Map<String, String> fields, String secretKey) {
+        // ... existing code ...
+        return PaymentUtils.createVNPaySignature(PaymentUtils.buildHashData(fields), secretKey); // Sử dụng lại logic hash đã có
+    }
+}

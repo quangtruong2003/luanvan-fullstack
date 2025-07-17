@@ -25,6 +25,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -49,8 +50,9 @@ public class SecurityConfig {
                         // CORS preflight requests
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         // Authentication endpoints
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/public/**", "/v3/api-docs/**", "/swagger-ui/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/clinics/**", "/api/specialties/**", "/api/doctors/**", "/api/articles/**", "/api/availability-slots/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/payments/vnpay/callback/**").permitAll() // Cho phép truy cập công khai
                         // Public endpoints
                         .requestMatchers("/api/public/**").permitAll()
                         // Payment callbacks (must be accessible without auth)

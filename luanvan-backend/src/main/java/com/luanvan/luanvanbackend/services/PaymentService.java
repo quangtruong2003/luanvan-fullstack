@@ -3,6 +3,10 @@ package com.luanvan.luanvanbackend.services;
 import com.luanvan.luanvanbackend.dto.PaymentRequestDTO;
 import com.luanvan.luanvanbackend.dto.PaymentResponseDTO;
 import com.luanvan.luanvanbackend.dto.PaymentCallbackDTO;
+import com.luanvan.luanvanbackend.dto.AppointmentDTO;
+import com.luanvan.luanvanbackend.entities.Appointment;
+
+import java.util.Map;
 
 public interface PaymentService {
     
@@ -18,7 +22,7 @@ public interface PaymentService {
      * @param paymentRequest Thông tin thanh toán
      * @return URL để redirect người dùng
      */
-    PaymentResponseDTO createVNPayPayment(PaymentRequestDTO paymentRequest);
+    PaymentResponseDTO createVNPayPayment(PaymentRequestDTO paymentRequest) throws Exception;
     
     /**
      * Xử lý callback từ Momo
@@ -33,6 +37,8 @@ public interface PaymentService {
      * @return Kết quả xử lý
      */
     boolean handleVNPayCallback(PaymentCallbackDTO callbackData);
+
+    AppointmentDTO handleVNPayReturn(Map<String, String> vnp_params);
     
     /**
      * Kiểm tra trạng thái thanh toán từ Momo

@@ -1,313 +1,129 @@
-import React, { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  CheckCircle, Calendar, Clock, User, Building, 
-  Stethoscope, CreditCard, ArrowLeft, Home 
-} from 'lucide-react';
-import { useNotification } from '../components/NotificationSystem';
+import React, { useEffect, useState } from 'react';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
+import { apiService, notificationService } from '../services/api';
+import { RingLoader } from 'react-spinners';
 
-const BookingSuccess = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { showSuccess } = useNotification();
-  
-  const appointment = location.state?.appointment;
-  const paymentMethod = location.state?.paymentMethod;
-  const paymentStatus = location.state?.paymentStatus;
-  const phoneUpdateSuccess = location.state?.phoneUpdateSuccess;
+function BookingSuccess() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [appointment, setAppointment] = useState(null);
+    const [error, setError] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [verificationStatus, setVerificationStatus] = useState('Verifying...');
 
-  // Debug appointment data structure
-  console.log('🎉 BookingSuccess - Appointment data:', appointment);
-  console.log('🎉 BookingSuccess - Payment method:', paymentMethod);
-  console.log('🎉 BookingSuccess - Payment status:', paymentStatus);
-  console.log('🎉 BookingSuccess - Phone update success:', phoneUpdateSuccess);
-
-  useEffect(() => {
-    // Show phone update success notification if applicable
-    if (phoneUpdateSuccess) {
-      setTimeout(() => {
-        showSuccess('Số điện thoại đã được cập nhật thành công!', 'Cập nhật thông tin');
-      }, 1000);
-    }
-  }, [phoneUpdateSuccess, showSuccess]);
-
-  const formatDateTime = (dateTime) => {
-    if (!dateTime) return 'N/A';
-    const date = new Date(dateTime);
-    return {
-      date: date.toLocaleDateString('vi-VN', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }),
-      time: date.toLocaleTimeString('vi-VN', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    };
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND'
-    }).format(amount);
-  };
-
-  const getPaymentMethodInfo = (method) => {
-    switch (method) {
-      case 'momo':
-        return {
-          name: 'Ví MoMo',
-          icon: '📱',
-          color: 'text-pink-600 bg-pink-100'
-        };
-      case 'vnpay':
-        return {
-          name: 'VNPay',
-          icon: '💳',
-          color: 'text-blue-600 bg-blue-100'
-        };
-      default:
-        return {
-          name: 'Miễn phí',
-          icon: '🆓',
-          color: 'text-green-600 bg-green-100'
-        };
-    }
-  };
-
-  if (!appointment) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-            <CheckCircle className="h-6 w-6 text-red-600" />
-          </div>
-          <h2 className="mt-4 text-xl font-semibold text-gray-900">Không tìm thấy thông tin đặt lịch</h2>
-          <p className="mt-2 text-gray-600">Vui lòng quay lại trang chủ</p>
-          <div className="mt-6">
-            <button
-              onClick={() => navigate('/')}
-              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-            >
-              <Home className="h-4 w-4 mr-2" />
-              Về trang chủ
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  const appointmentDateTime = appointment.appointmentDateTime || appointment.appointment_date_time;
-  const dateTime = formatDateTime(appointmentDateTime);
-  
-  console.log('📅 DateTime value:', appointmentDateTime);
-  console.log('📅 Formatted dateTime:', dateTime);
-  console.log('👨‍⚕️ Doctor object:', appointment?.doctor);
-  console.log('🏥 Clinic object:', appointment?.clinic);
-  console.log('🩺 Specialty object:', appointment?.specialty);
-  console.log('📝 Reason for visit:', appointment?.reasonForVisit || appointment?.reason_for_visit);
-  const paymentInfo = getPaymentMethodInfo(paymentMethod);
-
-  useEffect(() => {
-    showSuccess('Thông tin lịch hẹn đã được gửi về email của bạn. Vui lòng kiểm tra hộp thư (bao gồm cả spam/junk).');
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Success Header */}
-        <div className="text-center mb-8">
-          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-            <CheckCircle className="h-10 w-10 text-green-600" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900">Đặt lịch thành công!</h1>
-          <p className="mt-2 text-gray-600">
-            Cảm ơn bạn đã sử dụng dịch vụ. Thông tin chi tiết về lịch hẹn như sau:
-          </p>
-        </div>
-
-        {/* Appointment Details */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-6">Thông tin lịch hẹn</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-start">
-                <User className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
-                <div>
-                  <p className="font-medium text-gray-900">Mã lịch hẹn</p>
-                  <p className="text-gray-600 font-mono">
-                    #{appointment.appointmentId || appointment.appointment_id || appointment.id || 'N/A'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start">
-                <Calendar className="h-5 w-5 text-purple-500 mt-0.5 mr-3 flex-shrink-0" />
-                <div>
-                  <p className="font-medium text-gray-900">Ngày khám</p>
-                  <p className="text-gray-600">{dateTime.date}</p>
-                </div>
-              </div>
-
-              <div className="flex items-start">
-                <Clock className="h-5 w-5 text-orange-500 mt-0.5 mr-3 flex-shrink-0" />
-                <div>
-                  <p className="font-medium text-gray-900">Giờ khám</p>
-                  <p className="text-gray-600">{dateTime.time}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-start">
-                <Stethoscope className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                <div>
-                  <p className="font-medium text-gray-900">Bác sĩ</p>
-                  <p className="text-gray-600">
-                    {appointment.doctor?.user?.fullName || 
-                     appointment.doctor?.user?.full_name ||
-                     appointment.doctor?.fullName || 
-                     appointment.doctor?.full_name ||
-                     appointment.doctor?.name ||
-                     'N/A'}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {appointment.specialty?.name || 
-                     appointment.specialty?.specialty_name ||
-                     'N/A'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start">
-                <Building className="h-5 w-5 text-indigo-500 mt-0.5 mr-3 flex-shrink-0" />
-                <div>
-                  <p className="font-medium text-gray-900">Phòng khám</p>
-                  <p className="text-gray-600">
-                    {appointment.clinic?.name || 
-                     appointment.clinic?.clinic_name ||
-                     'N/A'}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {appointment.clinic?.address || 
-                     appointment.clinic?.clinic_address ||
-                     'N/A'}
-                  </p>
-                </div>
-              </div>
-
-              {(appointment.reasonForVisit || appointment.reason_for_visit) && (
-                <div className="flex items-start">
-                  <div className="h-5 w-5 bg-yellow-100 rounded-full flex items-center justify-center mt-0.5 mr-3 flex-shrink-0">
-                    <span className="text-yellow-600 text-xs">!</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Lý do khám</p>
-                    <p className="text-gray-600">
-                      {appointment.reasonForVisit || appointment.reason_for_visit}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Payment Information */}
-        {paymentMethod && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Thông tin thanh toán</h2>
+    useEffect(() => {
+        const verifyPayment = async () => {
+            // Lấy chuỗi query trực tiếp từ href để đảm bảo tính toàn vẹn
+            const href = window.location.href;
+            const queryStringIndex = href.indexOf('?');
             
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center mr-3 ${paymentInfo.color}`}>
-                  <span className="text-lg">{paymentInfo.icon}</span>
+            if (queryStringIndex !== -1) {
+                const queryString = href.substring(queryStringIndex + 1);
+                
+                try {
+                    setIsLoading(true);
+                    setVerificationStatus('Confirming transaction with the server...');
+
+                    // Gửi chuỗi query gốc lên backend để xác thực
+                    const updatedAppointment = await apiService.handleVNPayReturn(queryString);
+
+                    if (updatedAppointment && updatedAppointment.id) {
+                        setAppointment(updatedAppointment);
+                        setVerificationStatus('Payment Verified Successfully!');
+                        notificationService.showSuccess('Xác nhận thanh toán và đặt lịch thành công!');
+                    } else {
+                        throw new Error('Failed to retrieve appointment details after payment.');
+                    }
+                } catch (err) {
+                    console.error("Payment verification failed:", err);
+                    setError(err.message || 'An unexpected error occurred during payment verification.');
+                    setVerificationStatus('Verification Failed');
+                } finally {
+                    setIsLoading(false);
+                }
+            } else {
+                setError('Invalid callback parameters from payment gateway.');
+                setVerificationStatus('Verification Failed');
+                setIsLoading(false);
+            }
+        };
+
+        verifyPayment();
+    }, [location, navigate]); // Thêm dependencies để tránh warning
+
+    const renderAppointmentDetails = () => {
+        if (!appointment) return null;
+
+        const dateTimeString = appointment.appointment_date_time || appointment.appointmentDateTime;
+        const appointmentDateTime = new Date(dateTimeString);
+
+        const formattedDate = !isNaN(appointmentDateTime) ? appointmentDateTime.toLocaleDateString('vi-VN', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        }) : 'Ngày không hợp lệ';
+
+        const formattedTime = !isNaN(appointmentDateTime) ? appointmentDateTime.toLocaleTimeString('vi-VN', {
+            hour: '2-digit', minute: '2-digit'
+        }) : 'Giờ không hợp lệ';
+
+        return (
+            <div className="p-6 bg-gray-50 rounded-lg shadow-inner">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4">Chi tiết lịch hẹn</h3>
+                <div className="space-y-3 text-gray-700">
+                    <p><strong>Mã lịch hẹn:</strong> #{appointment.id}</p>
+                    <p><strong>Bệnh nhân:</strong> {appointment.patient_name || appointment.patientName || 'N/A'}</p>
+                    <p><strong>Bác sĩ:</strong> {appointment.doctor_name || appointment.doctorName || 'N/A'}</p>
+                    <p><strong>Chuyên khoa:</strong> {appointment.specialty_name || appointment.specialtyName || 'N/A'}</p>
+                    <p><strong>Phòng khám:</strong> {appointment.clinic_name || appointment.clinicName || 'N/A'}</p>
+                    <p><strong>Địa chỉ:</strong> {appointment.clinic_address || appointment.clinicAddress || 'N/A'}</p>
+                    <p><strong>Ngày giờ:</strong> {formattedTime} - {formattedDate}</p>
+                    <p><strong>Trạng thái:</strong> 
+                        <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                            appointment.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                            {appointment.status}
+                        </span>
+                    </p>
                 </div>
-                <div>
-                  <p className="font-medium text-gray-900">{paymentInfo.name}</p>
-                  <p className="text-sm text-gray-500">
-                    Trạng thái: 
-                    <span className="ml-1 text-green-600 font-medium">
-                      {paymentStatus === 'completed' ? 'Đã thanh toán' : 'Chờ thanh toán'}
-                    </span>
-                  </p>
-                </div>
-              </div>
-              
-              <div className="text-right">
-                <p className="text-lg font-semibold text-gray-900">
-                  {paymentMethod === 'free' ? 'Miễn phí' : formatCurrency(
-                    (appointment.depositAmount || appointment.deposit_amount || 0) + 
-                    (appointment.examinationFee || appointment.examination_fee || 200000)
-                  )}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {paymentMethod === 'free' ? 'Không tính phí' : 'Tổng thanh toán'}
-                </p>
-              </div>
             </div>
-          </div>
-        )}
+        );
+    };
 
-        {/* Important Notes */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-          <h3 className="font-medium text-blue-900 mb-3">Lưu ý quan trọng</h3>
-          <ul className="text-sm text-blue-800 space-y-2">
-            <li className="flex items-start">
-              <span className="font-medium mr-2">•</span>
-              Vui lòng có mặt đúng giờ hẹn, đến sớm 15-30 phút để làm thủ tục
-            </li>
-            <li className="flex items-start">
-              <span className="font-medium mr-2">•</span>
-              Mang theo giấy tờ tùy thân (CMND/CCCD) và thẻ bảo hiểm y tế (nếu có)
-            </li>
-            <li className="flex items-start">
-              <span className="font-medium mr-2">•</span>
-              Thông tin lịch hẹn đã được gửi đến email và SMS của bạn
-            </li>
-            <li className="flex items-start">
-              <span className="font-medium mr-2">•</span>
-              Để hủy hoặc thay đổi lịch hẹn, vui lòng liên hệ phòng khám trước 24 giờ
-            </li>
-          </ul>
+    return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-100">
+            <div className="w-full max-w-2xl p-8 space-y-6 bg-white rounded-lg shadow-xl">
+                <div className="text-center">
+                    {isLoading ? (
+                        <>
+                            <h2 className="text-2xl font-bold text-gray-700">Đang xử lý thanh toán</h2>
+                            <div className="flex justify-center my-6">
+                                <RingLoader color="#4A90E2" size={80} />
+                            </div>
+                            <p className="text-gray-600">{verificationStatus}</p>
+                        </>
+                    ) : error ? (
+                        <>
+                            <h2 className="text-3xl font-bold text-red-600">Xác nhận lịch hẹn thất bại</h2>
+                            <p className="mt-4 text-gray-600">Đã có lỗi xảy ra trong quá trình xác nhận thanh toán.</p>
+                            <p className="mt-2 text-sm text-red-500 bg-red-50 p-3 rounded-md">{error}</p>
+                        </>
+                    ) : (
+                        <>
+                            <h2 className="text-3xl font-bold text-green-600">Đặt lịch thành công!</h2>
+                            <p className="mt-4 text-gray-600">Cảm ơn bạn đã tin tưởng dịch vụ của chúng tôi. Lịch hẹn của bạn đã được xác nhận.</p>
+                            {renderAppointmentDetails()}
+                        </>
+                    )}
+                </div>
+                {!isLoading && (
+                     <div className="mt-8 text-center">
+                        <Link to="/my-appointments" className="px-6 py-3 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            Xem lịch hẹn của tôi
+                        </Link>
+                    </div>
+                )}
+            </div>
         </div>
-
-        {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button
-            onClick={() => navigate('/my-appointments')}
-            className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 transition-colors"
-          >
-            <Calendar className="h-5 w-5 mr-2" />
-            Xem lịch hẹn của tôi
-          </button>
-          
-          <button
-            onClick={() => navigate('/')}
-            className="inline-flex items-center justify-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
-          >
-            <Home className="h-5 w-5 mr-2" />
-            Về trang chủ
-          </button>
-        </div>
-
-        {/* Contact Information */}
-        <div className="mt-8 text-center">
-          <p className="text-sm text-gray-500">
-            Cần hỗ trợ? Liên hệ hotline: 
-            <a href="tel:1900123456" className="ml-1 text-blue-600 hover:underline">
-              1900 123 456
-            </a>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-};
+    );
+}
 
 export default BookingSuccess; 

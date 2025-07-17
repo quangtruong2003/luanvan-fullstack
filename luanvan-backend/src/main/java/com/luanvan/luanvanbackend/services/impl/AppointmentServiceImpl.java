@@ -14,13 +14,15 @@ import com.luanvan.luanvanbackend.repositories.ClinicRepository;
 import com.luanvan.luanvanbackend.repositories.SpecialtyRepository;
 import com.luanvan.luanvanbackend.repositories.UserRepository;
 import com.luanvan.luanvanbackend.services.AppointmentService;
+import com.luanvan.luanvanbackend.services.AppointmentValidationService;
 import com.luanvan.luanvanbackend.services.EmailService;
 import com.luanvan.luanvanbackend.services.UserService;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -28,28 +30,17 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class AppointmentServiceImpl implements AppointmentService {
 
-    @Autowired
-    private AppointmentRepository appointmentRepository;
-    
-    @Autowired
-    private UserRepository userRepository;
-    
-    @Autowired
-    private AvailabilitySlotRepository slotRepository;
-    
-    @Autowired
-    private ClinicRepository clinicRepository;
-    
-    @Autowired
-    private SpecialtyRepository specialtyRepository;
-    
-    @Autowired
-    private UserService userService;
-    
-    @Autowired
-    private EmailService emailService;
+    private final AppointmentRepository appointmentRepository;
+    private final UserRepository userRepository;
+    private final AvailabilitySlotRepository slotRepository;
+    private final ClinicRepository clinicRepository;
+    private final SpecialtyRepository specialtyRepository;
+    private final UserService userService;
+    private final EmailService emailService;
+    private final AppointmentValidationService validationService;
 
     @Override
     public Page<Appointment> getAllAppointments(Pageable pageable) {
@@ -286,7 +277,12 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointment.setClinic(clinic);
         }
         
-        return appointmentRepository.save(appointment);
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+        
+        // Gửi email thông báo cập nhật
+        emailService.sendAppointmentUpdateEmail(savedAppointment);
+        
+        return savedAppointment;
     }
 
     @Override
@@ -299,7 +295,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                     Appointment.AppointmentStatus.valueOf(statusUpdateDTO.getStatus().toUpperCase());
             
             // Kiểm tra logic chuyển trạng thái
-            validateStatusTransition(appointment.getStatus(), newStatus);
+            validationService.validateStatusTransition(appointment.getStatus(), newStatus);
             
             appointment.setStatus(newStatus);
             
@@ -313,6 +309,12 @@ public class AppointmentServiceImpl implements AppointmentService {
                 AvailabilitySlot slot = appointment.getSlot();
                 slot.setStatus(AvailabilitySlot.SlotStatus.AVAILABLE);
                 slotRepository.save(slot);
+
+                // Gửi email thông báo hủy
+                emailService.sendAppointmentCancellationEmail(appointment, statusUpdateDTO.getCancellationReason());
+            } else {
+                // Gửi email thông báo cập nhật cho các thay đổi trạng thái khác
+                emailService.sendAppointmentUpdateEmail(appointment);
             }
             
             return appointmentRepository.save(appointment);
@@ -361,6 +363,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         
         appointmentRepository.save(appointment);
         
+        // Gửi email thông báo hủy
+        emailService.sendAppointmentCancellationEmail(appointment, cancellationReason);
+
         return true;
     }
 
@@ -391,6 +396,9 @@ public class AppointmentServiceImpl implements AppointmentService {
         
         appointmentRepository.save(appointment);
         
+        // Gửi email thông báo hủy
+        emailService.sendAppointmentCancellationEmail(appointment, cancellationReason);
+
         return true;
     }
 
@@ -426,6 +434,11 @@ public class AppointmentServiceImpl implements AppointmentService {
         
         // Cập nhật trạng thái
         appointment.setStatus(Appointment.AppointmentStatus.COMPLETED);
+
+        // Gửi email thông báo hoàn thành (nếu cần)
+        // Hiện tại chưa có template, nhưng có thể thêm emailService.sendAppointmentCompletionEmail(appointment);
+        // Tạm thời gửi email cập nhật chung
+        emailService.sendAppointmentUpdateEmail(appointment);
         
         return appointmentRepository.save(appointment);
     }
@@ -459,9 +472,12 @@ public class AppointmentServiceImpl implements AppointmentService {
                 appointment.setDepositPaid(true);
                 appointment.setPaymentTimestamp(LocalDateTime.now());
                 appointment.setStatus(Appointment.AppointmentStatus.CONFIRMED);
+                // Gửi email xác nhận đã được xử lý ở PaymentService, xóa ở đây để tránh trùng lặp
             } else if (newPaymentStatus == Appointment.PaymentStatus.FAILED) {
                 // Có thể giữ nguyên trạng thái PENDING_PAYMENT hoặc đánh dấu lỗi
                 appointment.setStatus(Appointment.AppointmentStatus.PAYMENT_FAILED);
+                // Gửi email thông báo thanh toán thất bại
+                emailService.sendAppointmentCancellationEmail(appointment, "Thanh toán không thành công.");
             }
             
             return appointmentRepository.save(appointment);
@@ -475,6 +491,9 @@ public class AppointmentServiceImpl implements AppointmentService {
     public void deleteAppointment(Long appointmentId) {
         // Lấy thông tin lịch hẹn trước khi xóa để xử lý các logic liên quan
         Appointment appointment = getAppointmentById(appointmentId);
+
+        // Gửi email thông báo hủy trước khi xóa
+        emailService.sendAppointmentCancellationEmail(appointment, "Lịch hẹn đã bị xóa bởi quản trị viên.");
 
         // Khi xóa lịch hẹn, cần cập nhật lại trạng thái của slot giờ khám
         // để người khác có thể đặt được
