@@ -10,7 +10,7 @@ import { useNotification } from '../../components/NotificationSystem';
 
 
 
-const ClinicManagement = ({ onAuthError }) => {
+const ClinicManagement = ({ onAuthError, onNavigate }) => {
   console.log('🎯 ClinicManagement component rendered');
   
   // Notification system
@@ -1117,6 +1117,13 @@ const ClinicManagement = ({ onAuthError }) => {
                     {/* Actions Column */}
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end space-x-2">
+                        <button
+                          onClick={() => onNavigate('appointments', { clinicId: clinic.clinic_id || clinic.clinicId })}
+                          className="inline-flex items-center p-2 text-green-600 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+                          title="Xem lịch hẹn của phòng khám"
+                        >
+                          <Calendar className="h-4 w-4" />
+                        </button>
                         <button
                           onClick={() => openEditModal(clinic)}
                           className="inline-flex items-center p-2 text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"

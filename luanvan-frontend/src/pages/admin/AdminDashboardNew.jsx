@@ -18,6 +18,7 @@ import { NotificationProvider } from '../../components/NotificationSystem';
 const AdminDashboardNew = () => {
   const { currentUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [globalFilters, setGlobalFilters] = useState({});
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalDoctors: 0,
@@ -190,11 +191,12 @@ const AdminDashboardNew = () => {
   };
 
   // Optimized tab switching with debouncing
-  const handleTabChange = useCallback((tabId) => {
-    if (tabId === activeTab) return; // Prevent unnecessary changes
+  const handleTabChange = useCallback((tabId, newFilters) => {
+    if (tabId === activeTab && !newFilters) return; // Prevent unnecessary changes
     
-    console.log(`🔄 Switching to tab: ${tabId}`);
+    console.log(`🔄 Switching to tab: ${tabId} with filters:`, newFilters);
     setActiveTab(tabId);
+    setGlobalFilters(newFilters || {});
   }, [activeTab]);
 
   const handleLogout = async () => {
@@ -500,9 +502,9 @@ const AdminDashboardNew = () => {
         case 'doctors':
           return <DoctorManagement onAuthError={setAuthError} />;
         case 'clinics':
-          return <ClinicManagement onAuthError={setAuthError} />;
+          return <ClinicManagement onAuthError={setAuthError} onNavigate={handleTabChange} />;
         case 'appointments':
-          return <AppointmentManagement onAuthError={setAuthError} />;
+          return <AppointmentManagement onAuthError={setAuthError} filters={globalFilters} setFilters={setGlobalFilters} />;
         case 'articles':
           return <div className="p-6 bg-white rounded-lg shadow"><h2 className="text-xl font-semibold">Quản lý bài viết</h2><p className="text-gray-600 mt-2">Tính năng đang được phát triển...</p></div>;
         case 'payments':

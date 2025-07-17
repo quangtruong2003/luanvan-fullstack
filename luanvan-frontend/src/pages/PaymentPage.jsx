@@ -70,10 +70,10 @@ const PaymentPage = () => {
 
       // Tạo đối tượng cấu hình cuối cùng, đảm bảo các trường không bị undefined
       const newConfig = {
-        enableMomo: fetchedConfig.enableMomo || false,
-        enableVNPay: fetchedConfig.enableVNPay || false,
+        enableMomo: fetchedConfig.enableMomo || fetchedConfig.enable_momo || false,
+        enableVNPay: fetchedConfig.enableVNPay || fetchedConfig.enableVnPay || fetchedConfig.enable_vn_pay || false,
         defaultPaymentMethod: fetchedConfig.defaultPaymentMethod || 'momo',
-        depositAmount: fetchedConfig.depositAmount || 0,
+        depositAmount: fetchedConfig.defaultDepositAmount || fetchedConfig.default_deposit_amount || 0,
         examinationFee: fetchedConfig.examinationFee || 200000,
       };
 
@@ -175,7 +175,7 @@ const PaymentPage = () => {
       if (appointmentResponse && appointmentResponse.appointmentId) {
         // Bước 2: Xử lý thanh toán nếu cần
         if (selectedPaymentMethod === 'momo') {
-          await processmomoPayment(appointmentResponse);
+          await processMomoPayment(appointmentResponse);
         } else if (selectedPaymentMethod === 'vnpay') {
           await processVNPayPayment(appointmentResponse);
         } else {
@@ -196,47 +196,57 @@ const PaymentPage = () => {
     }
   };
 
-  const processmomoPayment = async (appointment) => {
+  const processMomoPayment = async (appointment) => {
     try {
-      // Mock MoMo payment flow
-      console.log('Processing MoMo payment for appointment:', appointment.appointmentId);
-      
-      // Simulate payment processing
-      setTimeout(() => {
-        navigate('/booking-success', {
-          state: {
-            appointment: appointment,
-            paymentMethod: 'momo',
-            paymentStatus: 'completed'
-          }
-        });
-      }, 2000);
+        console.log('🚀 Processing real Momo payment for appointment:', appointment.appointmentId);
+        
+        const paymentRequest = {
+            appointmentId: appointment.appointmentId,
+            amount: paymentConfig.depositAmount,
+            description: `Thanh toán đặt cọc cho lịch hẹn #${appointment.appointmentId}`,
+            returnUrl: `${window.location.origin}/booking-confirm`,
+            cancelUrl: `${window.location.origin}/booking-confirm`,
+        };
 
+        const paymentResponse = await apiService.createMomoPayment(paymentRequest);
+
+        if (paymentResponse.success && paymentResponse.paymentUrl) {
+            // Redirect to Momo payment gateway
+            window.location.href = paymentResponse.paymentUrl;
+        } else {
+            throw new Error(paymentResponse.errorMessage || 'Không thể tạo thanh toán Momo.');
+        }
     } catch (error) {
-      console.error('MoMo payment error:', error);
-      throw new Error('Lỗi thanh toán MoMo: ' + error.message);
+        console.error('Momo payment error:', error);
+        showError('Lỗi thanh toán MoMo: ' + error.message, 'Lỗi thanh toán');
+        setLoading(false); // Stop loading on error
     }
   };
 
   const processVNPayPayment = async (appointment) => {
     try {
-      // Mock VNPay payment flow
-      console.log('Processing VNPay payment for appointment:', appointment.appointmentId);
-      
-      // Simulate payment processing
-      setTimeout(() => {
-        navigate('/booking-success', {
-          state: {
-            appointment: appointment,
-            paymentMethod: 'vnpay',
-            paymentStatus: 'completed'
-          }
-        });
-      }, 2000);
+        console.log('🚀 Processing real VNPay payment for appointment:', appointment.appointmentId);
 
+        const paymentRequest = {
+            appointmentId: appointment.appointmentId,
+            amount: paymentConfig.depositAmount,
+            description: `Thanh toan dat coc cho lich hen #${appointment.appointmentId}`,
+            returnUrl: `${window.location.origin}/booking-confirm`,
+            cancelUrl: `${window.location.origin}/booking-confirm`,
+        };
+
+        const paymentResponse = await apiService.createVNPayPayment(paymentRequest);
+
+        if (paymentResponse.success && paymentResponse.paymentUrl) {
+            // Redirect to VNPay payment gateway
+            window.location.href = paymentResponse.paymentUrl;
+        } else {
+            throw new Error(paymentResponse.errorMessage || 'Không thể tạo thanh toán VNPay.');
+        }
     } catch (error) {
-      console.error('VNPay payment error:', error);
-      throw new Error('Lỗi thanh toán VNPay: ' + error.message);
+        console.error('VNPay payment error:', error);
+        showError('Lỗi thanh toán VNPay: ' + error.message, 'Lỗi thanh toán');
+        setLoading(false); // Stop loading on error
     }
   };
 

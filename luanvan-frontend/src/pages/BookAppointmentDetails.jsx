@@ -109,19 +109,37 @@ const BookAppointmentDetails = () => {
         const systemConfigs = await adminService.getSystemConfig();
         const fetchedConfig = Array.isArray(systemConfigs) ? systemConfigs[0] : systemConfigs;
 
+        console.log('🔍 Raw system config response:', systemConfigs);
+        console.log('🔍 Fetched config:', fetchedConfig);
+
         if (!fetchedConfig) {
             throw new Error("Không thể tải cấu hình hệ thống.");
         }
 
         const newConfig = {
-            enableMomo: fetchedConfig.enableMomo || false,
-            enableVNPay: fetchedConfig.enableVNPay || false,
-            depositAmount: fetchedConfig.depositAmount || 0,
+            enableDeposit: fetchedConfig.enableDeposit || fetchedConfig.enable_deposit || false,
+            // Kiểm tra tất cả các biến thể tên có thể có
+            enableMomo: fetchedConfig.enableMomo || fetchedConfig.enable_momo || false,
+            enableVNPay: fetchedConfig.enableVNPay || fetchedConfig.enableVnPay || fetchedConfig.enable_vn_pay || false,
+            depositAmount: fetchedConfig.defaultDepositAmount || fetchedConfig.default_deposit_amount || 0,
         };
 
-        const needsPayment = newConfig.enableMomo || newConfig.enableVNPay;
-        const hasDeposit = newConfig.depositAmount > 0;
-        setIsPaymentRequired(needsPayment && hasDeposit);
+        console.log('💰 Payment config fetched:', newConfig);
+
+        // Kiểm tra xem có yêu cầu thanh toán không
+        const isDepositGloballyEnabled = newConfig.enableDeposit;
+        const hasPaymentMethod = newConfig.enableMomo || newConfig.enableVNPay;
+        const hasDepositAmount = newConfig.depositAmount > 0;
+        
+        // Console.log để test theo yêu cầu
+        console.log('💰 Payment requirement check:', {
+            isDepositGloballyEnabled,
+            hasPaymentMethod,
+            hasDepositAmount,
+            finalResult: isDepositGloballyEnabled && hasPaymentMethod && hasDepositAmount
+        });
+
+        setIsPaymentRequired(isDepositGloballyEnabled && hasPaymentMethod && hasDepositAmount);
 
     } catch (error) {
         const errorMessage = error.message || 'Không thể tải cấu hình hệ thống. Vui lòng thử lại.';
@@ -722,41 +740,16 @@ const BookAppointmentDetails = () => {
     console.log('  - actualClinicId:', actualClinicId, '→ parsedClinicId:', parsedClinicId, 'isNaN:', isNaN(parsedClinicId));
     
     // Kiểm tra payment config để xác định trạng thái mặc định
+    // Sử dụng isPaymentRequired đã được tính toán trong fetchPaymentConfig
     let defaultStatus = 'PENDING_PAYMENT'; // Mặc định
-    let paymentConfig = {
-      enableMomo: true,
-      enableVNPay: true,
-      depositAmount: 50000
-    };
-
-    try {
-      const savedSettings = localStorage.getItem('adminSettings');
-      if (savedSettings) {
-        const adminSettings = JSON.parse(savedSettings);
-        if (adminSettings.payment) {
-          paymentConfig = { ...paymentConfig, ...adminSettings.payment };
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load payment config:', error);
-    }
-
-    console.log('💰 Payment config loaded:', paymentConfig);
-
-    // Kiểm tra xem có cần thanh toán không
-    const needsPayment = paymentConfig.enableMomo || paymentConfig.enableVNPay;
-    const hasDepositAmount = paymentConfig.depositAmount && paymentConfig.depositAmount > 0;
     
-    console.log('💰 Payment checks:', {
-      needsPayment,
-      hasDepositAmount,
-      enableMomo: paymentConfig.enableMomo,
-      enableVNPay: paymentConfig.enableVNPay,
-      depositAmount: paymentConfig.depositAmount
+    console.log('💰 Payment requirement check:', {
+      isPaymentRequired,
+      willRequirePayment: isPaymentRequired
     });
 
-    // Nếu không có phương thức thanh toán nào được bật hoặc depositAmount = 0, set status = CONFIRMED
-    if (!needsPayment || !hasDepositAmount) {
+    // Nếu không cần thanh toán, set status = CONFIRMED
+    if (!isPaymentRequired) {
       defaultStatus = 'CONFIRMED';
       console.log('💰 No payment required - Setting appointment status to CONFIRMED');
     } else {

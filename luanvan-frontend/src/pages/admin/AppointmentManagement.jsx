@@ -1,20 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Search, Filter, Edit, Trash2, Calendar, 
-  Clock, User, CheckCircle, XCircle, AlertCircle, Save
+  Clock, User, CheckCircle, XCircle, AlertCircle, Save, Building, Stethoscope, Sun, Moon
 } from 'lucide-react';
 import { adminService, apiService, API_BASE_URL } from '../../services/api';
 import { useNotification } from '../../components/NotificationSystem';
 
-const AppointmentManagement = () => {
+const AppointmentManagement = ({ filters, setFilters }) => {
   // Notification system
   const { showSuccess, showError } = useNotification();
   
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
+  
+  // Local filter states are now controlled by the parent component's state
+  const searchTerm = filters?.searchTerm || '';
+  const statusFilter = filters?.statusFilter || '';
+  const dateFilter = filters?.dateFilter || '';
+  const clinicFilter = filters?.clinicId || '';
+  const doctorFilter = filters?.doctorId || '';
+  const timeOfDayFilter = filters?.timeOfDay || ''; // 'morning', 'afternoon'
+  const specialtyFilter = filters?.specialtyId || '';
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -461,7 +467,35 @@ const AppointmentManagement = () => {
     const appointmentDateTime = appointment.appointmentDateTime || appointment.appointment_date_time || '';
     const matchesDate = !dateFilter || appointmentDateTime.startsWith(dateFilter);
     
-    return matchesSearch && matchesStatus && matchesDate;
+    const appointmentClinicId = appointment.clinic?.clinicId?.toString() || appointment.clinic?.clinic_id?.toString();
+    const matchesClinic = !clinicFilter || appointmentClinicId === clinicFilter.toString();
+
+    // Corrected logic: Use userId as the consistent key for filtering
+    const appointmentDoctorUserId = (
+      appointment.doctor?.user?.userId ||
+      appointment.doctor?.user?.user_id ||
+      appointment.doctor?.userId ||
+      appointment.doctor?.user_id
+    )?.toString();
+    const matchesDoctor = !doctorFilter || (appointmentDoctorUserId && appointmentDoctorUserId === doctorFilter.toString());
+
+    const appointmentSpecialtyId = appointment.specialty?.specialtyId?.toString() || 
+                                   appointment.specialty?.specialty_id?.toString() ||
+                                   appointment.specialty?.id?.toString();
+    const matchesSpecialty = !specialtyFilter || appointmentSpecialtyId === specialtyFilter.toString();
+
+    const appointmentTime = (appointment.appointmentDateTime || appointment.appointment_date_time)?.split('T')[1];
+    let matchesTimeOfDay = true;
+    if (timeOfDayFilter && appointmentTime) {
+      const hour = parseInt(appointmentTime.substring(0, 2));
+      if (timeOfDayFilter === 'morning') {
+        matchesTimeOfDay = hour < 12;
+      } else if (timeOfDayFilter === 'afternoon') {
+        matchesTimeOfDay = hour >= 12;
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesDate && matchesClinic && matchesDoctor && matchesTimeOfDay && matchesSpecialty;
   });
 
   // Debug filtered appointments
@@ -470,8 +504,19 @@ const AppointmentManagement = () => {
   console.log('📊 Search term:', searchTerm);
   console.log('📊 Status filter:', statusFilter);
   console.log('📊 Date filter:', dateFilter);
+  console.log('📊 Clinic filter:', clinicFilter);
+  console.log('📊 Doctor filter:', doctorFilter);
+  console.log('📊 Time of Day filter:', timeOfDayFilter);
+  console.log('📊 Specialty filter:', specialtyFilter);
 
   // --- Handlers for cascading dropdowns and slot fetching ---
+
+  const handleFilterChange = (filterName, value) => {
+    setFilters(prevFilters => ({
+      ...prevFilters,
+      [filterName]: value
+    }));
+  };
 
   const handleDoctorChange = (doctorId) => {
     console.log('🏥 Doctor selected:', doctorId);
@@ -631,54 +676,124 @@ const AppointmentManagement = () => {
         </div>
 
         {/* Search and Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm bệnh nhân, bác sĩ..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
+        <div className="space-y-4">
+          {/* Main Filters Row */}
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex-grow min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Tìm kiếm bệnh nhân, bác sĩ..."
+                value={searchTerm}
+                onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            
+            <div className="relative flex-grow min-w-[150px]">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <select
+                value={statusFilter}
+                onChange={(e) => handleFilterChange('statusFilter', e.target.value)}
+                className="pl-10 pr-8 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Tất cả trạng thái</option>
+                {statusOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="relative flex-grow min-w-[150px]">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="date"
+                value={dateFilter}
+                onChange={(e) => handleFilterChange('dateFilter', e.target.value)}
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="relative flex-grow min-w-[150px]">
+              <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <select
+                value={timeOfDayFilter}
+                onChange={(e) => handleFilterChange('timeOfDay', e.target.value)}
+                className="pl-10 pr-8 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Cả ngày</option>
+                <option value="morning">Buổi sáng</option>
+                <option value="afternoon">Buổi chiều</option>
+              </select>
+            </div>
           </div>
           
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="pl-10 pr-8 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          {/* Entity Filters Row */}
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="relative flex-grow min-w-[150px]">
+              <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <select
+                value={clinicFilter}
+                onChange={(e) => handleFilterChange('clinicId', e.target.value)}
+                className="pl-10 pr-8 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Tất cả phòng khám</option>
+                {clinics.map(clinic => (
+                  <option key={clinic.clinicId || clinic.clinic_id} value={clinic.clinicId || clinic.clinic_id}>
+                    {clinic.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="relative flex-grow min-w-[150px]">
+              <Stethoscope className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <select
+                value={doctorFilter}
+                onChange={(e) => handleFilterChange('doctorId', e.target.value)}
+                className="pl-10 pr-8 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Tất cả bác sĩ</option>
+                {doctors.map(doctor => {
+                  const docUser = doctor.user || {};
+                  const userId = docUser.userId || docUser.user_id;
+                  if (!userId) return null;
+                  return (
+                    <option key={doctor.doctorId || doctor.doctor_id} value={userId}>
+                      {docUser.fullName || docUser.full_name || 'N/A'}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="relative flex-grow min-w-[150px]">
+              <Stethoscope className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <select
+                value={specialtyFilter}
+                onChange={(e) => handleFilterChange('specialtyId', e.target.value)}
+                className="pl-10 pr-8 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Tất cả chuyên khoa</option>
+                {specialties.map(specialty => (
+                  <option key={specialty.specialtyId || specialty.specialty_id} value={specialty.specialtyId || specialty.specialty_id}>
+                    {specialty.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              onClick={() => {
+                setFilters({});
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 flex-shrink-0"
             >
-              <option value="">Tất cả trạng thái</option>
-              {statusOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              Xóa bộ lọc
+            </button>
           </div>
-
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <button
-            onClick={() => {
-              setSearchTerm('');
-              setStatusFilter('');
-              setDateFilter('');
-            }}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Xóa bộ lọc
-          </button>
         </div>
       </div>
 
@@ -837,7 +952,7 @@ const AppointmentManagement = () => {
             <Calendar className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Không có lịch hẹn</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || statusFilter || dateFilter 
+              {searchTerm || statusFilter || dateFilter || clinicFilter || doctorFilter || timeOfDayFilter || specialtyFilter
                 ? 'Không tìm thấy lịch hẹn phù hợp với bộ lọc.'
                 : 'Chưa có lịch hẹn nào trong hệ thống.'}
             </p>

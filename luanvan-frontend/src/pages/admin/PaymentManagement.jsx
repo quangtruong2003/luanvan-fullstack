@@ -39,16 +39,16 @@ const PaymentManagement = () => {
       
       if (config) {
         const settings = {
-          enableDeposit: config.enable_deposit == 1 || config.enable_deposit === true,
-          enableMomo: config.enable_momo == 1 || config.enable_momo === true,
-          enableVNPay: config.enable_vn_pay == 1 || config.enable_vn_pay === true,
-          momoApiKey: config.momo_access_key || '',
-          momoSecretKey: config.momo_secret_key || '',
-          momoPartnerCode: config.momo_partner_code || '',
-          vnpayTmnCode: config.vnpay_tmn_code || '',
-          vnpaySecretKey: config.vnpay_secret_key || '',
-          defaultPaymentMethod: config.default_payment_method || 'momo',
-          depositAmount: config.default_deposit_amount || 50000
+          enableDeposit: config.enableDeposit === true || config.enable_deposit == 1,
+          enableMomo: config.enableMomo === true || config.enable_momo == 1,
+          enableVNPay: config.enableVNPay === true || config.enable_vn_pay == 1,
+          momoApiKey: config.momoApiKey || config.momo_access_key || '',
+          momoSecretKey: config.momoSecretKey || config.momo_secret_key || '',
+          momoPartnerCode: config.momoPartnerCode || config.momo_partner_code || '',
+          vnpayTmnCode: config.vnpayTmnCode || config.vnpay_tmn_code || '',
+          vnpaySecretKey: config.vnpaySecretKey || config.vnpay_secret_key || '',
+          defaultPaymentMethod: config.defaultPaymentMethod || config.default_payment_method || 'momo',
+          depositAmount: config.defaultDepositAmount || config.default_deposit_amount || 50000
         };
         
         setPaymentSettings(settings);
@@ -62,16 +62,16 @@ const PaymentManagement = () => {
         const newConfig = await adminService.getSystemConfig();
         if (newConfig) {
           const settings = {
-            enableDeposit: newConfig.enable_deposit == 1 || newConfig.enable_deposit === true,
-            enableMomo: newConfig.enable_momo == 1 || newConfig.enable_momo === true,
-            enableVNPay: newConfig.enable_vn_pay == 1 || newConfig.enable_vn_pay === true,
-            momoApiKey: newConfig.momo_access_key || '',
-            momoSecretKey: newConfig.momo_secret_key || '',
-            momoPartnerCode: newConfig.momo_partner_code || '',
-            vnpayTmnCode: newConfig.vnpay_tmn_code || '',
-            vnpaySecretKey: newConfig.vnpay_secret_key || '',
-            defaultPaymentMethod: newConfig.default_payment_method || 'momo',
-            depositAmount: newConfig.default_deposit_amount || 50000
+            enableDeposit: newConfig.enableDeposit === true || newConfig.enable_deposit == 1,
+            enableMomo: newConfig.enableMomo === true || newConfig.enable_momo == 1,
+            enableVNPay: newConfig.enableVNPay === true || newConfig.enable_vn_pay == 1,
+            momoApiKey: newConfig.momoApiKey || newConfig.momo_access_key || '',
+            momoSecretKey: newConfig.momoSecretKey || newConfig.momo_secret_key || '',
+            momoPartnerCode: newConfig.momoPartnerCode || newConfig.momo_partner_code || '',
+            vnpayTmnCode: newConfig.vnpayTmnCode || newConfig.vnpay_tmn_code || '',
+            vnpaySecretKey: newConfig.vnpaySecretKey || newConfig.vnpay_secret_key || '',
+            defaultPaymentMethod: newConfig.defaultPaymentMethod || newConfig.default_payment_method || 'momo',
+            depositAmount: newConfig.defaultDepositAmount || newConfig.default_deposit_amount || 50000
           };
           setPaymentSettings(settings);
           showInfo('Đã tạo và tải cấu hình mặc định từ database', 'Khởi tạo thành công');
@@ -111,18 +111,18 @@ const PaymentManagement = () => {
         return;
       }
       
-      // Prepare config data for API
+      // Prepare config data for API with snake_case keys
       const configData = {
-        enableDeposit: paymentSettings.enableDeposit,
-        enableMomo: paymentSettings.enableMomo,
-        enableVNPay: paymentSettings.enableVNPay,
-        momoPartnerCode: paymentSettings.momoPartnerCode,
-        momoAccessKey: paymentSettings.momoApiKey,
-        momoSecretKey: paymentSettings.momoSecretKey,
-        vnpayTmnCode: paymentSettings.vnpayTmnCode,
-        vnpaySecretKey: paymentSettings.vnpaySecretKey,
-        defaultPaymentMethod: paymentSettings.defaultPaymentMethod,
-        defaultDepositAmount: paymentSettings.depositAmount
+        enable_deposit: paymentSettings.enableDeposit,
+        enable_momo: paymentSettings.enableMomo,
+        enable_vn_pay: paymentSettings.enableVNPay,
+        momo_partner_code: paymentSettings.momoPartnerCode,
+        momo_access_key: paymentSettings.momoApiKey,
+        momo_secret_key: paymentSettings.momoSecretKey,
+        vnpay_tmn_code: paymentSettings.vnpayTmnCode,
+        vnpay_secret_key: paymentSettings.vnpaySecretKey,
+        default_payment_method: paymentSettings.defaultPaymentMethod,
+        default_deposit_amount: paymentSettings.depositAmount
       };
       
       // Save to database using API
@@ -160,16 +160,16 @@ const PaymentManagement = () => {
 
     try {
       const configData = {
-        enableDeposit: updatedSettings.enableDeposit,
-        enableMomo: updatedSettings.enableMomo,
-        enableVNPay: updatedSettings.enableVNPay,
-        momoPartnerCode: updatedSettings.momoPartnerCode,
-        momoAccessKey: updatedSettings.momoApiKey,
-        momoSecretKey: updatedSettings.momoSecretKey,
-        vnpayTmnCode: updatedSettings.vnpayTmnCode,
-        vnpaySecretKey: updatedSettings.vnpaySecretKey,
-        defaultPaymentMethod: updatedSettings.defaultPaymentMethod,
-        defaultDepositAmount: updatedSettings.depositAmount
+        enable_deposit: updatedSettings.enableDeposit,
+        enable_momo: updatedSettings.enableMomo,
+        enable_vn_pay: updatedSettings.enableVNPay,
+        momo_partner_code: updatedSettings.momoPartnerCode,
+        momo_access_key: updatedSettings.momoApiKey,
+        momo_secret_key: updatedSettings.momoSecretKey,
+        vnpay_tmn_code: updatedSettings.vnpayTmnCode,
+        vnpay_secret_key: updatedSettings.vnpaySecretKey,
+        default_payment_method: updatedSettings.defaultPaymentMethod,
+        default_deposit_amount: updatedSettings.depositAmount
       };
       
       await adminService.updateSystemConfig(configData);

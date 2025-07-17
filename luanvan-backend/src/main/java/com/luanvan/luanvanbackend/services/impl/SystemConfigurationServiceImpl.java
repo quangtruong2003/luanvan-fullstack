@@ -46,30 +46,58 @@ public class SystemConfigurationServiceImpl implements SystemConfigurationServic
     @Transactional
     public SystemConfiguration updateConfiguration(SystemConfigurationDTO configDTO) {
         try {
-            log.info("🔄 Updating system configuration...");
+            log.info("🔄 Updating system configuration with DTO: {}", configDTO);
             SystemConfiguration config = getCurrentConfiguration();
 
-            // Ghi đè toàn bộ cấu hình từ DTO
-            config.setEnableDeposit(configDTO.getEnableDeposit());
-            config.setDefaultDepositAmount(configDTO.getDefaultDepositAmount());
+            // Chỉ cập nhật các trường không null từ DTO
+            if (configDTO.getEnableDeposit() != null) {
+                config.setEnableDeposit(configDTO.getEnableDeposit());
+            }
+            if (configDTO.getDefaultDepositAmount() != null) {
+                config.setDefaultDepositAmount(configDTO.getDefaultDepositAmount());
+            }
             
             // MoMo
-            config.setEnableMomo(configDTO.getEnableMomo());
-            config.setMomoPartnerCode(configDTO.getMomoPartnerCode());
-            config.setMomoAccessKey(configDTO.getMomoAccessKey());
-            config.setMomoSecretKey(configDTO.getMomoSecretKey());
-            config.setMomoApiEndpoint(configDTO.getMomoApiEndpoint());
+            if (configDTO.getEnableMomo() != null) {
+                config.setEnableMomo(configDTO.getEnableMomo());
+            }
+            if (configDTO.getMomoPartnerCode() != null) {
+                config.setMomoPartnerCode(configDTO.getMomoPartnerCode());
+            }
+            if (configDTO.getMomoAccessKey() != null) {
+                config.setMomoAccessKey(configDTO.getMomoAccessKey());
+            }
+            if (configDTO.getMomoSecretKey() != null) {
+                config.setMomoSecretKey(configDTO.getMomoSecretKey());
+            }
+            if (configDTO.getMomoApiEndpoint() != null) {
+                config.setMomoApiEndpoint(configDTO.getMomoApiEndpoint());
+            }
 
             // VNPay
-            config.setEnableVNPay(configDTO.getEnableVNPay());
-            config.setVnpayTmnCode(configDTO.getVnpayTmnCode());
-            config.setVnpaySecretKey(configDTO.getVnpaySecretKey());
+            if (configDTO.getEnableVNPay() != null) {
+                config.setEnableVNPay(configDTO.getEnableVNPay());
+            }
+            if (configDTO.getVnpayTmnCode() != null) {
+                config.setVnpayTmnCode(configDTO.getVnpayTmnCode());
+            }
+            if (configDTO.getVnpaySecretKey() != null) {
+                config.setVnpaySecretKey(configDTO.getVnpaySecretKey());
+            }
 
             // General Payment Settings
-            config.setDefaultPaymentMethod(configDTO.getDefaultPaymentMethod());
-            config.setPatientCancellationTimeLimitHours(configDTO.getPatientCancellationTimeLimitHours());
-            config.setPaymentRetryTimeoutMinutes(configDTO.getPaymentRetryTimeoutMinutes());
-            config.setNonRefundableDepositPolicyText(configDTO.getNonRefundableDepositPolicyText());
+            if (configDTO.getDefaultPaymentMethod() != null) {
+                config.setDefaultPaymentMethod(configDTO.getDefaultPaymentMethod());
+            }
+            if (configDTO.getPatientCancellationTimeLimitHours() != null) {
+                config.setPatientCancellationTimeLimitHours(configDTO.getPatientCancellationTimeLimitHours());
+            }
+            if (configDTO.getPaymentRetryTimeoutMinutes() != null) {
+                config.setPaymentRetryTimeoutMinutes(configDTO.getPaymentRetryTimeoutMinutes());
+            }
+            if (configDTO.getNonRefundableDepositPolicyText() != null) {
+                config.setNonRefundableDepositPolicyText(configDTO.getNonRefundableDepositPolicyText());
+            }
 
             SystemConfiguration savedConfig = configRepository.save(config);
             log.info("✅ System configuration updated successfully");
