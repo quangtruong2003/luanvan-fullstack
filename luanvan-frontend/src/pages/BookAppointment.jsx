@@ -13,6 +13,7 @@ const BookAppointment = () => {
   const [selectedClinic, setSelectedClinic] = useState('');
   const [doctors, setDoctors] = useState([]);
   const [specialties, setSpecialties] = useState([]);
+  const [filteredSpecialties, setFilteredSpecialties] = useState([]);
   const [clinics, setClinics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
@@ -38,9 +39,37 @@ const BookAppointment = () => {
     fetchInitialData();
   }, []);
 
+  useEffect(() => {
+    // When selectedClinic changes, filter the specialties dropdown
+    if (selectedClinic) {
+        const selectedClinicId = parseInt(selectedClinic);
+        const clinic = clinics.find(c => (c.clinic_id === selectedClinicId || c.clinicId === selectedClinicId));
+        
+        // Backend might not return specialties for each clinic, so we need to derive it
+        // from the full doctor list if necessary. For now, assume clinic object has specialties.
+        if (clinic && clinic.specialties && clinic.specialties.length > 0) {
+            setFilteredSpecialties(clinic.specialties);
+        } else {
+            // Fallback: if clinic object doesn't contain specialties, we can derive them.
+            // This is computationally more intensive and depends on having a complete doctor list.
+            const specialtiesInClinic = doctors
+                .flatMap(doctor => doctor.specialties)
+                .filter(spec => spec.clinic?.clinic_id === selectedClinicId || spec.clinic?.clinicId === selectedClinicId);
+            
+            const uniqueSpecialties = Array.from(new Map(specialtiesInClinic.map(spec => [spec.specialty_id || spec.specialtyId, spec])).values());
+            setFilteredSpecialties(uniqueSpecialties);
+        }
+    } else {
+        // If no clinic is selected, show all specialties
+        setFilteredSpecialties(specialties);
+    }
+    // Reset specialty selection when clinic changes
+    setSelectedSpecialty('');
+  }, [selectedClinic, clinics, specialties, doctors]);
+
   const fetchDoctors = async () => {
     try {
-      const response = await apiService.getDoctors({ page: 0, size: 20 });
+      const response = await apiService.getDoctors({ page: 0, size: 100 }); // Increased size to get more data for filtering
       setDoctors(response.content || response || []);
     } catch (error) {
       console.error('Error fetching doctors:', error);
@@ -51,10 +80,13 @@ const BookAppointment = () => {
   const fetchSpecialties = async () => {
     try {
       const response = await apiService.getSpecialties();
-      setSpecialties(response.content || response || []);
+      const allSpecialties = response.content || response || [];
+      setSpecialties(allSpecialties);
+      setFilteredSpecialties(allSpecialties);
     } catch (error) {
       console.error('Error fetching specialties:', error);
       setSpecialties([]);
+      setFilteredSpecialties([]);
     }
   };
 
@@ -307,7 +339,7 @@ const BookAppointment = () => {
                         className="w-full pl-10 pr-8 py-3 bg-white/90 backdrop-blur-md border border-white/30 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-300 text-sm appearance-none cursor-pointer"
                       >
                         <option value="">Tất cả chuyên khoa</option>
-                        {specialties.map(specialty => (
+                        {filteredSpecialties.map(specialty => (
                           <option key={specialty.specialty_id || specialty.specialtyId} value={specialty.specialty_id || specialty.specialtyId}>
                             {specialty.name}
                           </option>
