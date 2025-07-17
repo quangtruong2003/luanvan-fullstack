@@ -1306,6 +1306,7 @@ const BookAppointmentDetails = () => {
                       <span className="text-red-500">*</span>
                     </label>
                     <textarea
+                      minLength={3}
                       name="reasonForVisit"
                       value={formData.reasonForVisit}
                       onChange={handleInputChange}
