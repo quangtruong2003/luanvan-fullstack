@@ -160,7 +160,7 @@ const Home = () => {
 
             {/* Subtitle */}
             <p className={`text-xl md:text-2xl text-blue-100 mb-12 max-w-3xl mx-auto leading-relaxed transform transition-all duration-1000 delay-400 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
-              Đặt lịch khám bệnh thông minh với AI, kết nối trực tiếp với 200+ bác sĩ chuyên khoa hàng đầu
+              Đặt lịch khám bệnh trực tiếp trên website được tích hợp AI thông minh. với đội ngũ y tế chuyên nghiệp
             </p>
 
             {/* CTA Buttons */}

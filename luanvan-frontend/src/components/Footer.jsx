@@ -11,30 +11,6 @@ const Footer = () => {
         </div>
         
         <div className="relative">
-          {/* Newsletter Section */}
-          <div className="border-b border-white/10 py-16">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-              <h3 className="text-3xl md:text-4xl font-bold mb-4">
-                Đăng ký nhận tin mới nhất
-              </h3>
-              <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-                Cập nhật thông tin y tế, tips sức khỏe và ưu đãi đặc biệt từ chúng tôi
-              </p>
-              <div className="max-w-md mx-auto">
-                <div className="flex">
-                  <input
-                    type="email"
-                    placeholder="Nhập email của bạn"
-                    className="flex-1 px-6 py-4 rounded-l-2xl bg-white/10 backdrop-blur-md border border-white/20 text-white placeholder-gray-300 focus:outline-none focus:border-blue-500 focus:bg-white/20 transition-all duration-300"
-                  />
-                  <button className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 rounded-r-2xl font-semibold transition-all duration-300 hover:scale-105">
-                    Đăng ký
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          
           {/* Main Footer Content */}
           <div className="py-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

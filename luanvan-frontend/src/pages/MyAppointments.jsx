@@ -388,9 +388,8 @@ const MyAppointments = () => {
             </div>
           )}
         </div>
-
         {/* Past Appointments */}
-        <div>
+        {/* <div>
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Lịch sử khám bệnh ({pastAppointments.length})</h2>
           {pastAppointments.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-8 text-center">
@@ -440,7 +439,7 @@ const MyAppointments = () => {
               ))}
             </div>
           )}
-        </div>
+        </div> */}
         </>
         )}
       </div>
