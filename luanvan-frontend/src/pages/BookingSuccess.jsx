@@ -112,6 +112,10 @@ const BookingSuccess = () => {
   console.log('📝 Reason for visit:', appointment?.reasonForVisit || appointment?.reason_for_visit);
   const paymentInfo = getPaymentMethodInfo(paymentMethod);
 
+  useEffect(() => {
+    showSuccess('Thông tin lịch hẹn đã được gửi về email của bạn. Vui lòng kiểm tra hộp thư (bao gồm cả spam/junk).');
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -21,6 +21,7 @@ import { apiService, authService, adminService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../components/NotificationSystem';
 
+
 const BookAppointmentDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,7 +30,13 @@ const BookAppointmentDetails = () => {
   
   // Nhận thông tin từ trang trước
   const { slotData, doctorData, clinicData, date } = location.state || {};
-  
+  function countWords(str) {
+    const trimmed = str.trim();
+    if (trimmed === "") return 0;
+    // Bước 3: Tách thành mảng các từ (dựa vào dấu cách/tab/xuống dòng)
+    const wordsArray = trimmed.split(/\s+/);
+    return wordsArray.length;
+  }
   // State cho thông tin người dùng (fallback khi currentUser chưa có)
   const [userInfo, setUserInfo] = useState({
     user_id: null,

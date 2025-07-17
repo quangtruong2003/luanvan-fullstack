@@ -38,4 +38,6 @@ public interface EmailService {
      * Gửi email HTML
      */
     void sendHtmlEmail(String to, String subject, String htmlContent);
+
+    //void sendEmail(String to, String subject, String content);
 } 
