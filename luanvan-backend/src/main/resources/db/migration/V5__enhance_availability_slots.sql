@@ -2,22 +2,19 @@
 -- Author: LuanVan Team
 -- Date: 2024
 
--- Add new columns to availability_slots table
-ALTER TABLE availability_slots 
-ADD COLUMN IF NOT EXISTS specialty_id BIGINT,
-ADD COLUMN IF NOT EXISTS slot_duration_minutes INTEGER DEFAULT 30,
-ADD COLUMN IF NOT EXISTS auto_generated BOOLEAN DEFAULT FALSE,
-ADD COLUMN IF NOT EXISTS notes TEXT,
-ADD COLUMN IF NOT EXISTS created_from_shift_id BIGINT;
+-- Add specialty_id to availability_slots
+ALTER TABLE availability_slots ADD COLUMN specialty_id BIGINT;
 
--- Add foreign key constraint for specialty_id
+-- Add foreign key constraint to specialties table
 ALTER TABLE availability_slots 
-ADD CONSTRAINT IF NOT EXISTS fk_availability_slots_specialty 
+ADD CONSTRAINT fk_availability_slots_specialty 
 FOREIGN KEY (specialty_id) REFERENCES specialties(specialty_id) ON DELETE SET NULL;
 
--- Add foreign key constraint for created_from_shift_id
+-- Add columns to support auto-generation from standard work shifts
+ALTER TABLE availability_slots ADD COLUMN auto_generated BOOLEAN DEFAULT FALSE;
+ALTER TABLE availability_slots ADD COLUMN created_from_shift_id BIGINT;
 ALTER TABLE availability_slots 
-ADD CONSTRAINT IF NOT EXISTS fk_availability_slots_work_shift 
+ADD CONSTRAINT fk_availability_slots_work_shift 
 FOREIGN KEY (created_from_shift_id) REFERENCES standard_work_shifts(shift_id) ON DELETE SET NULL;
 
 -- Create indexes for better performance

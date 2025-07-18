@@ -5,7 +5,6 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 
 import javax.sql.DataSource;
 
@@ -22,7 +21,6 @@ public class DatabaseConfig {
     private String password;
 
     @Bean
-    @Primary
     public DataSource dataSource() {
         HikariConfig config = new HikariConfig();
         
@@ -33,12 +31,12 @@ public class DatabaseConfig {
         config.setDriverClassName("com.mysql.cj.jdbc.Driver");
         
         // Performance optimization
-        config.setMaximumPoolSize(20); // Từ 10 mặc định lên 20
-        config.setMinimumIdle(5);       // Duy trì ít nhất 5 connection
-        config.setConnectionTimeout(30000); // 30s timeout
-        config.setIdleTimeout(600000);  // 10 phút idle timeout
-        config.setMaxLifetime(1800000); // 30 phút max lifetime
-        config.setLeakDetectionThreshold(60000); // 1 phút leak detection
+        config.setMaximumPoolSize(20);
+        config.setMinimumIdle(5);
+        config.setConnectionTimeout(30000);
+        config.setIdleTimeout(600000);
+        config.setMaxLifetime(1800000);
+        config.setLeakDetectionThreshold(60000);
         
         // MySQL specific optimizations
         config.addDataSourceProperty("cachePrepStmts", "true");
@@ -51,8 +49,8 @@ public class DatabaseConfig {
         config.addDataSourceProperty("cacheServerConfiguration", "true");
         config.addDataSourceProperty("maintainTimeStats", "false");
         
-        // Transaction configuration
-        config.setAutoCommit(false); // Explicitly disable autocommit
+        // Đặt lại AutoCommit về mặc định của HikariCP (true), Spring sẽ quản lý transaction
+        // config.setAutoCommit(false); 
         
         return new HikariDataSource(config);
     }

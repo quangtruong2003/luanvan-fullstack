@@ -226,6 +226,25 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <version>10.12.0</version> <!-- Sử dụng phiên bản Flyway plugin ổn định và gần đây -->
+                <configuration>
+                    <!--
+                    LƯU Ý QUAN TRỌNG: Cấu hình này kết nối trực tiếp đến database Aiven của bạn.
+                    Các thông tin này nên được quản lý một cách an toàn (ví dụ: sử dụng Maven profiles
+                    hoặc biến môi trường) thay vì lưu trực tiếp trong mã nguồn cho môi trường production.
+                    -->
+                    <url>jdbc:mysql://luanvandb-nguyentruongk530042003.e.aivencloud.com:20570/defaultdb?ssl-mode=REQUIRED</url>
+                    <user>avnadmin</user>
+                    <password>AVNS_ZogBm2rfxdJxRJZjYix</password>
+                    <baselineVersion>12</baselineVersion> <!-- Thêm dòng này -->
+                    <locations>
+                        <location>filesystem:src/main/resources/db/migration</location>
+                    </locations>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

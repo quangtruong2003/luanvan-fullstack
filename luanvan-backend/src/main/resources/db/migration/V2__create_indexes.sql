@@ -5,7 +5,7 @@ CREATE INDEX idx_user_role ON users(role_id);
 CREATE INDEX idx_user_active ON users(is_active);
 
 -- Indexes for Doctor table
-CREATE INDEX idx_doctor_user ON doctors(doctor_id);
+CREATE INDEX idx_doctor_user ON doctors(user_id);
 
 -- Indexes for DoctorSpecialty table
 CREATE INDEX idx_doctor_specialty_doctor ON doctor_specialties(doctor_id);
