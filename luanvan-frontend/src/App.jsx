@@ -21,7 +21,7 @@ function App() {
         </main>
         {!isLoginPage && !isDashboardPage && <Footer />}
         {/* N8n Chat Widget hiển thị trên tất cả trang trừ login */}
-        {!isLoginPage && <N8nChatWidget />}
+        {!isLoginPage && !isDashboardPage && <N8nChatWidget />}
       </div>
     </NotificationProvider>
   )

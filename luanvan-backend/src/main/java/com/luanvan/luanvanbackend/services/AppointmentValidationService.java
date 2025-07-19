@@ -92,13 +92,17 @@ public class AppointmentValidationService {
     public void validateStatusTransition(Appointment.AppointmentStatus currentStatus, Appointment.AppointmentStatus newStatus) {
         // Define valid status transitions
         boolean isValidTransition = switch (currentStatus) {
-            case PENDING_PAYMENT -> newStatus == Appointment.AppointmentStatus.CONFIRMED || 
+            case PENDING_PAYMENT -> newStatus == Appointment.AppointmentStatus.CONFIRMED ||
                                    newStatus == Appointment.AppointmentStatus.CANCELLED_BY_PATIENT ||
+                                   newStatus == Appointment.AppointmentStatus.CANCELLED_BY_CLINIC || // Allow admin to cancel
                                    newStatus == Appointment.AppointmentStatus.PAYMENT_FAILED;
             case CONFIRMED -> newStatus == Appointment.AppointmentStatus.COMPLETED ||
                              newStatus == Appointment.AppointmentStatus.CANCELLED_BY_PATIENT ||
-                             newStatus == Appointment.AppointmentStatus.CANCELLED_BY_CLINIC;
-            case COMPLETED, CANCELLED_BY_PATIENT, CANCELLED_BY_CLINIC, PAYMENT_FAILED, NO_SHOW -> false; // Terminal states
+                             newStatus == Appointment.AppointmentStatus.CANCELLED_BY_CLINIC ||
+                             newStatus == Appointment.AppointmentStatus.NO_SHOW; // Allow transition to NO_SHOW
+            case PAYMENT_FAILED -> newStatus == Appointment.AppointmentStatus.PENDING_PAYMENT ||
+                                   newStatus == Appointment.AppointmentStatus.CANCELLED_BY_CLINIC;
+            case COMPLETED, CANCELLED_BY_PATIENT, CANCELLED_BY_CLINIC, NO_SHOW -> false; // Terminal states
         };
 
         if (!isValidTransition) {

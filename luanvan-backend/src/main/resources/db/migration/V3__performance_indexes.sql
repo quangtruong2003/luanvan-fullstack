@@ -11,8 +11,8 @@ CREATE INDEX idx_doctor_specialty_specialty_primary ON doctor_specialty(specialt
 
 -- Composite indexes for payment lookup
 CREATE INDEX idx_payment_appointment_status_date ON payments(appointment_id, status, created_at);
-CREATE INDEX idx_payment_provider_status_date ON payments(payment_provider, status, created_at);
-CREATE INDEX idx_payment_gateway_order_provider ON payments(gateway_order_id, payment_provider);
+CREATE INDEX idx_payment_provider_status_date ON payments(provider, status, created_at);
+CREATE INDEX idx_payment_gateway_order_provider ON payments(gateway_order_id, provider);
 
 -- Composite indexes for availability slot queries
 CREATE INDEX idx_slot_doctor_date_time_status ON availability_slots(doctor_id, date, start_time, status);
@@ -28,9 +28,6 @@ CREATE INDEX idx_user_phone_active ON users(phone_number, is_active);
 CREATE INDEX idx_article_author_status_published ON articles(author_id, status, published_date);
 CREATE INDEX idx_article_category_status ON articles(category, status);
 CREATE INDEX idx_article_title_status ON articles(title, status);
-
--- For doctor search by experience and specialty
-CREATE INDEX idx_doctor_experience_specialty ON doctors(years_of_experience, specialty_id);
 
 -- For summarizing appointment details efficiently
 CREATE INDEX idx_appointment_summary ON appointments(appointment_id, doctor_id, patient_id, clinic_id, status);

@@ -8,6 +8,7 @@ import com.luanvan.luanvanbackend.entities.User;
 import com.luanvan.luanvanbackend.services.AppointmentService;
 import com.luanvan.luanvanbackend.services.DoctorService;
 import com.luanvan.luanvanbackend.services.UserService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/appointments")
@@ -176,16 +178,14 @@ public class AppointmentController {
         return ResponseEntity.ok(appointment);
     }
 
-    /**
-     * Cập nhật trạng thái lịch hẹn (chỉ Admin)
-     */
-    @PutMapping("/{appointmentId}/status")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Appointment> updateAppointmentStatus(
-            @PathVariable Long appointmentId,
-            @Valid @RequestBody AppointmentStatusUpdateDTO statusUpdateDTO) {
-        Appointment appointment = appointmentService.updateAppointmentStatus(appointmentId, statusUpdateDTO);
-        return ResponseEntity.ok(appointment);
+    @PutMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DOCTOR')")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<Appointment> updateAppointmentStatus(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        String newStatus = payload.get("status");
+        String reason = payload.get("cancellationReason");
+        Appointment updatedAppointment = appointmentService.updateAppointmentStatus(id, newStatus, reason);
+        return ResponseEntity.ok(updatedAppointment);
     }
 
     /**

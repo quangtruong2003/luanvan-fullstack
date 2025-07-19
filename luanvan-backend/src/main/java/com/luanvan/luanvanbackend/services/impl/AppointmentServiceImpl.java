@@ -11,6 +11,7 @@ import com.luanvan.luanvanbackend.exception.MissingContactInfoException;
 import com.luanvan.luanvanbackend.repositories.AppointmentRepository;
 import com.luanvan.luanvanbackend.repositories.AvailabilitySlotRepository;
 import com.luanvan.luanvanbackend.repositories.ClinicRepository;
+import com.luanvan.luanvanbackend.repositories.PaymentRepository;
 import com.luanvan.luanvanbackend.repositories.SpecialtyRepository;
 import com.luanvan.luanvanbackend.repositories.UserRepository;
 import com.luanvan.luanvanbackend.services.AppointmentService;
@@ -41,6 +42,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final UserService userService;
     private final EmailService emailService;
     private final AppointmentValidationService validationService;
+    private final PaymentRepository paymentRepository;
 
     @Override
     public Page<Appointment> getAllAppointments(Pageable pageable) {
@@ -287,12 +289,12 @@ public class AppointmentServiceImpl implements AppointmentService {
 
     @Override
     @Transactional
-    public Appointment updateAppointmentStatus(Long appointmentId, AppointmentStatusUpdateDTO statusUpdateDTO) {
+    public Appointment updateAppointmentStatus(Long appointmentId, String newStatusStr, String reason) {
         Appointment appointment = getAppointmentById(appointmentId);
         
         try {
             Appointment.AppointmentStatus newStatus = 
-                    Appointment.AppointmentStatus.valueOf(statusUpdateDTO.getStatus().toUpperCase());
+                    Appointment.AppointmentStatus.valueOf(newStatusStr.toUpperCase());
             
             // Kiểm tra logic chuyển trạng thái
             validationService.validateStatusTransition(appointment.getStatus(), newStatus);
@@ -303,7 +305,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             if (newStatus == Appointment.AppointmentStatus.CANCELLED_BY_PATIENT || 
                     newStatus == Appointment.AppointmentStatus.CANCELLED_BY_CLINIC) {
                 appointment.setCancellationTimestamp(LocalDateTime.now());
-                appointment.setCancellationReason(statusUpdateDTO.getCancellationReason());
+                appointment.setCancellationReason(reason);
                 
                 // Cập nhật trạng thái slot
                 AvailabilitySlot slot = appointment.getSlot();
@@ -311,7 +313,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 slotRepository.save(slot);
 
                 // Gửi email thông báo hủy
-                emailService.sendAppointmentCancellationEmail(appointment, statusUpdateDTO.getCancellationReason());
+                emailService.sendAppointmentCancellationEmail(appointment, reason);
             } else {
                 // Gửi email thông báo cập nhật cho các thay đổi trạng thái khác
                 emailService.sendAppointmentUpdateEmail(appointment);
@@ -319,7 +321,7 @@ public class AppointmentServiceImpl implements AppointmentService {
             
             return appointmentRepository.save(appointment);
         } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Trạng thái không hợp lệ: " + statusUpdateDTO.getStatus());
+            throw new RuntimeException("Trạng thái không hợp lệ: " + newStatusStr);
         }
     }
 
@@ -502,6 +504,9 @@ public class AppointmentServiceImpl implements AppointmentService {
             slot.setStatus(AvailabilitySlot.SlotStatus.AVAILABLE);
             slotRepository.save(slot);
         }
+
+        // Xóa các bản ghi thanh toán liên quan
+        paymentRepository.deleteByAppointment_AppointmentId(appointmentId);
 
         // Xóa lịch hẹn
         appointmentRepository.deleteById(appointmentId);

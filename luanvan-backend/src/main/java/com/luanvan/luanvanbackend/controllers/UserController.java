@@ -184,6 +184,18 @@ public class UserController {
     }
 
     /**
+     * Kiểm tra sự tồn tại của email (chỉ Admin)
+     */
+    @GetMapping("/check-email")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, Boolean>> checkEmailExists(@RequestParam String email) {
+        boolean exists = userService.checkEmailExists(email);
+        Map<String, Boolean> response = new HashMap<>();
+        response.put("exists", exists);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
      * Helper method để kiểm tra user hiện tại có phải là user được yêu cầu không
      */
     public boolean isCurrentUser(Long userId, org.springframework.security.core.Authentication authentication) {

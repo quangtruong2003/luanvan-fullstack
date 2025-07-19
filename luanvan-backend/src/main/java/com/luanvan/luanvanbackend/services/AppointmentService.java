@@ -95,10 +95,11 @@ public interface AppointmentService {
     /**
      * Cập nhật trạng thái lịch hẹn
      * @param appointmentId ID của lịch hẹn
-     * @param statusUpdateDTO Thông tin cập nhật trạng thái
+     * @param newStatus Trạng thái mới
+     * @param reason Lý do (nếu có, dùng khi hủy)
      * @return Lịch hẹn sau khi cập nhật
      */
-    Appointment updateAppointmentStatus(Long appointmentId, AppointmentStatusUpdateDTO statusUpdateDTO);
+    Appointment updateAppointmentStatus(Long appointmentId, String newStatus, String reason);
     
     /**
      * Hủy lịch hẹn (bởi bệnh nhân)

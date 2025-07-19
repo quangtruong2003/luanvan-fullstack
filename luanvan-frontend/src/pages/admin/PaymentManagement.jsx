@@ -6,11 +6,12 @@ import { adminService } from '../../services/api';
 import { useNotification } from '../../components/NotificationSystem';
 
 const PaymentManagement = () => {
-  const { showSuccess, showError, showWarning, showInfo } = useNotification();
+  const { showSuccess, showError, showInfo } = useNotification();
   
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ type: '', content: '' });
+  const initialLoadGuard = React.useRef(true); // Guard để chống StrictMode chạy 2 lần
   
   const [paymentSettings, setPaymentSettings] = useState({
     enableDeposit: true,
@@ -26,7 +27,15 @@ const PaymentManagement = () => {
   });
 
   useEffect(() => {
-    loadPaymentSettings();
+    // Sử dụng guard để đảm bảo hàm chỉ chạy một lần duy nhất khi mount
+    if (initialLoadGuard.current) {
+      loadPaymentSettings();
+    }
+    
+    // Cleanup function để set guard thành false
+    return () => {
+      initialLoadGuard.current = false;
+    }
   }, []);
 
   const loadPaymentSettings = async () => {
@@ -80,9 +89,8 @@ const PaymentManagement = () => {
       }
     } catch (error) {
       console.error('❌ Failed to load payment settings:', error);
-      showError('Không thể tải cài đặt thanh toán: ' + error.message, 'Lỗi tải dữ liệu');
       
-      // Set default values on error
+      // Set default values on error before showing notification
       setPaymentSettings({
         enableDeposit: true,
         enableMomo: true,
@@ -95,7 +103,9 @@ const PaymentManagement = () => {
         defaultPaymentMethod: 'momo',
         depositAmount: 50000
       });
-      showWarning('Đã tải cài đặt mặc định do lỗi kết nối database', 'Fallback');
+
+      // Gộp 2 thông báo thành 1 để tránh duplicate
+      showError('Không thể tải cài đặt. Đã áp dụng cấu hình mặc định.', 'Lỗi & Fallback');
     } finally {
       setLoading(false);
     }

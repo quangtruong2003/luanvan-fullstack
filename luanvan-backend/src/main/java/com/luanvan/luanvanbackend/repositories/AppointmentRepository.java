@@ -175,4 +175,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     List<Appointment> findUpcomingAppointmentsForReminder(
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
+
+    List<Appointment> findByStatusAndAppointmentDateTimeBefore(Appointment.AppointmentStatus status, LocalDateTime dateTime);
 } 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Plus, Search, Filter, Edit, Trash2, Eye, UserCog, 
-  Stethoscope, Calendar, Clock, Mail, Phone, MapPin
+  Stethoscope, Calendar, Clock, Mail, Phone, MapPin, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { adminService, apiService } from '../../services/api';
 import { useNotification } from '../../components/NotificationSystem';
@@ -72,6 +72,10 @@ const DoctorManagement = () => {
   });
   const [specialtyLoading, setSpecialtyLoading] = useState({});
 
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
   // Debug: Log formData changes
   useEffect(() => {
     console.log('FormData updated:', formData);
@@ -98,12 +102,12 @@ const DoctorManagement = () => {
   // Stable fetchUsers function with useCallback
   const fetchUsers = useCallback(async (currentDoctors = []) => {
     try {
-      const response = await adminService.getAllUsers();
-      const allUsers = response.content || response || [];
-      console.log('All users fetched:', allUsers);
+      // The new getAllUsers function already handles fetching all pages
+      const allUsersData = await adminService.getAllUsers();
+      console.log('All users fetched:', allUsersData);
       
       // Filter only DOCTOR role users who don't have doctor profile yet
-      const doctorUsers = allUsers.filter(user => {
+      const doctorUsers = allUsersData.filter(user => {
         const userRole = user.roleName || user.role_name;
         const userId = user.userId || user.user_id;
         const hasProfile = currentDoctors.some(doc => 
@@ -124,30 +128,35 @@ const DoctorManagement = () => {
   const fetchDoctors = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiService.getDoctors();
-      const doctorData = response.content || response || [];
-      console.log('Fetched doctors data:', doctorData);
-      console.log('First doctor sample:', doctorData[0]);
       
-      // Debug: Check field formats
-      if (doctorData.length > 0) {
-        const firstDoc = doctorData[0];
-        console.log('Doctor fields:', {
-          doctorId: firstDoc.doctorId || firstDoc.doctor_id,
-          yearsOfExperience: firstDoc.yearsOfExperience || firstDoc.years_of_experience,
-          user: firstDoc.user,
-          userFields: firstDoc.user ? {
-            userId: firstDoc.user.userId || firstDoc.user.user_id,
-            fullName: firstDoc.user.fullName || firstDoc.user.full_name,
-            phoneNumber: firstDoc.user.phoneNumber || firstDoc.user.phone_number
-          } : 'No user data'
-        });
+      // Fetch all doctors using the multi-page pattern
+      const firstPageDoctors = await apiService.getDoctors(0, 100);
+      if (!firstPageDoctors || !firstPageDoctors.content) {
+          throw new Error("Invalid response while fetching doctors.");
       }
       
-      setDoctors(doctorData);
+      const totalDoctorPages = firstPageDoctors.totalPages;
+      let allDoctorsData = [...firstPageDoctors.content];
+
+      if (totalDoctorPages > 1) {
+          const doctorPromises = [];
+          for (let page = 1; page < totalDoctorPages; page++) {
+              doctorPromises.push(apiService.getDoctors(page, 100));
+          }
+          const remainingDoctorPages = await Promise.all(doctorPromises);
+          remainingDoctorPages.forEach(pageResponse => {
+              if (pageResponse && pageResponse.content) {
+                  allDoctorsData.push(...pageResponse.content);
+              }
+          });
+      }
+
+      console.log('Fetched all doctors data:', allDoctorsData);
+      
+      setDoctors(allDoctorsData);
       
       // Fetch users after doctors are loaded
-      await fetchUsers(doctorData);
+      await fetchUsers(allDoctorsData);
     } catch (error) {
       console.error('Error fetching doctors:', error);
       setDoctors([]);
@@ -604,6 +613,18 @@ const DoctorManagement = () => {
     return sortOrder === 'asc' ? compareValue : -compareValue;
   });
 
+  // Pagination logic
+  const indexOfLastDoctor = currentPage * pageSize;
+  const indexOfFirstDoctor = indexOfLastDoctor - pageSize;
+  const currentDoctors = sortedDoctors.slice(indexOfFirstDoctor, indexOfLastDoctor);
+  const totalPages = Math.ceil(sortedDoctors.length / pageSize);
+
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber > 0 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -728,7 +749,7 @@ const DoctorManagement = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sortedDoctors.length > 0 ? sortedDoctors.map(doctor => {
+              {currentDoctors.length > 0 ? currentDoctors.map(doctor => {
                 // Defensive programming - ensure doctor and user objects exist
                 if (!doctor) {
                   console.warn('Null doctor object encountered');
@@ -839,6 +860,37 @@ const DoctorManagement = () => {
         </div>
       </div>
 
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="bg-white shadow rounded-lg px-6 py-4 mt-6">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-700">
+                Hiển thị {indexOfFirstDoctor + 1} đến {Math.min(indexOfLastDoctor, sortedDoctors.length)} của {sortedDoctors.length} kết quả
+              </span>
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="p-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-white hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                
+                <span className="text-sm px-2">
+                  Trang {currentPage} / {totalPages}
+                </span>
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="p-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-white hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+      )}
 
 
       {/* Create Doctor Modal */}

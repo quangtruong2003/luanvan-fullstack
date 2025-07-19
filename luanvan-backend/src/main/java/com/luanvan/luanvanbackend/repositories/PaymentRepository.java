@@ -98,4 +98,9 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findLatestPaymentByAppointment(@Param("appointmentId") Long appointmentId, Pageable pageable);
 
     List<Payment> findAllByStatusAndCreatedAtBefore(Payment.PaymentStatus status, LocalDateTime createdAt);
+
+    /**
+     * Xóa tất cả các payment của một appointment
+     */
+    void deleteByAppointment_AppointmentId(Long appointmentId);
 } 

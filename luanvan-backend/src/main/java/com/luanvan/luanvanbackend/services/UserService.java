@@ -135,4 +135,11 @@ public interface UserService {
      * @return Danh sách người dùng tìm thấy
      */
     Page<UserResponseDTO> searchUsers(String keyword, String role, Pageable pageable);
+
+    /**
+     * Kiểm tra email đã tồn tại chưa
+     * @param email Email cần kiểm tra
+     * @return true nếu email đã tồn tại, false nếu email chưa tồn tại
+     */
+    boolean checkEmailExists(String email);
 } 

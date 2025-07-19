@@ -359,17 +359,58 @@ export const adminService = {
   // User Management
   async getAllUsers(params = {}) {
     try {
+      const pageSize = 100; // Sử dụng kích thước trang hợp lý để lấy
       const queryParams = new URLSearchParams(params);
-      return await apiRequest(`${API_BASE_URL}/users?${queryParams}`);
+
+      // Fetch the first page to get total pages
+      const firstPageResponse = await apiRequest(`${API_BASE_URL}/users?page=0&size=${pageSize}&${queryParams}`);
+      if (!firstPageResponse || !firstPageResponse.content) {
+        throw new Error('Invalid response from server when fetching users.');
+      }
+
+      const totalPages = firstPageResponse.totalPages;
+      let allUsersData = [...firstPageResponse.content];
+
+      // If there are more pages, fetch them all in parallel
+      if (totalPages > 1) {
+        const pagePromises = [];
+        for (let page = 1; page < totalPages; page++) {
+          pagePromises.push(
+            apiRequest(`${API_BASE_URL}/users?page=${page}&size=${pageSize}&${queryParams}`)
+          );
+        }
+        const remainingPages = await Promise.all(pagePromises);
+        remainingPages.forEach(pageResponse => {
+          if (pageResponse && pageResponse.content) {
+            allUsersData.push(...pageResponse.content);
+          }
+        });
+      }
+      
+      // Return the complete flat array of users
+      return allUsersData;
     } catch (error) {
       console.error('Get all users error:', error);
       throw error;
     }
   },
 
-  async searchUsers(keyword, role, params = {}) {
+  async checkEmailExists(email) {
     try {
-      const queryParams = new URLSearchParams(params);
+      return await apiRequest(`${API_BASE_URL}/users/check-email?email=${email}`);
+    } catch (error) {
+      console.error('Check email exists error:', error);
+      throw error;
+    }
+  },
+
+  async searchUsers(keyword, role, page = 0, size = 10, params = {}) {
+    try {
+      const queryParams = new URLSearchParams({
+        page: page,
+        size: size,
+        ...params
+      });
       if (keyword) queryParams.append('keyword', keyword);
       if (role) queryParams.append('role', role);
       return await apiRequest(`${API_BASE_URL}/users/search?${queryParams}`);
@@ -737,16 +778,13 @@ export const adminService = {
     }
   },
 
-  async updateAppointmentStatus(appointmentId, statusData) {
-    try {
-      return await apiRequest(`${API_BASE_URL}/appointments/${appointmentId}/status`, {
-        method: 'PUT',
-        body: JSON.stringify(statusData)
-      });
-    } catch (error) {
-      console.error('Update appointment status error:', error);
-      throw error;
-    }
+  async updateAppointmentStatus(appointmentId, payload) {
+    // This function now accepts a payload object { status, cancellationReason }
+    // It is flexible enough to handle both simple status updates and cancellations with a reason.
+    return await apiRequest(`${API_BASE_URL}/appointments/${appointmentId}/status`, {
+      method: 'PUT',
+      body: JSON.stringify(payload)
+    });
   },
 
   async deleteAppointment(appointmentId) {

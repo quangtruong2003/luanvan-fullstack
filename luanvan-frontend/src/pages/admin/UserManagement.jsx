@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Plus, Edit, Trash2, Search, Filter, UserCheck, UserX, Stethoscope, AlertTriangle, PlusCircle } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Search, Filter, UserCheck, UserX, Stethoscope, AlertTriangle, PlusCircle, CheckCircle, XCircle, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { adminService } from '../../services/api';
 import { useNotification } from '../../components/NotificationSystem';
-import Pagination from '../../components/Pagination';
+// Bỏ import Pagination
+// import Pagination from '../../components/Pagination';
 
 const UserManagement = () => {
   const { showSuccess, showError } = useNotification();
   
-  const [users, setUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]); // State để lưu tất cả user
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,11 +20,13 @@ const UserManagement = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [formErrors, setFormErrors] = useState({});
+  const [emailCheck, setEmailCheck] = useState({ status: 'idle', message: '' }); // idle, checking, valid, invalid
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
+  // Pagination state - thay đổi để giống AppointmentManagement
+  const [currentPage, setCurrentPage] = useState(1); // Bắt đầu từ trang 1
   const pageSize = 10;
+  // Bỏ totalPages, sẽ được tính toán lại
+  // const [totalPages, setTotalPages] = useState(0);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -31,65 +34,82 @@ const UserManagement = () => {
     fullName: '',
     phoneNumber: '',
     role: 'DOCTOR'
-  });  const fetchUsers = useCallback(async () => {
+  });
+
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      let response;
-      if (searchTerm || filterRole) {
-        // Sử dụng API search nếu có từ khóa hoặc filter
-        response = await adminService.searchUsers(searchTerm, filterRole, currentPage, pageSize);
-      } else {
-        // Sử dụng API getAllUsers nếu không có filter
-        response = await adminService.getAllUsers();
-      }
+      // The new getAllUsers function already handles fetching all pages
+      const allUsersData = await adminService.getAllUsers();
       
-      // Xử lý response - có thể là Page object hoặc array trực tiếp
-      let userData;
-      if (response && response.content) {
-        // Nếu là Page object
-        userData = response.content;
-      } else if (Array.isArray(response)) {
-        // Nếu là array trực tiếp
-        userData = response;
-      } else {
-        // Fallback
-        userData = [];
-      }      // Validate và set users
-      if (Array.isArray(userData)) {
-        setUsers(userData);
-        setTotalPages(response.totalPages);
-        setCurrentPage(response.number);
+      if (Array.isArray(allUsersData)) {
+        setAllUsers(allUsersData);
         setLastUpdated(new Date());
       } else {
-        console.error('User data is not an array:', userData);
-        setUsers([]);
-        setTotalPages(0);
+        console.error('User data is not an array:', allUsersData);
+        setAllUsers([]);
         setError('Dữ liệu người dùng không hợp lệ');
       }
       
     } catch (err) {
       console.error('Error fetching users:', err);
       setError('Không thể tải danh sách người dùng: ' + (err.message || 'Lỗi không xác định'));
-      setUsers([]);
+      setAllUsers([]);
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, filterRole, currentPage, pageSize]);// Initial load and user role setup
+  }, []); // Bỏ dependencies để chỉ fetch 1 lần
+
+  // Initial load and user role setup
   useEffect(() => {
     const userRole = localStorage.getItem('userRole');
     setCurrentUserRole(userRole || '');
-  }, []);
+    
+    // Load initial data
+    fetchUsers();
+  }, [fetchUsers]);
 
-  // Debounced search - fetch users when search term or filter changes
+  // Bỏ các useEffects dùng để fetch lại dữ liệu khi filter hoặc chuyển trang
+
+  // Debounced email validation
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      fetchUsers();
+    const emailToValidate = formData.email.trim();
+
+    if (!emailToValidate) {
+      setEmailCheck({ status: 'idle', message: '' });
+      return;
+    }
+
+    // Basic email format check on client-side first
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailToValidate)) {
+      setEmailCheck({ status: 'invalid', message: 'Định dạng email không hợp lệ.' });
+      return;
+    }
+
+    setEmailCheck({ status: 'checking', message: '' });
+
+    const handler = setTimeout(async () => {
+      try {
+        const response = await adminService.checkEmailExists(emailToValidate);
+        if (response.data.exists) {
+          setEmailCheck({ status: 'invalid', message: 'Email đã được sử dụng.' });
+        } else {
+          setEmailCheck({ status: 'valid', message: 'Email hợp lệ.' });
+        }
+      } catch (err) {
+        console.error('Email check error:', err);
+        setEmailCheck({ status: 'error', message: 'Không thể kiểm tra email.' });
+      }
     }, 500); // 500ms delay
 
-    return () => clearTimeout(timeoutId);
-  }, [fetchUsers]);  const handleCreateUser = async (e) => {
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [formData.email]);
+  const handleCreateUser = async (e) => {
     e.preventDefault();
     setFormErrors({});
     try {
@@ -106,6 +126,7 @@ const UserManagement = () => {
       
       setShowCreateModal(false);
       setFormData({ email: '', password: '', fullName: '', phoneNumber: '', role: 'DOCTOR' });
+      setEmailCheck({ status: 'idle', message: '' }); // Reset email check state
       
       // Refresh users list
       await fetchUsers();
@@ -165,7 +186,7 @@ const UserManagement = () => {
 
       await adminService.updateUser(selectedUser.user_id, updateData);
         // Update local state immediately with the new data
-      setUsers(prevUsers => 
+      setAllUsers(prevUsers => 
         prevUsers.map(user => 
           user.user_id === selectedUser.user_id 
             ? { ...user, full_name: formData.fullName, email: formData.email, phone_number: formData.phoneNumber }
@@ -212,8 +233,34 @@ const UserManagement = () => {
     }
   };
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
+  const filteredUsers = allUsers.filter(user => {
+    const userName = user.full_name || '';
+    const userEmail = user.email || '';
+    const userPhone = user.phone_number || '';
+    const userRole = user.role_name || '';
+    
+    const preparedSearchTerm = searchTerm.toLowerCase().trim();
+
+    const matchesSearch = 
+      userName.toLowerCase().includes(preparedSearchTerm) ||
+      userEmail.toLowerCase().includes(preparedSearchTerm) ||
+      userPhone.includes(searchTerm.trim());
+    
+    const matchesRole = !filterRole || userRole === filterRole;
+
+    return matchesSearch && matchesRole;
+  });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredUsers.length / pageSize);
+  const indexOfLastUser = currentPage * pageSize;
+  const indexOfFirstUser = indexOfLastUser - pageSize;
+  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber > 0 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
   };
 
   if (loading) {
@@ -285,7 +332,7 @@ const UserManagement = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Tìm kiếm theo tên hoặc email..."
+              placeholder="Tìm kiếm theo tên, email, SĐT..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -330,7 +377,7 @@ const UserManagement = () => {
                 </th>
               </tr>
             </thead>            <tbody className="bg-white divide-y divide-gray-200">
-              {users.map((user, index) => {
+              {currentUsers.map((user, index) => {
                 return (
                   <tr key={user.user_id || index} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -416,7 +463,41 @@ const UserManagement = () => {
               })}
             </tbody>
           </table>
-        </div>        {users.length === 0 && !loading && (
+        </div>
+        
+        {/* Pagination Controls - Giống AppointmentManagement */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-gray-700">
+                Hiển thị {indexOfFirstUser + 1} đến {Math.min(indexOfLastUser, filteredUsers.length)} của {filteredUsers.length} kết quả
+              </span>
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="p-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-white hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                
+                <span className="text-sm px-2">
+                  Trang {currentPage} / {totalPages}
+                </span>
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="p-2 border rounded-md disabled:opacity-50 disabled:cursor-not-allowed bg-white hover:bg-gray-50 transition-colors"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {filteredUsers.length === 0 && !loading && (
           <div className="text-center py-8">
             <Users className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Không có người dùng</h3>
@@ -433,7 +514,9 @@ const UserManagement = () => {
             )}
           </div>
         )}
-      </div>      {/* Create Doctor Modal */}
+      </div>
+
+      {/* Create Doctor Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
@@ -454,7 +537,27 @@ const UserManagement = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="doctor@example.com"
                 />
-                {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
+                <div className="h-5 mt-1 text-xs">
+                  {emailCheck.status === 'checking' && (
+                    <div className="flex items-center text-gray-500">
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      Đang kiểm tra...
+                    </div>
+                  )}
+                  {emailCheck.status === 'valid' && (
+                    <div className="flex items-center text-green-600">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      {emailCheck.message}
+                    </div>
+                  )}
+                  {emailCheck.status === 'invalid' && (
+                    <div className="flex items-center text-red-500">
+                      <XCircle className="w-3 h-3 mr-1" />
+                      {emailCheck.message}
+                    </div>
+                  )}
+                  {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
+                </div>
               </div>
               
               <div>
@@ -521,6 +624,7 @@ const UserManagement = () => {
                   type="button"
                   onClick={() => {
                     setShowCreateModal(false);
+                    setEmailCheck({ status: 'idle', message: '' }); // Reset email check state
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
@@ -528,7 +632,8 @@ const UserManagement = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center"
+                  disabled={emailCheck.status === 'checking' || emailCheck.status === 'invalid'}
+                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center disabled:bg-blue-300 disabled:cursor-not-allowed"
                 >
                   <PlusCircle className="w-4 h-4 mr-2" />
                   Tạo người dùng
@@ -633,11 +738,7 @@ const UserManagement = () => {
         </div>
       )}
 
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-      />
+      {/* Bỏ component Pagination */}
     </div>
   );
 };
