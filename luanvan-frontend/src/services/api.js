@@ -1499,11 +1499,24 @@ export const doctorService = {
   async getMyAppointments(params = {}) {
     try {
       const doctorInfo = await this._getDoctorInfo();
+      const doctorId = doctorInfo.doctorId;
       const queryParams = new URLSearchParams(params);
-      return await apiRequest(`${API_BASE_URL}/appointments/doctor/${doctorInfo.doctorId}?${queryParams}`);
+      return await apiRequest(`${API_BASE_URL}/appointments/doctor/${doctorId}?${queryParams}`);
     } catch (error) {
-      console.error('Get my appointments error:', error);
-      throw handleApiError(error, 'getMyAppointments');
+      console.error('Get doctor appointments error:', error);
+      throw error;
+    }
+  },
+
+  async getAppointmentDetails(appointmentId) {
+    try {
+      if (!appointmentId) {
+        throw new Error('Appointment ID is required.');
+      }
+      return await apiRequest(`${API_BASE_URL}/appointments/${appointmentId}`);
+    } catch (error) {
+      console.error(`Error fetching details for appointment ${appointmentId}:`, error);
+      throw error;
     }
   },
 

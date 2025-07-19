@@ -1,0 +1,4 @@
+# Ignore log files and directories
+logs/
+luanvan-backend/logs/ 
+luanvan-frontend/logs/

@@ -14,7 +14,8 @@ const WeeklyCalendarView = ({
   loading = false,
   specialties = [],
   onCreateNewSlot,
-  refetchData
+  refetchData,
+  onShowAppointmentDetails
 }) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedSlots, setSelectedSlots] = useState(new Set());
@@ -146,6 +147,14 @@ const WeeklyCalendarView = ({
 
   const handleSlotClick = (date, time, currentSlot) => {
     if (loading) return;
+
+    // Nếu slot đã được đặt, hiển thị thông tin chi tiết
+    if (currentSlot && (currentSlot.status === 'BOOKED' || currentSlot.status === 'CONFIRMED') && onShowAppointmentDetails) {
+      // The appointment ID might be in `appointmentId` or `appointment` field from the DTO.
+      const slotId = currentSlot.slotId || currentSlot.slot_id;
+      onShowAppointmentDetails(slotId);
+      return;
+    }
     
     if (currentSlot) {
       // Tạo datetime object để truyền vào handleAdvancedToggleSlot
@@ -301,10 +310,10 @@ const WeeklyCalendarView = ({
                       bgColor = 'bg-blue-100';
                       textColor = 'text-blue-700';
                       borderColor = 'border-blue-300';
-                      hoverBgColor = ''; // No hover effect for booked slots
+                      hoverBgColor = 'hover:bg-blue-200'; // Allow hover to indicate clickability
                       content = <User className="w-4 h-4" />;
-                      title = `Đã đặt bởi: ${currentSlot.patient?.fullName || 'Bệnh nhân'}`;
-                      isDisabled = true; // Cannot toggle booked slots directly
+                      title = `Đã đặt bởi: ${currentSlot.patient?.fullName || 'Bệnh nhân'}. Click để xem chi tiết.`;
+                      isDisabled = loading; // Can be clicked even if booked
                       break;
                     case 'CANCELLED_BY_CLINIC':
                     case 'DISABLED':

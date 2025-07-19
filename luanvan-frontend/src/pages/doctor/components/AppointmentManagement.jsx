@@ -8,11 +8,10 @@ import {
 const AppointmentManagement = ({ 
   appointments, 
   stats, 
-  setActiveTab,
   handleViewAppointmentDetails 
 }) => {
   const [sortBy, setSortBy] = useState('date'); // date, status, patient
-  const [sortOrder, setSortOrder] = useState('desc'); // asc, desc
+  const [sortOrder, setSortOrder] = useState('asc'); // asc, desc
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterDate, setFilterDate] = useState('all'); // today, tomorrow, week, all
   const [searchQuery, setSearchQuery] = useState('');
@@ -101,19 +100,22 @@ const AppointmentManagement = ({
       let comparison = 0;
       
       switch (sortBy) {
-        case 'date':
+        case 'date': {
           const dateA = new Date(a.appointmentDateTime || a.appointmentDate);
           const dateB = new Date(b.appointmentDateTime || b.appointmentDate);
           comparison = dateA - dateB;
           break;
-        case 'patient':
+        }
+        case 'patient': {
           const nameA = a.patient?.fullName || '';
           const nameB = b.patient?.fullName || '';
           comparison = nameA.localeCompare(nameB);
           break;
-        case 'status':
+        }
+        case 'status': {
           comparison = a.status.localeCompare(b.status);
           break;
+        }
         default:
           comparison = 0;
       }
@@ -147,7 +149,9 @@ const AppointmentManagement = ({
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return aptDate >= today && apt.status === 'CONFIRMED';
-  }).slice(0, 3);
+  })
+  .sort((a, b) => new Date(a.appointmentDateTime || a.appointmentDate) - new Date(b.appointmentDateTime || b.appointmentDate))
+  .slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -238,7 +242,7 @@ const AppointmentManagement = ({
           <div className="divide-y divide-gray-200 max-h-64 overflow-y-auto">
             {todayAppointments.length > 0 ? (
               todayAppointments.slice(0, 5).map((appointment) => (
-                <div key={appointment.appointmentId} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div key={appointment.appointment_id || appointment.appointmentId} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center">
@@ -263,7 +267,7 @@ const AppointmentManagement = ({
                         <span className="ml-1">{getStatusText(appointment.status)}</span>
                       </span>
                       <button
-                        onClick={() => handleViewAppointmentDetails(appointment.appointmentId)}
+                        onClick={() => handleViewAppointmentDetails(appointment.appointment_id || appointment.appointmentId)}
                         className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
                         title="Xem chi tiết"
                       >
@@ -294,7 +298,7 @@ const AppointmentManagement = ({
           <div className="divide-y divide-gray-200 max-h-64 overflow-y-auto">
             {upcomingAppointments.length > 0 ? (
               upcomingAppointments.map((appointment) => (
-                <div key={appointment.appointmentId} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div key={appointment.appointment_id || appointment.appointmentId} className="px-6 py-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full flex items-center justify-center">
@@ -317,7 +321,7 @@ const AppointmentManagement = ({
                       </div>
                     </div>
                     <button
-                      onClick={() => handleViewAppointmentDetails(appointment.appointmentId)}
+                      onClick={() => handleViewAppointmentDetails(appointment.appointment_id || appointment.appointmentId)}
                       className="p-1 text-purple-600 hover:text-purple-800 hover:bg-purple-50 rounded transition-colors"
                       title="Xem chi tiết"
                     >
@@ -443,7 +447,7 @@ const AppointmentManagement = ({
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredAndSortedAppointments.length > 0 ? (
                 filteredAndSortedAppointments.map((appointment) => (
-                  <tr key={appointment.appointmentId} className="hover:bg-gray-50 transition-colors">
+                  <tr key={appointment.appointment_id || appointment.appointmentId} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-12 w-12">
@@ -509,7 +513,7 @@ const AppointmentManagement = ({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
-                        onClick={() => handleViewAppointmentDetails(appointment.appointmentId)}
+                        onClick={() => handleViewAppointmentDetails(appointment.appointment_id || appointment.appointmentId)}
                         className="inline-flex items-center px-4 py-2 border border-blue-300 rounded-lg text-sm text-blue-600 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                       >
                         <Eye className="w-4 h-4 mr-2" />

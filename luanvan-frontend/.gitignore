@@ -24,4 +24,5 @@ dist-ssr
 *.sln
 *.sw?
 *.logs
-
+logs/
+luanvan-backend/logs/ 

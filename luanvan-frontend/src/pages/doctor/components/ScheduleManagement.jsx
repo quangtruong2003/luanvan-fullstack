@@ -6,10 +6,8 @@ import {
 } from 'lucide-react';
 import { doctorService } from '../../../services/api';
 import { useNotification } from '../../../components/NotificationSystem';
-import InfoTooltip from './InfoTooltip';
 import WeeklyCalendarView from './WeeklyCalendarView';
 import SpecialtyTabBar from './SpecialtyTabBar';
-import EnhancedSlotConflictDialog from './EnhancedSlotConflictDialog';
 import ConflictResolutionDialog from './ConflictResolutionDialog';
 import BulkConflictDialog from './BulkConflictDialog';
 import AutoGenerationPanel from './AutoGenerationPanel';
@@ -21,15 +19,14 @@ const ScheduleManagement = ({
   handleGenerateSlotsFromWorkShifts,
   handleToggleSlot,
   handleCreateNewSlot,
-  refetchData
+  refetchData,
+  onShowAppointmentDetails // Expects a function that takes slotId
 }) => {
   const [availabilitySlots, setAvailabilitySlots] = useState([]);
   const [internalLoadingSlots, setInternalLoadingSlots] = useState(false);
   const [workShifts, setWorkShifts] = useState([]);
   const [loadingWorkShifts, setLoadingWorkShifts] = useState(false);
   const [autoGenerating, setAutoGenerating] = useState(false);
-  const [showEnhancedConflictDialog, setShowEnhancedConflictDialog] = useState(false);
-  const [enhancedConflictInfo, setEnhancedConflictInfo] = useState(null);
   const [showConflictDialog, setShowConflictDialog] = useState(false);
   const [conflictInfo, setConflictInfo] = useState(null);
   const [conflictLoading, setConflictLoading] = useState(false);
@@ -218,21 +215,6 @@ const ScheduleManagement = ({
   }, [internalLoadingSlots, handleCreateNewSlot, fetchAvailabilitySlots, showError, showSuccess, selectedSpecialtyForSchedule]);
   
   // Handle conflict resolution from the dialog
-  const handleEnhancedConflictResolve = useCallback(async (resolution, conflictInfo) => {
-    // For now, we only implement the 'switch' logic as it's the most common
-    try {
-      await handleToggleSlot(conflictInfo.slotId, 'CANCELLED_BY_CLINIC', conflictInfo.slotTime);
-      // Refetch data để cập nhật real-time
-      await fetchAvailabilitySlots();
-    } catch (error) {
-      console.error('Error resolving conflict:', error);
-      showError('Không thể giải quyết xung đột. Vui lòng thử lại.');
-    } finally {
-      setShowEnhancedConflictDialog(false);
-    }
-  }, [handleToggleSlot, showError, fetchAvailabilitySlots]);
-
-  // Handle conflict resolution for new dialog
   const handleConflictResolve = useCallback(async (action) => {
     if (!conflictInfo) return;
     
@@ -377,6 +359,13 @@ const ScheduleManagement = ({
     }
   };
 
+  // This component no longer shows the modal itself, it just calls the parent handler
+  const handleShowDetails = useCallback((slotId) => {
+    if (onShowAppointmentDetails) {
+      onShowAppointmentDetails(slotId);
+    }
+  }, [onShowAppointmentDetails]);
+
   return (
     <div className="space-y-6">
 
@@ -399,6 +388,7 @@ const ScheduleManagement = ({
             loading={internalLoadingSlots || loadingWorkShifts || autoGenerating}
             onCreateNewSlot={handleAdvancedCreateNewSlot}
             refetchData={refetchData}
+            onShowAppointmentDetails={handleShowDetails} // Pass the new handler
           />
         </div>
 
@@ -413,14 +403,6 @@ const ScheduleManagement = ({
           />
         </div>
       </div>
-
-      <EnhancedSlotConflictDialog
-        isOpen={showEnhancedConflictDialog}
-        onClose={() => setShowEnhancedConflictDialog(false)}
-        conflictInfo={enhancedConflictInfo}
-        onResolve={handleEnhancedConflictResolve}
-        onCancel={() => setShowEnhancedConflictDialog(false)}
-      />
 
       <ConflictResolutionDialog
         isOpen={showConflictDialog}

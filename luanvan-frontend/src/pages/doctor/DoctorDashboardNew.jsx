@@ -214,21 +214,46 @@ const DoctorDashboardNew = () => {
     }
   };
 
-  // Xem chi tiết lịch hẹn
-  const handleViewAppointmentDetails = (appointmentId) => {
+  // Xem chi tiết lịch hẹn - Nguồn xử lý duy nhất
+  const handleViewAppointmentDetails = useCallback(async (identifier) => {
+    // Identifier can be either appointmentId (number) or slotId (number)
+    setLoading(true);
+    setShowAppointmentDetails(true);
     try {
-      const details = appointments.find(apt => apt.appointmentId === appointmentId);
-      if (details) {
-        setSelectedAppointment(details);
-        setShowAppointmentDetails(true);
+      let targetAppointment = null;
+
+      // Check if identifier is likely an appointmentId or slotId based on context
+      // This is a simple check; a more robust way might involve passing the type
+      const existingAppointment = appointments.find(
+        apt => (apt.appointment_id || apt.appointmentId) === identifier
+      );
+
+      if (existingAppointment) {
+        // Found by appointmentId directly from AppointmentManagement
+        targetAppointment = existingAppointment;
+      } else {
+        // Assume it's a slotId from ScheduleManagement
+        // The list of appointments is already in state, so we just search it
+        targetAppointment = appointments.find(
+          apt => (apt.slot?.slotId || apt.slot?.slot_id) === identifier
+        );
+      }
+
+      if (targetAppointment) {
+        setSelectedAppointment(targetAppointment);
       } else {
         showError('Không thể tìm thấy chi tiết cho lịch hẹn này.');
+        setShowAppointmentDetails(false); // Hide modal if not found
       }
     } catch (error) {
       console.error('Error finding appointment details:', error);
       showError('Có lỗi xảy ra khi hiển thị chi tiết lịch hẹn.');
+      setShowAppointmentDetails(false);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [appointments, showError]);
+
 
   // Cập nhật trạng thái lịch hẹn
   const handleUpdateAppointmentStatus = async (appointmentId, status, notes = '') => {
@@ -422,7 +447,6 @@ const DoctorDashboardNew = () => {
           <AppointmentManagement 
             appointments={appointments}
             stats={stats}
-            setActiveTab={setActiveTab}
             handleViewAppointmentDetails={handleViewAppointmentDetails}
           />
         );
@@ -436,6 +460,7 @@ const DoctorDashboardNew = () => {
             handleToggleSlot={handleToggleSlot}
             handleCreateNewSlot={handleCreateNewSlot}
             refetchData={fetchDashboardData}
+            onShowAppointmentDetails={handleViewAppointmentDetails}
           />
         );
       case 'patients':
@@ -511,12 +536,14 @@ const DoctorDashboardNew = () => {
 
       {/* Modals */}
       <AppointmentDetailsModal
-        showAppointmentDetails={showAppointmentDetails}
-        selectedAppointment={selectedAppointment}
-        setShowAppointmentDetails={setShowAppointmentDetails}
-        handleUpdateAppointmentStatus={handleUpdateAppointmentStatus}
-        getStatusColor={getStatusColor}
-        getStatusIcon={getStatusIcon}
+        isOpen={showAppointmentDetails}
+        appointment={selectedAppointment}
+        onClose={() => {
+          setShowAppointmentDetails(false);
+          setSelectedAppointment(null);
+        }}
+        onUpdateStatus={handleUpdateAppointmentStatus}
+        loading={loading && !!selectedAppointment} // Show loading inside modal only when fetching details
       />
       <SlotConflictModal
         showSlotConflictDialog={showSlotConflictDialog}
