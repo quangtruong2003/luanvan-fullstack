@@ -286,10 +286,9 @@ public class AppointmentController {
     public ResponseEntity<Appointment> updateMyAppointmentStatus(
             Authentication auth,
             @PathVariable Long appointmentId,
-            @Valid @RequestBody AppointmentStatusUpdateDTO statusUpdateDTO) {
+            @RequestBody Map<String, String> payload) {
         try {
             User currentUser = getCurrentUserFromAuth(auth);
-            Doctor doctor = doctorService.getDoctorByUserId(currentUser.getUserId());
             
             // Verify appointment belongs to this doctor
             Appointment appointment = appointmentService.getAppointmentById(appointmentId);
@@ -297,7 +296,9 @@ public class AppointmentController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             
-            Appointment updatedAppointment = appointmentService.updateAppointmentStatus(appointmentId, statusUpdateDTO);
+            String newStatus = payload.get("status");
+            String reason = payload.get("cancellationReason");
+            Appointment updatedAppointment = appointmentService.updateAppointmentStatus(appointmentId, newStatus, reason);
             return ResponseEntity.ok(updatedAppointment);
         } catch (Exception e) {
             log.error("Error updating my appointment status: ", e);

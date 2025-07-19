@@ -185,10 +185,15 @@ public class UserController {
 
     /**
      * Kiểm tra sự tồn tại của email (chỉ Admin)
+     * Thay đổi thành POST để nhận email trong body
      */
-    @GetMapping("/check-email")
+    @PostMapping("/check-email")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Boolean>> checkEmailExists(@RequestParam String email) {
+    public ResponseEntity<Map<String, Boolean>> checkEmailExists(@RequestBody Map<String, String> payload) {
+        String email = payload.get("email");
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("exists", false));
+        }
         boolean exists = userService.checkEmailExists(email);
         Map<String, Boolean> response = new HashMap<>();
         response.put("exists", exists);

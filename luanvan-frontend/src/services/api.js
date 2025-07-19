@@ -396,12 +396,13 @@ export const adminService = {
   },
 
   async checkEmailExists(email) {
-    try {
-      return await apiRequest(`${API_BASE_URL}/users/check-email?email=${email}`);
-    } catch (error) {
-      console.error('Check email exists error:', error);
-      throw error;
-    }
+    return await apiRequest(`${API_BASE_URL}/users/check-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }), // Explicitly stringify the body
+    });
   },
 
   async searchUsers(keyword, role, page = 0, size = 10, params = {}) {

@@ -232,7 +232,7 @@ public class EmailServiceImpl implements EmailService {
                         <h1>Chào mừng bạn đến với Medical Care!</h1>
                     </div>
                     <div class="content">
-                        <h2>Chào mừng %s!</h2>
+                <h2>Chào mừng %s!</h2>
                         <p>Cảm ơn bạn đã tin tưởng và sử dụng dịch vụ đặt lịch hẹn y tế của chúng tôi.</p>
                         <p>Bạn đã tạo thành công lịch hẹn đầu tiên. Chúng tôi cam kết mang đến cho bạn trải nghiệm chăm sóc sức khỏe tốt nhất.</p>
                         <p><strong>Thông tin tài khoản của bạn:</strong></p>
@@ -240,7 +240,7 @@ public class EmailServiceImpl implements EmailService {
                             <li><strong>Họ tên:</strong> %s</li>
                             <li><strong>Email:</strong> %s</li>
                             <li><strong>Số điện thoại:</strong> %s</li>
-                        </ul>
+                </ul>
                         <p>Nếu bạn có bất kỳ thắc mắc nào, đừng ngần ngại liên hệ với chúng tôi.</p>
                         <br>
                         <p>Trân trọng,<br>Đội ngũ Medical Care</p>
@@ -317,8 +317,8 @@ public class EmailServiceImpl implements EmailService {
                             <li>- Vui lòng có mặt trước giờ hẹn 15 phút để làm thủ tục.</li>
                             <li>- Mang theo CMND/CCCD, thẻ BHYT (nếu có) và các giấy tờ khám bệnh cũ.</li>
                             <li>- %s</li>
-                        </ul>
-                        
+                </ul>
+                    
                         <p style="text-align:center;">
                             <a href="#" class="cta-button">Quản lý lịch hẹn</a>
                         </p>
@@ -386,14 +386,14 @@ public class EmailServiceImpl implements EmailService {
                             <div class="detail-item"><strong>Mã lịch hẹn:</strong><span>#%d</span></div>
                             <div class="detail-item"><strong>Bác sĩ:</strong><span>%s</span></div>
                             <div class="detail-item"><strong>Ngày giờ:</strong><span>%s</span></div>
-                        </div>
-                        
+                </div>
+                
                         <h3>Vui lòng chuẩn bị:</h3>
-                        <ul>
+                <ul>
                             <li>- Có mặt trước 15 phút để làm thủ tục.</li>
                             <li>- Mang theo giấy tờ tùy thân và các kết quả khám bệnh cũ (nếu có).</li>
-                        </ul>
-                        
+                </ul>
+                
                         <p style="text-align:center;">
                             <a href="#" class="cta-button">Xem chi tiết lịch hẹn</a>
                         </p>

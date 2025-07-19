@@ -94,7 +94,8 @@ const UserManagement = () => {
     const handler = setTimeout(async () => {
       try {
         const response = await adminService.checkEmailExists(emailToValidate);
-        if (response.data.exists) {
+        // Fix: The response from apiRequest is the data itself, not wrapped in a `data` property.
+        if (response.exists) {
           setEmailCheck({ status: 'invalid', message: 'Email đã được sử dụng.' });
         } else {
           setEmailCheck({ status: 'valid', message: 'Email hợp lệ.' });
@@ -376,7 +377,8 @@ const UserManagement = () => {
                   Thao tác
                 </th>
               </tr>
-            </thead>            <tbody className="bg-white divide-y divide-gray-200">
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
               {currentUsers.map((user, index) => {
                 return (
                   <tr key={user.user_id || index} className="hover:bg-gray-50">
@@ -556,6 +558,12 @@ const UserManagement = () => {
                       {emailCheck.message}
                     </div>
                   )}
+                  {emailCheck.status === 'error' && (
+                    <div className="flex items-center text-yellow-600">
+                      <AlertTriangle className="w-3 h-3 mr-1" />
+                      {emailCheck.message}
+                    </div>
+                  )}
                   {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email}</p>}
                 </div>
               </div>
@@ -572,6 +580,7 @@ const UserManagement = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Tối thiểu 6 ký tự"
                   minLength={6}
+                  autoComplete="new-password"
                 />
                 {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>}
               </div>
@@ -632,7 +641,7 @@ const UserManagement = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={emailCheck.status === 'checking' || emailCheck.status === 'invalid'}
+                  disabled={emailCheck.status !== 'valid'}
                   className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center justify-center disabled:bg-blue-300 disabled:cursor-not-allowed"
                 >
                   <PlusCircle className="w-4 h-4 mr-2" />
