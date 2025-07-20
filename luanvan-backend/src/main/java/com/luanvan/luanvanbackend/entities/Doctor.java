@@ -39,4 +39,13 @@ public class Doctor {
     @OneToMany(mappedBy = "doctor")
     @JsonIgnore
     private Set<AvailabilitySlot> availabilitySlots;
+
+    // Explicit getter method for Docker compatibility
+    public Long getDoctorId() {
+        return doctorId;
+    }
+
+    public void setDoctorId(Long doctorId) {
+        this.doctorId = doctorId;
+    }
 }

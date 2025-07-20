@@ -13,7 +13,6 @@ import com.luanvan.luanvanbackend.services.PaymentService;
 import com.luanvan.luanvanbackend.services.EmailService;
 import com.luanvan.luanvanbackend.utils.PaymentUtils;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -40,8 +39,10 @@ import com.luanvan.luanvanbackend.dto.AppointmentDTO;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class PaymentServiceImpl implements PaymentService {
+
+    // Explicit logger declaration for Docker compatibility
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PaymentServiceImpl.class);
 
     private final PaymentRepository paymentRepository;
     private final AppointmentRepository appointmentRepository;
@@ -719,9 +720,5 @@ public class PaymentServiceImpl implements PaymentService {
                 .status(appointment.getStatus().name())
                 .isDepositPaid(appointment.isDepositPaid())
                 .build();
-    }
-
-    private SystemConfiguration getSystemConfiguration() {
-        return systemConfigurationRepository.findFirstByOrderByCreatedAtDesc();
     }
 }

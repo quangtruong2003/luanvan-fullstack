@@ -26,4 +26,21 @@ public class FirstAdminCreateRequest {
     private String email;
     
     // Role sẽ được tự động set thành "ADMIN"
+
+    // Explicit getter methods for Docker compatibility
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
 } 

@@ -6,7 +6,6 @@ import com.luanvan.luanvanbackend.exception.ResourceNotFoundException;
 import com.luanvan.luanvanbackend.repositories.SystemConfigurationRepository;
 import com.luanvan.luanvanbackend.services.SystemConfigurationService;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,8 +14,10 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class SystemConfigurationServiceImpl implements SystemConfigurationService {
+
+    // Explicit logger declaration for Docker compatibility
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(SystemConfigurationServiceImpl.class);
 
     private final SystemConfigurationRepository configRepository;
 

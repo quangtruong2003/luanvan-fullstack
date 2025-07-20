@@ -29,4 +29,29 @@ public class ClerkUserSyncRequest {
     
     @JsonProperty(value = "imageUrl", access = JsonProperty.Access.WRITE_ONLY)
     private String imageUrl;
+
+    // Explicit getter methods for Docker compatibility
+    public String getClerkUserId() {
+        return clerkUserId;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
 } 

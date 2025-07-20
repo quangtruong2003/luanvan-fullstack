@@ -27,4 +27,25 @@ public class UserCreateRequest {
 
     @NotBlank(message = "Vai trò không được để trống")
     private String role; // ADMIN hoặc DOCTOR
+
+    // Explicit getter methods for Docker compatibility
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getRole() {
+        return role;
+    }
 } 
