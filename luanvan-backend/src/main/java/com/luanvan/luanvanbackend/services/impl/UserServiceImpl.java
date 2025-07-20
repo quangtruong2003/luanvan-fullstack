@@ -12,6 +12,7 @@ import com.luanvan.luanvanbackend.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.Objects;
 
@@ -26,6 +27,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private RoleRepository roleRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Override
     public User getUserById(Long userId) {
@@ -111,6 +115,11 @@ public class UserServiceImpl implements UserService {
         }
         if (userUpdateDTO.getAddress() != null) {
             user.setAddress(userUpdateDTO.getAddress());
+        }
+
+        // Thêm logic cập nhật mật khẩu
+        if (userUpdateDTO.getPassword() != null && !userUpdateDTO.getPassword().trim().isEmpty()) {
+            user.setPasswordHash(passwordEncoder.encode(userUpdateDTO.getPassword()));
         }
 
         return userRepository.save(user);

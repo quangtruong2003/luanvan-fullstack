@@ -1,6 +1,225 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { CheckCircle, XCircle, AlertCircle, Info, X, Clock, Zap, Heart, Star, AlertTriangle, Bell } from 'lucide-react';
 
+// Error message mappings for specific cases
+const ERROR_MESSAGES = {
+  // Authentication & Authorization Errors
+  AUTH: {
+    401: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    403: 'Bạn không có quyền thực hiện thao tác này.',
+    'Session expired': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+    'Access denied': 'Truy cập bị từ chối. Bạn không có quyền thực hiện thao tác này.',
+    'Unauthorized': 'Chưa được xác thực. Vui lòng đăng nhập.',
+    'token': 'Token không hợp lệ. Vui lòng đăng nhập lại.'
+  },
+
+  // Network & Connection Errors
+  NETWORK: {
+    'fetch': 'Không thể kết nối tới server. Vui lòng kiểm tra kết nối mạng.',
+    'network': 'Lỗi kết nối mạng. Vui lòng thử lại sau.',
+    'ECONNREFUSED': 'Không thể kết nối tới server. Server có thể đang bảo trì.',
+    'timeout': 'Quá thời gian chờ phản hồi. Vui lòng thử lại.',
+    'CORS': 'Lỗi CORS. Vui lòng liên hệ quản trị viên.'
+  },
+
+  // Validation Errors (400)
+  VALIDATION: {
+    'Dữ liệu đầu vào không hợp lệ': 'Dữ liệu nhập vào không đúng định dạng. Vui lòng kiểm tra lại.',
+    'Missing required field': 'Thiếu thông tin bắt buộc. Vui lòng điền đầy đủ các trường.',
+    'Invalid email format': 'Định dạng email không hợp lệ.',
+    'Invalid phone number': 'Số điện thoại không đúng định dạng.',
+    'Password too weak': 'Mật khẩu quá yếu. Vui lòng chọn mật khẩu mạnh hơn.',
+    'Invalid date format': 'Định dạng ngày tháng không hợp lệ.',
+    'Invalid parameter type': 'Kiểu dữ liệu tham số không đúng.'
+  },
+
+  // Resource Not Found Errors (404)
+  NOT_FOUND: {
+    'User not found': 'Không tìm thấy người dùng.',
+    'Doctor not found': 'Không tìm thấy bác sĩ.',
+    'Clinic not found': 'Không tìm thấy phòng khám.',
+    'Specialty not found': 'Không tìm thấy chuyên khoa.',
+    'Appointment not found': 'Không tìm thấy lịch hẹn.',
+    'Slot not found': 'Không tìm thấy khung giờ khám.',
+    'WorkShift not found': 'Không tìm thấy ca làm việc.',
+    'Patient not found': 'Không tìm thấy bệnh nhân.'
+  },
+
+  // Business Logic Errors
+  BUSINESS: {
+    // Doctor Management
+    'already exists': 'Dữ liệu đã tồn tại trong hệ thống.',
+    'Doctor already has profile': 'Bác sĩ này đã có hồ sơ trong hệ thống.',
+    'Email already in use': 'Email này đã được sử dụng.',
+    'Phone number already exists': 'Số điện thoại này đã được sử dụng.',
+    'Specialty not assigned': 'Chuyên khoa chưa được gán cho bác sĩ.',
+    'Doctor not available at clinic': 'Bác sĩ không có lịch khám tại phòng khám này.',
+    'Doctor profile not found': 'Không tìm thấy hồ sơ bác sĩ.',
+    
+    // Appointment Management
+    'Slot is not available': 'Khung giờ này không còn trống. Vui lòng chọn khung giờ khác.',
+    'Appointment time conflict': 'Thời gian khám bị trung lặp. Vui lòng chọn thời gian khác.',
+    'Cannot cancel confirmed appointment': 'Không thể hủy lịch hẹn đã được xác nhận.',
+    'Appointment is in the past': 'Không thể đặt lịch hẹn trong quá khứ.',
+    'Doctor not available': 'Bác sĩ không có lịch khám trong thời gian này.',
+    'Patient contact info missing': 'Thiếu thông tin liên lạc của bệnh nhân. Vui lòng cập nhật số điện thoại.',
+    'Appointment already exists': 'Đã có lịch hẹn trong khung giờ này.',
+    'Invalid appointment status': 'Trạng thái lịch hẹn không hợp lệ.',
+    'Cannot modify past appointment': 'Không thể sửa đổi lịch hẹn trong quá khứ.',
+    
+    // Clinic Management
+    'Clinic has related data': 'Không thể xóa phòng khám có dữ liệu liên quan (bác sĩ, lịch hẹn).',
+    'Work shift overlaps': 'Ca làm việc bị trùng lặp thời gian.',
+    'Clinic is closed': 'Phòng khám hiện đang đóng cửa.',
+    'Clinic capacity exceeded': 'Phòng khám đã đạt tối đa số lượng bác sĩ.',
+    'Invalid working hours': 'Giờ làm việc không hợp lệ.',
+    
+    // Specialty Management
+    'Specialty has doctors': 'Không thể xóa chuyên khoa đang có bác sĩ.',
+    'Specialty has appointments': 'Không thể xóa chuyên khoa đang có lịch hẹn.',
+    'Specialty not available at clinic': 'Chuyên khoa này không có tại phòng khám được chọn.',
+    
+    // Schedule Management
+    'Schedule conflict': 'Lịch làm việc bị xung đột.',
+    'Invalid time range': 'Khoảng thời gian không hợp lệ.',
+    'Slot already booked': 'Khung giờ này đã được đặt.',
+    'Cannot modify past slots': 'Không thể sửa đổi khung giờ trong quá khứ.',
+    'Slot duration invalid': 'Thời lượng khung giờ không hợp lệ.',
+    'Maximum slots per day exceeded': 'Đã vượt quá số khung giờ tối đa trong ngày.',
+    
+    // User Management
+    'User is inactive': 'Tài khoản người dùng đã bị vô hiệu hóa.',
+    'Password change required': 'Bạn cần thay đổi mật khẩu để tiếp tục.',
+    'Account locked': 'Tài khoản đã bị khóa do đăng nhập sai quá nhiều lần.',
+    'Email not verified': 'Email chưa được xác thực.',
+    
+    // Payment & System
+    'Payment failed': 'Thanh toán thất bại. Vui lòng thử lại.',
+    'Payment method not available': 'Phương thức thanh toán không khả dụng.',
+    'System maintenance': 'Hệ thống đang bảo trì. Vui lòng thử lại sau.',
+    'Feature not available': 'Tính năng này hiện chưa khả dụng.',
+    'Rate limit exceeded': 'Bạn đã thực hiện quá nhiều thao tác. Vui lòng chờ ít phút.',
+    
+    // File & Upload
+    'File too large': 'File quá lớn. Kích thước tối đa cho phép là 5MB.',
+    'Invalid file type': 'Loại file không được hỗ trợ.',
+    'Upload failed': 'Tải file thất bại. Vui lòng thử lại.',
+    
+    // Data Integrity
+    'Constraint violation': 'Vi phạm ràng buộc dữ liệu. Không thể thực hiện thao tác.',
+    'Duplicate entry': 'Dữ liệu trùng lặp. Vui lòng kiểm tra lại.',
+    'Foreign key constraint': 'Không thể xóa do có dữ liệu liên quan.',
+    'Data inconsistency': 'Dữ liệu không nhất quán. Vui lòng tải lại trang.'
+  },
+
+  // Server Errors (500)
+  SERVER: {
+    'Internal Server Error': 'Lỗi server nội bộ. Vui lòng thử lại sau.',
+    'Database error': 'Lỗi cơ sở dữ liệu. Vui lòng liên hệ quản trị viên.',
+    'OptimisticLocking': 'Dữ liệu đã được thay đổi bởi người khác. Vui lòng tải lại trang.',
+    'Constraint violation': 'Vi phạm ràng buộc dữ liệu. Không thể thực hiện thao tác.',
+    'Transaction failed': 'Giao dịch thất bại. Vui lòng thử lại.'
+  }
+};
+
+// Function to get specific error message
+const getSpecificErrorMessage = (error, operation = '') => {
+  const errorMessage = error?.message || error || '';
+  const errorCode = error?.status || error?.response?.status;
+  
+  // Check for specific error patterns
+  for (const [category, messages] of Object.entries(ERROR_MESSAGES)) {
+    for (const [pattern, message] of Object.entries(messages)) {
+      if (errorMessage.includes(pattern) || errorCode === pattern) {
+        return {
+          message,
+          title: getErrorTitle(category, operation),
+          type: getErrorType(category)
+        };
+      }
+    }
+  }
+  
+  // Default messages based on HTTP status codes
+  if (errorCode) {
+    switch (errorCode) {
+      case 400:
+        return {
+          message: 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.',
+          title: 'Lỗi dữ liệu',
+          type: 'warning'
+        };
+      case 401:
+        return {
+          message: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+          title: 'Lỗi xác thực',
+          type: 'warning'
+        };
+      case 403:
+        return {
+          message: 'Bạn không có quyền thực hiện thao tác này.',
+          title: 'Không có quyền',
+          type: 'warning'
+        };
+      case 404:
+        return {
+          message: 'Không tìm thấy dữ liệu yêu cầu.',
+          title: 'Không tìm thấy',
+          type: 'warning'
+        };
+      case 409:
+        return {
+          message: 'Dữ liệu đã tồn tại hoặc xung đột.',
+          title: 'Xung đột dữ liệu',
+          type: 'warning'
+        };
+      case 500:
+        return {
+          message: 'Lỗi server. Vui lòng thử lại sau hoặc liên hệ quản trị viên.',
+          title: 'Lỗi hệ thống',
+          type: 'error'
+        };
+      default:
+        return {
+          message: `Có lỗi xảy ra (${errorCode}). Vui lòng thử lại.`,
+          title: 'Lỗi không xác định',
+          type: 'error'
+        };
+    }
+  }
+  
+  // Fallback to original error message
+  return {
+    message: errorMessage || 'Có lỗi không xác định xảy ra.',
+    title: operation ? `Lỗi ${operation}` : 'Có lỗi xảy ra',
+    type: 'error'
+  };
+};
+
+const getErrorTitle = (category, operation) => {
+  const titles = {
+    AUTH: 'Lỗi xác thực',
+    NETWORK: 'Lỗi kết nối',
+    VALIDATION: 'Lỗi dữ liệu',
+    NOT_FOUND: 'Không tìm thấy',
+    BUSINESS: operation ? `Lỗi ${operation}` : 'Lỗi nghiệp vụ',
+    SERVER: 'Lỗi hệ thống'
+  };
+  return titles[category] || 'Có lỗi xảy ra';
+};
+
+const getErrorType = (category) => {
+  const types = {
+    AUTH: 'warning',
+    NETWORK: 'error',
+    VALIDATION: 'warning',
+    NOT_FOUND: 'warning',
+    BUSINESS: 'warning',
+    SERVER: 'error'
+  };
+  return types[category] || 'error';
+};
+
 // Context cho hệ thống thông báo
 const NotificationContext = createContext();
 
@@ -244,11 +463,14 @@ export const NotificationProvider = ({ children }) => {
     });
   }, [addNotification]);
 
-  const showError = useCallback((message, title = 'Lỗi', options = {}) => {
+  const showError = useCallback((error, title = '', options = {}) => {
+    // Use the specific error message system
+    const errorInfo = getSpecificErrorMessage(error, title);
+    
     return addNotification({ 
-      type: 'error', 
-      title, 
-      message, 
+      type: errorInfo.type,
+      title: errorInfo.title,
+      message: errorInfo.message,
       duration: 6,
       ...options 
     });
@@ -281,6 +503,99 @@ export const NotificationProvider = ({ children }) => {
       message, 
       duration: 0, // No auto dismiss for loading
       ...options 
+    });
+  }, [addNotification]);
+
+  // Enhanced error reporting with operation context
+  const showApiError = useCallback((error, operation = '', options = {}) => {
+    const errorInfo = getSpecificErrorMessage(error, operation);
+    
+    // Add operation context to the notification
+    const contextualMessage = operation 
+      ? `${errorInfo.message}\n\nThao tác: ${operation}`
+      : errorInfo.message;
+    
+    return addNotification({
+      type: errorInfo.type,
+      title: errorInfo.title,
+      message: contextualMessage,
+      duration: 8, // Longer duration for API errors
+      actions: [
+        {
+          label: 'Chi tiết',
+          style: 'secondary',
+          onClick: () => {
+            console.group('🔍 Chi tiết lỗi API');
+            console.error('Operation:', operation);
+            console.error('Original Error:', error);
+            console.error('Error Info:', errorInfo);
+            console.groupEnd();
+          },
+          dismissOnClick: false
+        }
+      ],
+      ...options
+    });
+  }, [addNotification]);
+
+  // Business logic specific error handlers
+  const showValidationError = useCallback((validationErrors, title = 'Lỗi dữ liệu', options = {}) => {
+    let message = '';
+    
+    if (Array.isArray(validationErrors)) {
+      message = validationErrors.join('\n• ');
+      message = '• ' + message;
+    } else if (typeof validationErrors === 'object') {
+      message = Object.entries(validationErrors)
+        .map(([field, error]) => `• ${field}: ${error}`)
+        .join('\n');
+    } else {
+      message = validationErrors;
+    }
+    
+    return addNotification({
+      type: 'warning',
+      title,
+      message,
+      duration: 7,
+      ...options
+    });
+  }, [addNotification]);
+
+  const showNetworkError = useCallback((error, options = {}) => {
+    return addNotification({
+      type: 'error',
+      title: 'Lỗi kết nối',
+      message: 'Không thể kết nối tới server. Vui lòng kiểm tra kết nối mạng và thử lại.',
+      duration: 8,
+      actions: [
+        {
+          label: 'Thử lại',
+          style: 'primary',
+          onClick: () => window.location.reload()
+        }
+      ],
+      ...options
+    });
+  }, [addNotification]);
+
+  const showAuthError = useCallback((error, options = {}) => {
+    return addNotification({
+      type: 'warning',
+      title: 'Lỗi xác thực',
+      message: 'Phiên đăng nhập đã hết hạn. Bạn sẽ được chuyển về trang đăng nhập.',
+      duration: 5,
+      actions: [
+        {
+          label: 'Đăng nhập lại',
+          style: 'primary',
+          onClick: () => {
+            localStorage.clear();
+            window.location.href = '/login';
+          }
+        }
+      ],
+      ...options
     });
   }, [addNotification]);
 
@@ -355,7 +670,14 @@ export const NotificationProvider = ({ children }) => {
     showInfo,
     showLoading,
     showConfirm,
-    showProgress
+    showProgress,
+    // Enhanced error handlers
+    showApiError,
+    showValidationError,
+    showNetworkError,
+    showAuthError,
+    // Utility functions
+    getSpecificErrorMessage
   };
 
   return (

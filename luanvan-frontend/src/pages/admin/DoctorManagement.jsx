@@ -46,7 +46,7 @@ class DoctorManagementErrorBoundary extends React.Component {
 
 const DoctorManagement = () => {
   // Notification system
-  const { showSuccess, showError, showWarning, showInfo } = useNotification();
+  const { showSuccess, showError, showWarning, showInfo, showApiError, showValidationError, showAuthError } = useNotification();
   
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -160,11 +160,11 @@ const DoctorManagement = () => {
     } catch (error) {
       console.error('Error fetching doctors:', error);
       setDoctors([]);
-      showError('Không thể tải danh sách bác sĩ', 'Lỗi tải dữ liệu');
+      showApiError(error, 'tải danh sách bác sĩ');
     } finally {
       setLoading(false);
     }
-  }, [fetchUsers, showError]);
+  }, [fetchUsers, showApiError]);
 
   const fetchSpecialties = useCallback(async () => {
     try {
@@ -318,29 +318,7 @@ const DoctorManagement = () => {
         formData: formData
       });
       
-      let errorMessage = '';
-      let errorTitle = 'Lỗi khi tạo hồ sơ bác sĩ';
-      
-      if (error.message.includes('400')) {
-        errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin.';
-        errorTitle = 'Dữ liệu không hợp lệ';
-      } else if (error.message.includes('409') || error.message.includes('already exists')) {
-        errorMessage = 'Người dùng này đã có hồ sơ bác sĩ.';
-        errorTitle = 'Bác sĩ đã tồn tại';
-      } else if (error.message.includes('404')) {
-        errorMessage = 'Không tìm thấy người dùng.';
-        errorTitle = 'Không tìm thấy người dùng';
-      } else if (error.message.includes('500') || error.message.includes('OptimisticLocking')) {
-        errorMessage = 'Lỗi hệ thống. Vui lòng thử lại sau ít phút.';
-        errorTitle = 'Lỗi hệ thống';
-      } else if (error.message.includes('network') || error.message.includes('fetch')) {
-        errorMessage = 'Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.';
-        errorTitle = 'Lỗi kết nối';
-      } else {
-        errorMessage = error.message;
-      }
-      
-      showError(errorMessage, errorTitle);
+      showApiError(error, 'tạo hồ sơ bác sĩ');
     } finally {
       setLoading(false);
     }

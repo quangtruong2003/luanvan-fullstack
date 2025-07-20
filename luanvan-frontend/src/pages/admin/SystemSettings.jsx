@@ -3,9 +3,10 @@ import {
   Settings, Save, RefreshCw, Mail, Shield, 
   Bell, AlertCircle, CheckCircle
 } from 'lucide-react';
+import { adminService } from '../../services/api';
 
 const SystemSettings = () => {
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('general');
   const [message, setMessage] = useState({ type: '', content: '' });
@@ -46,35 +47,112 @@ const SystemSettings = () => {
     }
   });
 
-  useEffect(() => {
-    // Load settings from localStorage on component mount
-    const loadSettings = () => {
-      try {
-        const savedSettings = localStorage.getItem('adminSettings');
-        if (savedSettings) {
-          const parsedSettings = JSON.parse(savedSettings);
-          setSettings(parsedSettings);
-          console.log('📂 Settings loaded from localStorage:', parsedSettings);
-        }
-      } catch (error) {
-        console.warn('Failed to load settings from localStorage:', error);
+  // Fetch system configuration from database
+  const fetchSystemConfig = async () => {
+    try {
+      setLoading(true);
+      const response = await adminService.getSystemConfig();
+      
+      if (response) {
+        console.log('📂 Raw system config from database:', response);
+        
+        // Map database fields to UI settings
+        setSettings(prev => ({
+          ...prev,
+          general: {
+            ...prev.general,
+            // Convert hours to days for UI display
+            minimumAdvanceBookingDays: Math.floor((response.patient_cancellation_time_limit_hours || 24) / 24)
+          }
+        }));
+        
+        console.log('📂 System config loaded and mapped to UI:', {
+          database_hours: response.patient_cancellation_time_limit_hours,
+          ui_days: Math.floor((response.patient_cancellation_time_limit_hours || 24) / 24)
+        });
+        
+        // Load other settings from localStorage for immediate sync
+        loadSettingsFromLocalStorage();
       }
-    };
+    } catch (error) {
+      console.warn('Failed to load system config from database, using defaults:', error);
+      // Fallback to localStorage if database fails
+      loadSettingsFromLocalStorage();
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadSettings();
-    // fetchSystemConfig();
+  // Fallback function to load from localStorage
+  const loadSettingsFromLocalStorage = () => {
+    try {
+      const savedSettings = localStorage.getItem('adminSettings');
+      if (savedSettings) {
+        const parsedSettings = JSON.parse(savedSettings);
+        // Only merge non-database settings, keeping database values for minimumAdvanceBookingDays
+        setSettings(prev => ({
+          ...parsedSettings,
+          general: {
+            ...parsedSettings.general,
+            // Keep database value for minimumAdvanceBookingDays if it exists
+            minimumAdvanceBookingDays: prev.general.minimumAdvanceBookingDays
+          }
+        }));
+        console.log('📂 Settings loaded from localStorage (merged with database):', parsedSettings);
+      }
+    } catch (error) {
+      console.warn('Failed to load settings from localStorage:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchSystemConfig();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSave = async () => {
     try {
       setSaving(true);
       
-      // Save to localStorage for demo purposes (in real app, this would be API call)
-      localStorage.setItem('adminSettings', JSON.stringify(settings));
-      console.log('💾 Settings saved to localStorage:', settings);
+      // Prepare data for database - convert days to hours
+      const configData = {
+        patient_cancellation_time_limit_hours: settings.general.minimumAdvanceBookingDays * 24
+      };
       
-      // await adminService.updateSystemConfig(settings);
-      setMessage({ type: 'success', content: 'Cài đặt đã được lưu thành công' });
+      console.log('💾 Preparing to save config:', {
+        ui_days: settings.general.minimumAdvanceBookingDays,
+        database_hours: configData.patient_cancellation_time_limit_hours,
+        configData
+      });
+      
+      // Save to database
+      await adminService.updateSystemConfig(configData);
+      console.log('💾 System config saved to database:', configData);
+      
+      // Also save to localStorage for immediate UI updates (other settings not in DB)
+      localStorage.setItem('adminSettings', JSON.stringify(settings));
+      console.log('💾 Settings also saved to localStorage for UI sync:', settings);
+      
+      setMessage({ 
+        type: 'success', 
+        content: 'Cài đặt đã được lưu thành công! "Đặt trước tối thiểu" được lưu vào database, các cài đặt khác lưu tạm thời.' 
+      });
+      
+      // Refresh data from database to confirm save
+      setTimeout(async () => {
+        try {
+          const response = await adminService.getSystemConfig();
+          console.log('🔄 Refreshed config from database:', response);
+        } catch (error) {
+          console.warn('Could not refresh config:', error);
+        }
+      }, 1000);
+      
+      // Auto hide message after 5 seconds (longer message)
+      setTimeout(() => {
+        setMessage({ type: '', content: '' });
+      }, 5000);
+      
     } catch (error) {
       console.error('Error saving system config:', error);
       setMessage({ type: 'error', content: 'Lỗi khi lưu cài đặt: ' + error.message });
@@ -126,49 +204,20 @@ const SystemSettings = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Số lịch hẹn tối đa/ngày
-          </label>
-          <input
-            type="number"
-            min="1"
-            value={settings.general.maxAppointmentsPerDay}
-            onChange={(e) => handleInputChange('general', 'maxAppointmentsPerDay', parseInt(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Thời gian khám (phút)
-          </label>
-          <input
-            type="number"
-            min="15"
-            step="15"
-            value={settings.general.appointmentDuration}
-            onChange={(e) => handleInputChange('general', 'appointmentDuration', parseInt(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Đặt trước tối thiểu (ngày)
-          </label>
-          <input
-            type="number"
-            min="0"
-            value={settings.general.minimumAdvanceBookingDays}
-            onChange={(e) => handleInputChange('general', 'minimumAdvanceBookingDays', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Số ngày tối thiểu người dùng phải đặt lịch trước (0 = đặt cùng ngày)
-          </p>
-        </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Đặt trước tối thiểu (ngày)
+        </label>
+        <input
+          type="number"
+          min="0"
+          value={settings.general.minimumAdvanceBookingDays}
+          onChange={(e) => handleInputChange('general', 'minimumAdvanceBookingDays', parseInt(e.target.value) || 0)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Số ngày tối thiểu người dùng phải đặt lịch trước (0 = đặt cùng ngày)
+        </p>
       </div>
 
       <div className="flex items-center">
@@ -187,17 +236,7 @@ const SystemSettings = () => {
       {/* General Settings Status Summary */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <h6 className="font-medium text-gray-900 mb-3">Tóm tắt cài đặt chung</h6>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-blue-50 p-3 rounded-lg text-center">
-            <div className="text-lg font-bold text-blue-600">{settings.general.maxAppointmentsPerDay}</div>
-            <div className="text-xs text-gray-600">Lịch hẹn/ngày</div>
-          </div>
-          
-          <div className="bg-green-50 p-3 rounded-lg text-center">
-            <div className="text-lg font-bold text-green-600">{settings.general.appointmentDuration}'</div>
-            <div className="text-xs text-gray-600">Thời gian khám</div>
-          </div>
-          
+        <div className="grid grid-cols-2 gap-4">
           <div className="bg-orange-50 p-3 rounded-lg text-center">
             <div className="text-lg font-bold text-orange-600">
               {settings.general.minimumAdvanceBookingDays === 0 ? 'Cùng ngày' : `${settings.general.minimumAdvanceBookingDays} ngày`}
@@ -219,6 +258,16 @@ const SystemSettings = () => {
                 ? ' Người dùng có thể đặt lịch cùng ngày.'
                 : ` Người dùng phải đặt lịch trước ít nhất ${settings.general.minimumAdvanceBookingDays} ngày.`
               }
+            </span>
+          </div>
+        </div>
+        
+        <div className="mt-3 p-3 bg-green-50 rounded border">
+          <div className="flex items-center text-sm">
+            <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+            <span className="text-green-700">
+              <strong>Trạng thái lưu trữ:</strong> "Đặt trước tối thiểu" được lưu vào database. 
+              Các cài đặt khác lưu tạm thời trong trình duyệt.
             </span>
           </div>
         </div>

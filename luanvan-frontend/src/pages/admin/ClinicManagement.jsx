@@ -14,7 +14,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
   console.log('🎯 ClinicManagement component rendered');
   
   // Notification system
-  const { showSuccess, showError, showWarning, showInfo } = useNotification();
+  const { showSuccess, showError, showWarning, showInfo, showApiError, showValidationError, showAuthError } = useNotification();
   
   // Check authentication status
   const token = localStorage.getItem('token');

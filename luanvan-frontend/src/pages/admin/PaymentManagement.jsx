@@ -63,7 +63,7 @@ const PaymentManagement = () => {
         
         setPaymentSettings(settings);
         console.log('📄 Payment settings loaded from database:', settings);
-        showInfo('Đã tải cài đặt thanh toán từ database', 'Tải thành công');
+        //showInfo('Đã tải cài đặt thanh toán từ database', 'Tải thành công');
       } else {
         // If no config found, create default
         console.log('⚠️ No config found, creating default configuration...');

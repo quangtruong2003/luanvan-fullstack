@@ -329,8 +329,8 @@ const BookAppointmentDetails = () => {
         // Date and Time Validation
         //=================================================================
         
-        const minAdvanceDays = paymentConfig.minimum_advance_booking_days ?? 1;
-        console.log(`📅 Minimum advance booking days: ${minAdvanceDays}`);
+        const minAdvanceDays = Math.floor((paymentConfig.patient_cancellation_time_limit_hours || 24) / 24);
+        console.log(`📅 Minimum advance booking days (from hours ${paymentConfig.patient_cancellation_time_limit_hours}): ${minAdvanceDays}`);
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);

@@ -168,7 +168,8 @@ const UserManagement = () => {
       email: user.email || '',
       fullName: user.full_name || '',
       phoneNumber: user.phone_number || '',
-      role: user.role_name || 'PATIENT'
+      role: user.role_name || 'PATIENT',
+      password: '' // Khởi tạo mật khẩu rỗng để không hiển thị mật khẩu cũ
     });
     setFormErrors({});
     setShowEditModal(true);
@@ -184,6 +185,11 @@ const UserManagement = () => {
         email: formData.email,
         phoneNumber: formData.phoneNumber
       };
+
+      // Chỉ thêm mật khẩu vào data nếu người dùng nhập
+      if (formData.password && formData.password.trim() !== '') {
+        updateData.password = formData.password;
+      }
 
       await adminService.updateUser(selectedUser.user_id, updateData);
         // Update local state immediately with the new data
@@ -689,6 +695,23 @@ const UserManagement = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   {formErrors.phoneNumber && <p className="text-red-500 text-xs mt-1">{formErrors.phoneNumber}</p>}
+                </div>
+
+                {/* New Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mật khẩu mới (để trống nếu không đổi)
+                  </label>
+                  <input
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập mật khẩu mới"
+                    minLength={6}
+                    autoComplete="new-password"
+                  />
+                  {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>}
                 </div>
 
                 {/* Email */}

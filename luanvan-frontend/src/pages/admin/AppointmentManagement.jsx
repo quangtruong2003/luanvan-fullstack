@@ -8,7 +8,7 @@ import { useNotification } from '../../components/NotificationSystem';
 
 const AppointmentManagement = ({ filters, setFilters }) => {
   // Notification system
-  const { showSuccess, showError } = useNotification();
+  const { showSuccess, showError, showApiError, showValidationError } = useNotification();
   
   // Helper function to extract a more detailed error message from API responses
   const getApiErrorMessage = (error, defaultMessage) => {
@@ -77,11 +77,11 @@ const AppointmentManagement = ({ filters, setFilters }) => {
       setAppointments(appointmentsData);
     } catch (error) {
       console.error('Error fetching appointments:', error);
-      showError('Không thể tải danh sách lịch hẹn', 'Lỗi');
+      showApiError(error, 'tải danh sách lịch hẹn');
     } finally {
       setLoading(false);
     }
-  }, [showError]);
+  }, [showApiError]);
 
   // Other fetch functions - moved here to avoid hoisting issues
   const fetchDoctors = async () => {

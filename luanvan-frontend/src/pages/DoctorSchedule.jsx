@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiService } from '../services/api';
+import { apiService, adminService } from '../services/api';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './DoctorCalendar.css';
@@ -108,19 +108,34 @@ const DoctorSchedule = () => {
   const [minimumAdvanceBookingDays, setMinimumAdvanceBookingDays] = useState(1);
   const navigate = useNavigate();
 
-  // Load admin settings to get minimum advance booking days
+  // Load minimum advance booking days from database
   useEffect(() => {
-    try {
-      const savedSettings = localStorage.getItem('adminSettings');
-      if (savedSettings) {
-        const adminSettings = JSON.parse(savedSettings);
-        if (adminSettings.general?.minimumAdvanceBookingDays !== undefined) {
-          setMinimumAdvanceBookingDays(adminSettings.general.minimumAdvanceBookingDays);
+    const fetchMinimumBookingDays = async () => {
+      try {
+        const systemConfig = await adminService.getSystemConfig();
+        if (systemConfig?.patient_cancellation_time_limit_hours) {
+          const days = Math.floor(systemConfig.patient_cancellation_time_limit_hours / 24);
+          setMinimumAdvanceBookingDays(days);
+          console.log('📅 Minimum advance booking days loaded from database:', days);
+        }
+      } catch (error) {
+        console.warn('Failed to load system config, using fallback from localStorage:', error);
+        // Fallback to localStorage
+        try {
+          const savedSettings = localStorage.getItem('adminSettings');
+          if (savedSettings) {
+            const adminSettings = JSON.parse(savedSettings);
+            if (adminSettings.general?.minimumAdvanceBookingDays !== undefined) {
+              setMinimumAdvanceBookingDays(adminSettings.general.minimumAdvanceBookingDays);
+            }
+          }
+        } catch (fallbackError) {
+          console.warn('Failed to load admin settings for minimum booking days:', fallbackError);
         }
       }
-    } catch (error) {
-      console.warn('Failed to load admin settings for minimum booking days:', error);
-    }
+    };
+
+    fetchMinimumBookingDays();
   }, []);
 
   // Calculate the minimum bookable date based on admin setting

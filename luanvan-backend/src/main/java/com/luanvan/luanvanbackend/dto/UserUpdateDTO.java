@@ -39,4 +39,7 @@ public class UserUpdateDTO {
     
     @Size(max = 500, message = "Địa chỉ không được vượt quá 500 ký tự")
     private String address;
+
+    @Size(min = 6, max = 100, message = "Mật khẩu phải từ 6-100 ký tự")
+    private String password;
 } 
