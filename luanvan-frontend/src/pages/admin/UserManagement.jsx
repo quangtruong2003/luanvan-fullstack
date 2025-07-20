@@ -21,6 +21,8 @@ const UserManagement = () => {
   const [refreshKey, setRefreshKey] = useState(0);
   const [formErrors, setFormErrors] = useState({});
   const [emailCheck, setEmailCheck] = useState({ status: 'idle', message: '' }); // idle, checking, valid, invalid
+  // State cho dialog xác nhận vô hiệu hóa
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, userId: null });
 
   // Pagination state - thay đổi để giống AppointmentManagement
   const [currentPage, setCurrentPage] = useState(1); // Bắt đầu từ trang 1
@@ -141,24 +143,40 @@ const UserManagement = () => {
         showError('Lỗi tạo người dùng: ' + (err.message || 'Lỗi không xác định'));
       }
     }
-  };  const handleToggleStatus = async (userId, isActive) => {
+  };
+  // Hàm thực hiện thay đổi trạng thái (kích hoạt/vô hiệu hóa)
+  const handleToggleStatus = async (userId, isActive) => {
     try {
-      // Kiểm tra userId
       if (!userId || userId === undefined || userId === null) {
         throw new Error('ID người dùng không hợp lệ');
       }
-      
       if (isActive) {
-        await adminService.deactivateUser(userId);
+        // Nếu là vô hiệu hóa, hiển thị dialog xác nhận
+        setConfirmDialog({ open: true, userId });
       } else {
+        // Kích hoạt không cần xác nhận
         await adminService.activateUser(userId);
+        await fetchUsers();
+        showSuccess('Đã kích hoạt người dùng thành công!');
       }
-        // Refresh users list
-      await fetchUsers();
-      showSuccess(isActive ? 'Đã vô hiệu hóa người dùng thành công!' : 'Đã kích hoạt người dùng thành công!');
     } catch (err) {
       console.error('Error toggling user status:', err);
       showError('Lỗi thay đổi trạng thái: ' + (err.message || 'Lỗi không xác định'));
+    }
+  };
+
+  // Hàm xác nhận thực hiện vô hiệu hóa
+  const handleConfirmDeactivate = async () => {
+    if (!confirmDialog.userId) return;
+    try {
+      await adminService.deactivateUser(confirmDialog.userId);
+      await fetchUsers();
+      showSuccess('Đã vô hiệu hóa người dùng thành công!');
+    } catch (err) {
+      console.error('Error deactivating user:', err);
+      showError('Lỗi thay đổi trạng thái: ' + (err.message || 'Lỗi không xác định'));
+    } finally {
+      setConfirmDialog({ open: false, userId: null });
     }
   };
 
@@ -458,6 +476,42 @@ const UserManagement = () => {
                             {user.active ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                           </button>
                         )}
+      {/* Dialog xác nhận vô hiệu hóa người dùng */}
+      {confirmDialog.open && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-4 text-red-600 flex items-center">
+              <UserX className="w-5 h-5 mr-2" /> Xác nhận vô hiệu hóa
+            </h3>
+            <p
+              className="mb-6 text-gray-700 text-center break-words mx-auto"
+              style={{
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word',
+                maxWidth: '320px',
+                whiteSpace: 'pre-line',
+                display: 'block',
+              }}
+            >
+              Bạn có chắc chắn muốn vô hiệu hóa người dùng này không? Người dùng sẽ không thể đăng nhập cho đến khi được kích hoạt lại.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setConfirmDialog({ open: false, userId: null })}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleConfirmDeactivate}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
                         
                         {(!user.user_id || currentUserRole !== 'ADMIN') && (
                           <span className="text-gray-400 text-xs">
@@ -697,22 +751,24 @@ const UserManagement = () => {
                   {formErrors.phoneNumber && <p className="text-red-500 text-xs mt-1">{formErrors.phoneNumber}</p>}
                 </div>
 
-                {/* New Password */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mật khẩu mới (để trống nếu không đổi)
-                  </label>
-                  <input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Nhập mật khẩu mới"
-                    minLength={6}
-                    autoComplete="new-password"
-                  />
-                  {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>}
-                </div>
+                {/* New Password - chỉ hiển thị nếu không phải bệnh nhân */}
+                {selectedUser?.role_name !== 'PATIENT' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Mật khẩu mới (để trống nếu không đổi)
+                    </label>
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Nhập mật khẩu mới"
+                      minLength={6}
+                      autoComplete="new-password"
+                    />
+                    {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password}</p>}
+                  </div>
+                )}
 
                 {/* Email */}
                 <div>
@@ -775,4 +831,4 @@ const UserManagement = () => {
   );
 };
 
-export default UserManagement; 
+export default UserManagement;

@@ -1214,34 +1214,42 @@ const DoctorManagement = () => {
 
       {/* Delete Doctor Modal */}
       {showDeleteModal && selectedDoctor && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Xóa bác sĩ: {selectedDoctor.user?.fullName || 'N/A'}
-              </h3>
-              <p className="text-sm text-gray-700 mb-4">
-                Bạn có chắc chắn muốn xóa bác sĩ này không?
-              </p>
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    setSelectedDoctor(null);
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteDoctor}
-                  className="px-4 py-2 border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                >
-                  Xác nhận Xóa
-                </button>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-700 bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md mx-auto p-6 border">
+            <h3 className="text-xl font-semibold text-gray-900 text-center mb-4">
+              {`Xác nhận xóa bác sĩ '${selectedDoctor.user?.fullName || selectedDoctor.user?.full_name || 'N/A'}'`}
+            </h3>
+            <p
+              className="mb-6 text-gray-700 text-center break-words mx-auto"
+              style={{
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word',
+                maxWidth: '320px',
+                whiteSpace: 'pre-line',
+                display: 'block',
+                padding: 0,
+              }}
+            >
+              Bạn có chắc chắn muốn xóa bác sĩ này không? Hành động này không thể hoàn tác.
+            </p>
+            <div className="flex justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setSelectedDoctor(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteDoctor}
+                className="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+              >
+                Xác nhận Xóa
+              </button>
             </div>
           </div>
         </div>
