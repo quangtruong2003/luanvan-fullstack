@@ -142,7 +142,7 @@ const Footer = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <p className="text-gray-400 text-sm">
-                  © 2024 Medical.Care. Bảo lưu mọi quyền.
+                  © 2025 Medical.Care. Bảo lưu mọi quyền.
                 </p>
                 <div className="flex items-center gap-6 text-sm">
                   <Link to="/privacy" className="text-gray-400 hover:text-white transition-colors duration-300">

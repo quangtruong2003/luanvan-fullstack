@@ -1,7 +1,87 @@
 import { Link } from "react-router-dom"
 import { useState, useEffect } from "react"
-import { Calendar, Users, Clock, Shield, Heart, Stethoscope, ChevronRight, Check, Star, ChevronLeft, ArrowRight, Play, Award, TrendingUp, Zap, ExternalLink } from "lucide-react"
+import { Calendar, Users, Clock, Shield, Heart, Stethoscope, ChevronRight, Check, Star, ChevronLeft, ArrowRight, Play, Award, TrendingUp, Zap, ExternalLink, Phone } from "lucide-react"
 import { apiService } from "../services/api";
+
+// Function to format working hours from shifts data
+const formatWorkingHours = (shifts) => {
+  if (!shifts || shifts.length === 0) {
+    return 'Chưa cập nhật';
+  }
+
+  const dayMap = {
+    MONDAY: 'Thứ 2', TUESDAY: 'Thứ 3', WEDNESDAY: 'Thứ 4',
+    THURSDAY: 'Thứ 5', FRIDAY: 'Thứ 6', SATURDAY: 'Thứ 7', SUNDAY: 'CN'
+  };
+  const dayOrder = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+
+  // Group shifts by time range (e.g., "08:00 - 12:00")
+  const shiftsByTime = shifts.reduce((acc, shift) => {
+    // Handle both snake_case and camelCase field names
+    const startTime = shift.startTime || shift.start_time;
+    const endTime = shift.endTime || shift.end_time;
+    const dayOfWeek = shift.dayOfWeek || shift.day_of_week;
+    
+    if (!startTime || !endTime || !dayOfWeek) {
+      return acc;
+    }
+    
+    // Format time - handle both string and LocalTime object
+    const formatTime = (time) => {
+      if (typeof time === 'string') {
+        return time.substring(0, 5);
+      }
+      if (time && time.hour !== undefined && time.minute !== undefined) {
+        return `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`;
+      }
+      return time;
+    };
+    
+    const formattedStartTime = formatTime(startTime);
+    const formattedEndTime = formatTime(endTime);
+    
+    const timeRange = `${formattedStartTime} - ${formattedEndTime}`;
+    if (!acc[timeRange]) {
+      acc[timeRange] = [];
+    }
+    acc[timeRange].push(dayOfWeek);
+    return acc;
+  }, {});
+
+  // Format each group into a string like "Thứ 2 - Thứ 6: 08:00 - 17:00"
+  const formattedStrings = Object.entries(shiftsByTime).map(([timeRange, days]) => {
+    if (days.length === 0) return '';
+    
+    // Sort days chronologically
+    days.sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+
+    // Group consecutive days
+    const dayGroups = [];
+    if (days.length > 0) {
+      let currentGroup = [days[0]];
+      for (let i = 1; i < days.length; i++) {
+        if (dayOrder.indexOf(days[i]) === dayOrder.indexOf(days[i-1]) + 1) {
+          currentGroup.push(days[i]);
+        } else {
+          dayGroups.push(currentGroup);
+          currentGroup = [days[i]];
+        }
+      }
+      dayGroups.push(currentGroup);
+    }
+
+    const dayString = dayGroups.map(group => {
+      if (group.length > 2) { // Show range for 3 or more consecutive days
+        return `${dayMap[group[0]]} - ${dayMap[group[group.length - 1]]}`;
+      }
+      return group.map(day => dayMap[day]).join(', '); // List individual days
+    }).join(', ');
+    
+    return `${dayString}: ${timeRange}`;
+  });
+
+  return formattedStrings.join('; ') || 'Chưa cập nhật';
+};
 
 const Home = () => {
   // Clinic slideshow state
@@ -24,7 +104,38 @@ const Home = () => {
     const fetchClinics = async () => {
       try {
         const response = await apiService.getClinics();
-        setClinics(Array.isArray(response?.content) ? response.content : []);
+        const clinicsData = Array.isArray(response?.content) ? response.content : [];
+        
+        // Fetch work shifts for each clinic
+        const clinicsWithWorkShifts = await Promise.all(
+          clinicsData.map(async (clinic) => {
+            try {
+              const clinicId = clinic.clinic_id || clinic.clinicId;
+              if (clinicId) {
+                const shifts = await apiService.getStandardWorkShiftsByClinic(clinicId);
+                return {
+                  ...clinic,
+                  workShifts: shifts || [],
+                  formattedWorkingHours: formatWorkingHours(shifts || [])
+                };
+              }
+              return {
+                ...clinic,
+                workShifts: [],
+                formattedWorkingHours: 'Chưa cập nhật'
+              };
+            } catch (error) {
+              console.error(`Error fetching work shifts for clinic ${clinic.clinic_id}:`, error);
+              return {
+                ...clinic,
+                workShifts: [],
+                formattedWorkingHours: 'Chưa cập nhật'
+              };
+            }
+          })
+        );
+        
+        setClinics(clinicsWithWorkShifts);
       } catch (error) {
         console.error('Error fetching clinics:', error);
       } finally {
@@ -72,8 +183,12 @@ const Home = () => {
 
   // Auto-play slideshow
   useEffect(() => {
+    const nextSlideHandler = () => {
+      setCurrentSlide((prev) => (prev + 1) % totalSlides);
+    };
+
     if (totalSlides > 1 && !loading && clinics.length > 0) {
-      const timer = setInterval(nextSlide, 6000);
+      const timer = setInterval(nextSlideHandler, 6000);
       return () => clearInterval(timer);
     }
   }, [totalSlides, loading, clinics.length]);
@@ -275,7 +390,7 @@ const Home = () => {
                                 
                                 {/* Clinic name - Fixed height */}
                                 <div className="h-16 flex items-center justify-center mb-4">
-                                  <h3 className="text-lg font-bold text-gray-900 text-center group-hover:text-blue-600 transition-colors duration-300 leading-tight"
+                                  <h3 className="text-lg font-bold text-gray-900 text-center leading-tight"
                                       style={{
                                         display: '-webkit-box',
                                         WebkitLineClamp: 2,
@@ -283,30 +398,34 @@ const Home = () => {
                                         overflow: 'hidden'
                                       }}>
                                     {clinic.name}
-                                      
                                   </h3>
                                 </div>
                                 
-                                {/* Clinic info - Fixed height */}
-                                <div className="h-20 flex items-start justify-center mb-6">
-                                  <p className="text-sm text-gray-600 text-center leading-relaxed"
+                                {/* Clinic info - Increased height */}
+                                <div className="h-24 flex flex-col items-center justify-center mb-6 text-center">
+                                  <p className="text-sm text-gray-600 leading-relaxed"
                                      style={{
                                        display: '-webkit-box',
-                                       WebkitLineClamp: 3,
+                                       WebkitLineClamp: 2,
                                        WebkitBoxOrient: 'vertical',
                                        overflow: 'hidden'
                                      }}>
                                     {clinic.address}
                                   </p>
+                                  <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
+                                    <Phone className="w-4 h-4" />
+                                    <span>{clinic.phoneNumber || clinic.phone_number || 'Chưa cập nhật'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2 mt-1 text-sm text-gray-500">
+                                    <Clock className="w-4 h-4" />
+                                    <span>{clinic.formattedWorkingHours || 'Chưa cập nhật'}</span>
+                                  </div>
                                 </div>
                                 
-                         
-                                
-                                {/* Hover overlay with button */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end justify-center p-6">
+                                <div className="mt-auto">
                                   <Link
                                     to={`/book-appointment?clinicId=${clinic.clinic_id || clinic.clinicId}`}
-                                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform scale-0 group-hover:scale-100 delay-100 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                                   >
                                     <Calendar className="w-5 h-5" />
                                     Đặt lịch tại đây

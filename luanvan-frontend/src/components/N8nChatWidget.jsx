@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import '@n8n/chat/style.css';
 import { createChat } from '@n8n/chat';
 
 const N8nChatWidget = () => {
-  const [isChatVisible, setIsChatVisible] = useState(false); // Thêm trạng thái quản lý hiển thị
+  //const [isChatVisible, setIsChatVisible] = useState(false); // Thêm trạng thái quản lý hiển thị
   const chatInitialized = useRef(false);
-  const chatContainer = useRef(null);
+  //const chatContainer = useRef(null);
 
   useEffect(() => {
     // Chỉ khởi tạo chat một lần
@@ -85,14 +85,14 @@ const N8nChatWidget = () => {
   return (
     <>
       {/* Nút thu gọn/mở rộng */}
-      <button onClick={() => setIsChatVisible(!isChatVisible)}>
+      {/* <button onClick={() => setIsChatVisible(!isChatVisible)}>
         {isChatVisible ? 'Thu gọn' : 'Mở rộng'}
-      </button>
+      </button> */}
 
       {/* Hiển thị widget chat dựa trên trạng thái */}
-      {isChatVisible && (
+      {/* {isChatVisible && (
         <div id="n8n-chat" ref={chatContainer}></div>
-      )}
+      )} */}
 
       {/* CSS customization cho chat widget */}
       <style jsx global>{`
@@ -128,7 +128,8 @@ const N8nChatWidget = () => {
           --chat--subtitle--font-size: 0.875rem;
           --chat--subtitle--line-height: 1.5;
 
-          --chat--textarea--height: 50px;
+          --chat--textarea--height: auto;
+          --chat--textarea--max-height: 120px; /* Giới hạn chiều cao tối đa */
 
           --chat--message--font-size: 0.875rem;
           --chat--message--padding: 0.75rem;
@@ -160,6 +161,94 @@ const N8nChatWidget = () => {
         /* Đảm bảo chat button không bị che bởi footer */
         #n8n-chat {
           z-index: 1000;
+        }
+
+        /* ----- Thiết kế lại Input (V5 - Giải pháp cuối cùng) ----- */
+
+        /* Biến form thành một container duy nhất, có style như một input */
+        #n8n-chat form {
+          position: relative !important;
+          display: flex !important;
+          align-items: flex-start; /* Căn lề trên để khi textarea cao lên, nút không nhảy */
+          padding: 0.5rem !important; /* 8px padding */
+          background-color: #f0f4f9 !important; /* Nền xám rất nhạt */
+          border-top: 1px solid #e2e8f0 !important;
+        }
+
+        /* Wrapper cho textarea và nút bấm, tạo thành khối input chính */
+        .chat-input-wrapper {
+            position: relative;
+            display: flex;
+            flex: 1;
+            align-items: center;
+            background-color: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 9999px; /* Bo tròn hoàn toàn */
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        
+        #n8n-chat form:focus-within .chat-input-wrapper,
+        .chat-input-wrapper:focus-within {
+             outline: none !important;
+             border-color: #3b82f6 !important;
+             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2) !important;
+        }
+
+        /* Ô nhập văn bản - loại bỏ style mặc định */
+        #n8n-chat textarea {
+          flex: 1 !important;
+          width: 100% !important;
+          padding: 12px 56px 12px 18px !important; /* Chừa đủ không gian cho nút */
+          background-color: transparent !important;
+          border: none !important;
+          resize: none !important;
+          overflow-y: auto !important;
+          max-height: 120px !important;
+          min-height: 24px !important;
+          line-height: 1.5 !important;
+          font-size: 1rem !important;
+          color: #1e293b !important;
+          box-shadow: none !important;
+          outline: none !important;
+        }
+
+        /* Nút gửi - Đặt bên trong wrapper */
+        #n8n-chat form button[type="submit"] {
+          position: absolute !important;
+          right: 6px !important;
+          bottom: 6px !important;
+          width: 36px !important;
+          height: 36px !important;
+          border-radius: 50% !important;
+          background-color: #3b82f6 !important;
+          border: none !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          cursor: pointer !important;
+          transition: background-color 0.2s, transform 0.1s !important;
+          z-index: 5 !important;
+        }
+        
+        #n8n-chat form button[type="submit"]:hover {
+          background-color: #2563eb !important;
+          transform: scale(1.05);
+        }
+
+        /* JS để thêm wrapper (vì không thể sửa JSX) */
+        const form = document.querySelector('#n8n-chat form');
+        if (form && !form.querySelector('.chat-input-wrapper')) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'chat-input-wrapper';
+            
+            const textarea = form.querySelector('textarea');
+            const button = form.querySelector('button[type="submit"]');
+
+            if (textarea && button) {
+                wrapper.appendChild(textarea);
+                wrapper.appendChild(button);
+                form.appendChild(wrapper);
+            }
         }
       `}</style>
     </>
