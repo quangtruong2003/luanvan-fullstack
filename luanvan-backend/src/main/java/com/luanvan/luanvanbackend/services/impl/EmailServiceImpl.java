@@ -58,26 +58,20 @@ public class EmailServiceImpl implements EmailService {
     @Async("emailTaskExecutor")
     public void sendAppointmentConfirmationEmail(Appointment appointment) {
         log.info("Sending appointment confirmation email for appointment: {}", appointment.getAppointmentId());
-        System.out.println("📧 EmailServiceImpl: Bắt đầu gửi email xác nhận");
-        System.out.println("📧 To: " + appointment.getPatient().getEmail());
-        System.out.println("📧 From: " + fromEmail);
-        
         try {
             String subject = "🏥 Thông Tin Lịch Hẹn Khám Bệnh - " + appointment.getClinic().getName();
             String content = buildConfirmationEmailContent(appointment);
-            
-            System.out.println("📧 Subject: " + subject);
-            System.out.println("📧 Content length: " + content.length());
-            
-            // Gửi email ngay lập tức thay vì async để debug
+
+            CompletableFuture.runAsync(() -> {
                 sendHtmlEmail(appointment.getPatient().getEmail(), subject, content);
                 log.info("Confirmation email sent successfully for appointment: {}", appointment.getAppointmentId());
-            System.out.println("✅ Email xác nhận đã gửi thành công");
-            
+            }).exceptionally(ex -> {
+                log.error("Failed to send confirmation email for appointment: " + appointment.getAppointmentId(), ex);
+                return null;
+            });
+
         } catch (Exception e) {
             log.error("Error sending confirmation email for appointment: " + appointment.getAppointmentId(), e);
-            System.err.println("❌ Lỗi gửi email xác nhận: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
@@ -166,46 +160,19 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     public void sendHtmlEmail(String to, String subject, String htmlContent) {
-        System.out.println("📧 ===== SEND HTML EMAIL =====");
-        System.out.println("📧 To: " + to);
-        System.out.println("📧 From: " + fromEmail);
-        System.out.println("📧 Subject: " + subject);
-        System.out.println("📧 Content length: " + htmlContent.length());
-        
         try {
-            System.out.println("📧 Tạo MimeMessage...");
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            System.out.println("📧 Set From: " + fromEmail);
             helper.setFrom(fromEmail);
-            
-            System.out.println("📧 Set To: " + to);
             helper.setTo(to);
-            
-            System.out.println("📧 Set Subject: " + subject);
             helper.setSubject(subject);
-            
-            System.out.println("📧 Set HTML content...");
             helper.setText(htmlContent, true);
-
-            System.out.println("📧 Đang gửi email qua SMTP...");
-            System.out.println("📧 SMTP Host: " + ((JavaMailSenderImpl) mailSender).getHost());
-            System.out.println("📧 SMTP Port: " + ((JavaMailSenderImpl) mailSender).getPort());
-            System.out.println("📧 SMTP Username: " + ((JavaMailSenderImpl) mailSender).getUsername());
 
             mailSender.send(message);
             log.info("HTML email sent successfully to: {}", to);
-            System.out.println("✅ Email đã gửi thành công qua SMTP");
-            System.out.println("📧 ===== HOÀN THÀNH SEND HTML EMAIL =====");
         } catch (MessagingException e) {
             log.error("Error sending HTML email to: " + to, e);
-            System.err.println("❌ ===== LỖI SEND HTML EMAIL =====");
-            System.err.println("❌ Lỗi SMTP: " + e.getMessage());
-            System.err.println("❌ Exception type: " + e.getClass().getSimpleName());
-            System.err.println("❌ Stack trace:");
-            e.printStackTrace();
-            System.err.println("❌ ===== KẾT THÚC LỖI SEND HTML EMAIL =====");
             throw new RuntimeException("Failed to send HTML email", e);
         }
     }
@@ -213,41 +180,147 @@ public class EmailServiceImpl implements EmailService {
     // Private methods for building email content
     private String buildWelcomeEmailContent(User user) {
         return String.format("""
-            <html>
+            <!DOCTYPE html>
+            <html lang="vi">
             <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Chào mừng đến với Medical.Care</title>
                 <style>
-                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-                    .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; }
-                    .header { background-color: #f8f9fa; padding: 20px; text-align: center; border-bottom: 1px solid #ddd; }
-                    .header h1 { color: #0056b3; margin: 0; }
-                    .content { padding: 30px 20px; }
-                    .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #ddd; }
-                    ul { list-style-type: none; padding: 0; }
-                    li { margin-bottom: 10px; }
+                    * { margin: 0; padding: 0; box-sizing: border-box; }
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f0f8ff; }
+                    .email-container { max-width: 650px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 16px; overflow: hidden; }
+                    .header { background: linear-gradient(135deg, #00b4d8 0%%, #0077b6 50%%, #023e8a 100%%); color: white; padding: 50px 30px; text-align: center; position: relative; }
+                    .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="medical" patternUnits="userSpaceOnUse" width="20" height="20"><circle cx="10" cy="10" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%%23medical)"/></svg>'); }
+                    .header .logo { font-size: 32px; font-weight: 700; margin-bottom: 10px; position: relative; z-index: 1; }
+                    .header .tagline { font-size: 16px; opacity: 0.9; position: relative; z-index: 1; }
+                    .medical-icon { width: 60px; height: 60px; margin: 0 auto 20px; background: rgba(255,255,255,0.2); border-radius: 50%%; display: flex; align-items: center; justify-content: center; position: relative; z-index: 1; }
+                    .content { padding: 50px 40px; }
+                    .welcome-title { color: #023e8a; font-size: 28px; font-weight: 600; margin-bottom: 20px; text-align: center; }
+                    .welcome-message { font-size: 16px; color: #555; margin-bottom: 30px; text-align: center; line-height: 1.8; }
+                    .user-info-card { background: linear-gradient(135deg, #f8fdff 0%%, #e6f7ff 100%%); border-left: 4px solid #00b4d8; padding: 25px; border-radius: 12px; margin: 30px 0; }
+                    .user-info-title { color: #023e8a; font-size: 18px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; }
+                    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+                    .info-item { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+                    .info-label { font-size: 12px; color: #0077b6; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+                    .info-value { font-size: 14px; color: #333; font-weight: 500; }
+                    .features-section { margin: 30px 0; }
+                    .features-title { color: #023e8a; font-size: 20px; font-weight: 600; margin-bottom: 20px; text-align: center; }
+                    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+                    .feature-item { text-align: center; padding: 20px; background: #f8fdff; border-radius: 12px; border: 1px solid #e6f7ff; }
+                    .feature-icon { width: 40px; height: 40px; background: #00b4d8; border-radius: 50%%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+                    .feature-title { font-size: 14px; font-weight: 600; color: #023e8a; margin-bottom: 8px; }
+                    .feature-desc { font-size: 12px; color: #666; line-height: 1.5; }
+                    .cta-section { text-align: center; margin: 40px 0; }
+                    .cta-button { display: inline-block; background: linear-gradient(135deg, #00b4d8 0%%, #0077b6 100%%); color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 5px 15px rgba(0,180,216,0.3); transition: all 0.3s ease; }
+                    .footer { background: #023e8a; color: white; padding: 30px; text-align: center; }
+                    .footer-content { margin-bottom: 20px; }
+                    .footer-logo { font-size: 24px; font-weight: 700; margin-bottom: 10px; }
+                    .footer-links { margin: 15px 0; }
+                    .footer-links a { color: #90cdf4; text-decoration: none; margin: 0 15px; font-size: 14px; }
+                    .footer-bottom { font-size: 12px; opacity: 0.8; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 20px; }
+                    @media (max-width: 600px) {
+                        .email-container { margin: 10px; border-radius: 12px; }
+                        .header { padding: 30px 20px; }
+                        .content { padding: 30px 20px; }
+                        .info-grid { grid-template-columns: 1fr; }
+                        .features-grid { grid-template-columns: 1fr; }
+                    }
                 </style>
             </head>
             <body>
-                <div class="container">
+                <div class="email-container">
                     <div class="header">
-                        <h1>Chào mừng bạn đến với Medical Care!</h1>
+                        <div class="medical-icon">
+                            <svg width="30" height="30" fill="white" viewBox="0 0 24 24">
+                                <path d="M19.5 3h-15A1.5 1.5 0 003 4.5v15A1.5 1.5 0 004.5 21h15a1.5 1.5 0 001.5-1.5v-15A1.5 1.5 0 0019.5 3zM18 18H6V6h12v12zm-7-7H9V9h2V7h2v2h2v2h-2v2h-2v-2z"/>
+                            </svg>
+                        </div>
+                        <div class="logo">Medical.Care</div>
+                        <div class="tagline">Chăm sóc sức khỏe chuyên nghiệp</div>
                     </div>
+                    
                     <div class="content">
-                <h2>Chào mừng %s!</h2>
-                        <p>Cảm ơn bạn đã tin tưởng và sử dụng dịch vụ đặt lịch hẹn y tế của chúng tôi.</p>
-                        <p>Bạn đã tạo thành công lịch hẹn đầu tiên. Chúng tôi cam kết mang đến cho bạn trải nghiệm chăm sóc sức khỏe tốt nhất.</p>
-                        <p><strong>Thông tin tài khoản của bạn:</strong></p>
-                        <ul>
-                            <li><strong>Họ tên:</strong> %s</li>
-                            <li><strong>Email:</strong> %s</li>
-                            <li><strong>Số điện thoại:</strong> %s</li>
-                </ul>
-                        <p>Nếu bạn có bất kỳ thắc mắc nào, đừng ngần ngại liên hệ với chúng tôi.</p>
-                        <br>
-                        <p>Trân trọng,<br>Đội ngũ Medical Care</p>
+                        <h1 class="welcome-title">🎉 Chào mừng %s đến với Medical.Care!</h1>
+                        
+                        <p class="welcome-message">
+                            Cảm ơn bạn đã tin tưởng và chọn Medical.Care làm đối tác chăm sóc sức khỏe. 
+                            Chúng tôi cam kết mang đến cho bạn dịch vụ y tế chất lượng cao với công nghệ hiện đại nhất.
+                        </p>
+                        
+                        <div class="user-info-card">
+                            <div class="user-info-title">
+                                <svg width="20" height="20" fill="#023e8a" viewBox="0 0 24 24" style="margin-right: 10px;">
+                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                </svg>
+                                Thông tin tài khoản của bạn
+                            </div>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="info-label">Họ và tên</div>
+                                    <div class="info-value">%s</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Email</div>
+                                    <div class="info-value">%s</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Số điện thoại</div>
+                                    <div class="info-value">%s</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">Trạng thái</div>
+                                    <div class="info-value" style="color: #28a745; font-weight: 600;">✅ Đã kích hoạt</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="features-section">
+                            <h2 class="features-title">Các tính năng nổi bật của Medical.Care</h2>
+                            <div class="features-grid">
+                                <div class="feature-item">
+                                    <div class="feature-icon">📅</div>
+                                    <div class="feature-title">Đặt lịch dễ dàng</div>
+                                    <div class="feature-desc">Đặt lịch khám bệnh 24/7 với giao diện thân thiện</div>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">👨‍⚕️</div>
+                                    <div class="feature-title">Bác sĩ chuyên nghiệp</div>
+                                    <div class="feature-desc">Đội ngũ bác sĩ giàu kinh nghiệm và tận tâm</div>
+                                </div>
+                                <div class="feature-item">
+                                    <div class="feature-icon">📱</div>
+                                    <div class="feature-title">Quản lý thông minh</div>
+                                    <div class="feature-desc">Theo dõi lịch sử khám bệnh và nhắc nhở tự động</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="cta-section">
+                            <a href="#" class="cta-button">Khám phá Medical.Care ngay</a>
+                        </div>
+                        
+                        <p style="text-align: center; color: #666; font-size: 14px; margin-top: 30px;">
+                            Cần hỗ trợ? Liên hệ với chúng tôi qua <a href="mailto:support@medical.care" style="color: #00b4d8;">support@medical.care</a> 
+                            hoặc hotline <strong style="color: #023e8a;">1900 123 456</strong>
+                        </p>
                     </div>
+                    
                     <div class="footer">
-                        <p>&copy; 2025 Medical Care. All rights reserved.</p>
-                        <p>Đây là email tự động, vui lòng không trả lời.</p>
+                        <div class="footer-content">
+                            <div class="footer-logo">Medical.Care</div>
+                            <div style="font-size: 14px; margin-bottom: 15px;">Nền tảng chăm sóc sức khỏe hàng đầu Việt Nam</div>
+                            <div class="footer-links">
+                                <a href="#">Về chúng tôi</a>
+                                <a href="#">Dịch vụ</a>
+                                <a href="#">Liên hệ</a>
+                                <a href="#">Chính sách bảo mật</a>
+                            </div>
+                        </div>
+                        <div class="footer-bottom">
+                            <p>&copy; 2025 Medical.Care. Tất cả quyền được bảo lưu.</p>
+                            <p>Email này được gửi tự động, vui lòng không trả lời trực tiếp.</p>
+                        </div>
                     </div>
                 </div>
             </body>
@@ -272,274 +345,260 @@ public class EmailServiceImpl implements EmailService {
         }
         
         return String.format("""
-            <!DOCTYPE html>
-            <html lang="vi">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                    body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f7f6; }
-                    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-                    .header { background: linear-gradient(135deg, #4facfe 0%%, #00f2fe 100%%); color: white; padding: 40px 20px; text-align: center; }
-                    .header h1 { margin: 0; font-size: 28px; }
-                    .content { padding: 30px; color: #555; }
-                    .content h2 { color: #333; font-size: 22px; }
-                    .appointment-details { background-color: #f9f9f9; border: 1px solid #eeeeee; border-radius: 8px; padding: 20px; margin: 20px 0; }
-                    .detail-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e9e9e9; }
-                    .detail-item:last-child { border-bottom: none; }
-                    .detail-item strong { color: #333; }
-                    .cta-button { display: inline-block; background-color: #1a73e8; color: #ffffff; padding: 12px 25px; border-radius: 25px; text-decoration: none; font-weight: bold; margin-top: 20px; }
-                    .footer { background-color: #333; color: #bbb; padding: 20px; text-align: center; font-size: 12px; }
-                    .footer a { color: #4facfe; text-decoration: none; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>Xác Nhận Lịch Hẹn</h1>
-                    </div>
-                    <div class="content">
-                        <h2>Chào %s,</h2>
-                        <p>Cảm ơn bạn đã đặt lịch hẹn tại <strong>%s</strong>. Lịch hẹn của bạn đã được ghi nhận với các thông tin chi tiết dưới đây:</p>
-                        
-                        <div class="appointment-details">
-                            <div class="detail-item"><strong>Mã lịch hẹn:</strong><span> #%d</span></div>
-                            <div class="detail-item"><strong>Trạng thái:</strong><span style="font-weight: bold; color: %s;"> %s</span></div>
-                            <div class="detail-item"><strong>Bác sĩ:</strong><span> %s</span></div>
-                            <div class="detail-item"><strong>Chuyên khoa:</strong><span> %s</span></div>
-                            <div class="detail-item"><strong>Ngày giờ:</strong><span> %s</span></div>
-                            <div class="detail-item"><strong>Địa chỉ:</strong><span> %s</span></div>
-                            <div class="detail-item"><strong>Tiền đặt cọc:</strong><span> %s</span></div>
-                        </div>
-                        
-                        <h3>Lưu ý quan trọng:</h3>
-                        <ul>
-                            <li>- Vui lòng có mặt trước giờ hẹn 15 phút để làm thủ tục.</li>
-                            <li>- Mang theo CMND/CCCD, thẻ BHYT (nếu có) và các giấy tờ khám bệnh cũ.</li>
-                            <li>- %s</li>
-                </ul>
-                    
-                        <p style="text-align:center;">
-                            <a href="#" class="cta-button">Quản lý lịch hẹn</a>
-                        </p>
-                        
-                        <p>Nếu có bất kỳ thắc mắc nào, vui lòng liên hệ hotline: %s.</p>
-                        <p>Chúc bạn một ngày tốt lành!</p>
-                    </div>
-                    <div class="footer">
-                        <p>&copy; 2025 %s. All Rights Reserved.</p>
-                        <p><a href="#">Chính sách bảo mật</a> | <a href="#">Liên hệ</a></p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """,
+        <!DOCTYPE html>
+        <html lang='vi'>
+        <head>
+            <meta charset='UTF-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+            <title>Xác nhận lịch hẹn</title>
+            <link href='https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap' rel='stylesheet'>
+        </head>
+        <body style='margin:0;padding:0;font-family:Inter,Roboto,Arial,sans-serif;background:#f7f8fa;'>
+            <table width='100%%' cellpadding='0' cellspacing='0' style='background:#f7f8fa;'>
+                <tr><td align='center'>
+                    <table width='100%%' style='max-width:480px;background:#fff;border-radius:16px;box-shadow:0 2px 12px #0001;margin:32px 0;padding:0 0 24px 0;'>
+                        <tr><td style='padding:32px 24px 8px 24px;text-align:center;'>
+                            <img src='https://cdn-icons-png.flaticon.com/512/3209/3209265.png' width='64' alt='Medical.Care' style='margin-bottom:16px;border-radius:12px;'>
+                            <h2 style='margin:0 0 8px 0;font-size:1.5rem;color:#1976d2;'>Xác nhận lịch hẹn thành công</h2>
+                            <div style='color:#333;font-size:1.1rem;margin-bottom:8px;'>Chào %s, cảm ơn bạn đã đặt lịch tại <b>%s</b>!</div>
+                            <div style='color:#666;font-size:1rem;margin-bottom:16px;'>%s</div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='background:#f1f5fb;border-radius:12px;padding:20px 16px;margin-bottom:18px;'>
+                                <div style='font-size:1.1rem;font-weight:600;color:#1976d2;margin-bottom:8px;'>Thông tin lịch hẹn</div>
+                                <div style='margin-bottom:6px;'><b>Mã lịch hẹn:</b> #%s</div>
+                                <div style='margin-bottom:6px;'><b>Bác sĩ:</b> %s</div>
+                                <div style='margin-bottom:6px;'><b>Chuyên khoa:</b> %s</div>
+                                <div style='margin-bottom:6px;'><b>Thời gian:</b> %s</div>
+                                <div style='margin-bottom:6px;'><b>Địa chỉ:</b> %s</div>
+                                <div style='margin-bottom:6px;'><b>Trạng thái:</b> <span style='color:%s;font-weight:600;'>%s</span></div>
+                                <div style='margin-bottom:6px;'><b>Tiền đặt cọc:</b> %s</div>
+                            </div>
+                            <div style='margin-bottom:18px;text-align:center;'>
+                                <a href='https://medical.care/lich-hen' style='display:inline-block;padding:12px 28px;background:#1976d2;color:#fff;border-radius:8px;font-weight:600;text-decoration:none;font-size:1rem;margin-right:8px;'>Xem chi tiết</a>
+                                <a href='https://medical.care/lich-hen/doi' style='display:inline-block;padding:12px 28px;background:#e3e6ea;color:#1976d2;border-radius:8px;font-weight:600;text-decoration:none;font-size:1rem;'>Đổi lịch</a>
+                            </div>
+                            <div style='background:#fffbe6;border-radius:8px;padding:12px 16px;color:#b26a00;font-size:0.98rem;margin-bottom:18px;'>
+                                <b>Lưu ý:</b> %s
+                            </div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='margin:18px 0 0 0;font-size:0.97rem;color:#666;'>
+                                Nếu có thắc mắc, vui lòng liên hệ <b>Hotline: %s</b> hoặc trả lời email này.<br>
+                                <span style='color:#aaa;font-size:0.95rem;'>Email này được gửi tự động, vui lòng không trả lời trực tiếp.</span>
+                            </div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='margin:24px 0 0 0;text-align:center;color:#bbb;font-size:0.95rem;'>
+                                &copy; 2025 Medical.Care. All rights reserved.
+                            </div>
+                        </td></tr>
+                    </table>
+                </td></tr>
+            </table>
+        </body>
+        </html>
+        """,
             appointment.getPatient().getFullName(),
             appointment.getClinic().getName(),
+            paymentNote,
             appointment.getAppointmentId(),
-            appointment.isDepositPaid() ? "#28a745" : "#f0ad4e",
-            appointment.getStatus().toString(), // Using status directly from appointment
             appointment.getDoctor().getFullName(),
             appointment.getSpecialty().getName(),
             appointment.getAppointmentDateTime().format(DATE_FORMATTER),
-            appointment.getClinic().getAddress() != null ? appointment.getClinic().getAddress() : "N/A",
-            depositInfo,
+            appointment.getClinic().getAddress() != null ? appointment.getClinic().getAddress() : "Đang cập nhật",
+            appointment.isDepositPaid() ? "#388e3c" : "#f57c00",
+            paymentStatus,
+            depositInfo.isEmpty() ? "Miễn phí" : depositInfo,
             paymentNote,
-            appointment.getClinic().getPhoneNumber() != null ? appointment.getClinic().getPhoneNumber() : "N/A",
-            appointment.getClinic().getName()
+            appointment.getClinic().getPhoneNumber() != null ? appointment.getClinic().getPhoneNumber() : "1900 123 456"
         );
     }
 
     private String buildReminderEmailContent(Appointment appointment) {
         return String.format("""
-            <!DOCTYPE html>
-            <html lang="vi">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                    body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f7f6; }
-                    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-                    .header { background: linear-gradient(135deg, #f5a623 0%%, #f76b1c 100%%); color: white; padding: 40px 20px; text-align: center; }
-                    .header h1 { margin: 0; font-size: 28px; }
-                    .content { padding: 30px; color: #555; }
-                    .content h2 { color: #333; font-size: 22px; }
-                    .appointment-details { background-color: #fffaf0; border: 1px solid #ffeeba; border-radius: 8px; padding: 20px; margin: 20px 0; }
-                    .detail-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #fff0c7; }
-                    .detail-item:last-child { border-bottom: none; }
-                    .detail-item strong { color: #333; }
-                    .cta-button { display: inline-block; background-color: #1a73e8; color: #ffffff; padding: 12px 25px; border-radius: 25px; text-decoration: none; font-weight: bold; margin-top: 20px; }
-                    .footer { background-color: #333; color: #bbb; padding: 20px; text-align: center; font-size: 12px; }
-                    .footer a { color: #f5a623; text-decoration: none; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>Nhắc Nhở Lịch Hẹn</h1>
-                    </div>
-                    <div class="content">
-                        <h2>Chào %s,</h2>
-                        <p>Đây là lời nhắc nhở thân thiện về lịch hẹn sắp tới của bạn tại <strong>%s</strong>.</p>
-                        
-                        <div class="appointment-details">
-                            <div class="detail-item"><strong>Mã lịch hẹn:</strong><span> #%d</span></div>
-                            <div class="detail-item"><strong>Bác sĩ:</strong><span> %s</span></div>
-                            <div class="detail-item"><strong>Ngày giờ:</strong><span> %s</span></div>
-                </div>
-                
-                        <h3>Vui lòng chuẩn bị:</h3>
-                <ul>
-                            <li>- Có mặt trước 15 phút để làm thủ tục.</li>
-                            <li>- Mang theo giấy tờ tùy thân và các kết quả khám bệnh cũ (nếu có).</li>
-                </ul>
-                
-                        <p style="text-align:center;">
-                            <a href="#" class="cta-button">Xem chi tiết lịch hẹn</a>
-                        </p>
-                        
-                        <p>Nếu bạn không thể đến, vui lòng hủy hoặc dời lịch sớm. Trân trọng cảm ơn!</p>
-                    </div>
-                    <div class="footer">
-                        <p>&copy; 2025 %s. All Rights Reserved.</p>
-                        <p><a href="#">Chính sách bảo mật</a> | <a href="#">Liên hệ</a></p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """,
+        <!DOCTYPE html>
+        <html lang='vi'>
+        <head>
+            <meta charset='UTF-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+            <title>Nhắc nhở lịch hẹn</title>
+            <link href='https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap' rel='stylesheet'>
+        </head>
+        <body style='margin:0;padding:0;font-family:Inter,Roboto,Arial,sans-serif;background:#fff8e1;'>
+            <table width='100%%' cellpadding='0' cellspacing='0' style='background:#fff8e1;'>
+                <tr><td align='center'>
+                    <table width='100%%' style='max-width:480px;background:#fff;border-radius:16px;box-shadow:0 2px 12px #0001;margin:32px 0;padding:0 0 24px 0;'>
+                        <tr><td style='padding:32px 24px 8px 24px;text-align:center;'>
+                            <img src='https://cdn-icons-png.flaticon.com/512/3652/3652267.png' width='64' alt='Medical.Care' style='margin-bottom:16px;border-radius:12px;'>
+                            <h2 style='margin:0 0 8px 0;font-size:1.5rem;color:#ff9800;'>⏰ Nhắc nhở lịch hẹn</h2>
+                            <div style='color:#333;font-size:1.1rem;margin-bottom:8px;'>Chào %s, bạn có lịch hẹn sắp tới!</div>
+                            <div style='color:#666;font-size:1rem;margin-bottom:16px;'>Đừng quên cuộc hẹn quan trọng tại <b>%s</b></div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='background:#fff3e0;border-radius:12px;padding:20px 16px;margin-bottom:18px;'>
+                                <div style='font-size:1.1rem;font-weight:600;color:#ff9800;margin-bottom:8px;'>🚨 Lịch hẹn sắp diễn ra</div>
+                                <div style='margin-bottom:6px;'><b>Mã lịch hẹn:</b> #%s</div>
+                                <div style='margin-bottom:6px;'><b>Bác sĩ:</b> %s</div>
+                                <div style='margin-bottom:6px;'><b>Thời gian:</b> %s</div>
+                                <div style='margin-bottom:6px;'><b>Địa chỉ:</b> %s</div>
+                            </div>
+                            <div style='background:#e8f5e8;border-radius:8px;padding:12px 16px;color:#2e7d32;font-size:0.98rem;margin-bottom:18px;'>
+                                <b>✅ Chuẩn bị:</b> Có mặt trước 15 phút, mang CMND/CCCD và thẻ BHYT (nếu có)
+                            </div>
+                            <div style='margin-bottom:18px;text-align:center;'>
+                                <a href='https://medical.care/lich-hen' style='display:inline-block;padding:12px 28px;background:#ff9800;color:#fff;border-radius:8px;font-weight:600;text-decoration:none;font-size:1rem;margin-right:8px;'>Xem chi tiết</a>
+                                <a href='https://medical.care/lich-hen/doi' style='display:inline-block;padding:12px 28px;background:#e3e6ea;color:#ff9800;border-radius:8px;font-weight:600;text-decoration:none;font-size:1rem;'>Đổi lịch</a>
+                            </div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='margin:18px 0 0 0;font-size:0.97rem;color:#666;'>
+                                Nếu có thắc mắc, vui lòng liên hệ <b>Hotline: 1900 123 456</b> hoặc trả lời email này.<br>
+                                <span style='color:#aaa;font-size:0.95rem;'>Email này được gửi tự động, vui lòng không trả lời trực tiếp.</span>
+                            </div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='margin:24px 0 0 0;text-align:center;color:#bbb;font-size:0.95rem;'>
+                                &copy; 2025 Medical.Care. All rights reserved.
+                            </div>
+                        </td></tr>
+                    </table>
+                </td></tr>
+            </table>
+        </body>
+        </html>
+        """,
             appointment.getPatient().getFullName(),
             appointment.getClinic().getName(),
             appointment.getAppointmentId(),
             appointment.getDoctor().getFullName(),
             appointment.getAppointmentDateTime().format(DATE_FORMATTER),
-            appointment.getClinic().getName()
+            appointment.getClinic().getAddress() != null ? appointment.getClinic().getAddress() : "Đang cập nhật"
         );
     }
 
     private String buildCancellationEmailContent(Appointment appointment, String reason) {
         return String.format("""
-            <!DOCTYPE html>
-            <html lang="vi">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                    body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f7f6; }
-                    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-                    .header { background: linear-gradient(135deg, #d62828 0%%, #f77f00 100%%); color: white; padding: 40px 20px; text-align: center; }
-                    .header h1 { margin: 0; font-size: 28px; }
-                    .content { padding: 30px; color: #555; }
-                    .content h2 { color: #333; font-size: 22px; }
-                    .appointment-details { background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 20px; margin: 20px 0; }
-                    .detail-item { padding: 8px 0; }
-                    .detail-item strong { color: #721c24; }
-                    .cta-button { display: inline-block; background-color: #28a745; color: #ffffff; padding: 12px 25px; border-radius: 25px; text-decoration: none; font-weight: bold; margin-top: 20px; }
-                    .footer { background-color: #333; color: #bbb; padding: 20px; text-align: center; font-size: 12px; }
-                    .footer a { color: #d62828; text-decoration: none; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>Thông Báo Hủy Lịch Hẹn</h1>
-                    </div>
-                    <div class="content">
-                        <h2>Chào %s,</h2>
-                        <p>Chúng tôi rất tiếc phải thông báo rằng lịch hẹn của bạn tại <strong> %s</strong> đã được hủy.</p>
-                        
-                        <div class="appointment-details">
-                            <div class="detail-item"><strong>Mã lịch hẹn:</strong> #%d</div>
-                            <div class="detail-item"><strong>Thời gian dự kiến:</strong> %s</div>
-                            <div class="detail-item"><strong>Lý do hủy:</strong> %s</div>
-                        </div>
-                        
-                        <p>Nếu việc hủy này là một sự nhầm lẫn hoặc bạn muốn đặt lại lịch, vui lòng liên hệ với chúng tôi qua hotline hoặc đặt lịch mới qua hệ thống.</p>
-                        <p>Tiền đặt cọc (nếu có) sẽ được xử lý theo chính sách của phòng khám.</p>
-                        
-                        <p style="text-align:center;">
-                            <a href="#" class="cta-button">Đặt lịch hẹn mới</a>
-                        </p>
-                        
-                        <p>Chúng tôi xin lỗi vì sự bất tiện này và mong được phục vụ bạn trong lần tới.</p>
-                    </div>
-                    <div class="footer">
-                        <p>&copy; 2025 %s. All Rights Reserved.</p>
-                        <p><a href="#">Chính sách bảo mật</a> | <a href="#">Liên hệ</a></p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """,
+        <!DOCTYPE html>
+        <html lang='vi'>
+        <head>
+            <meta charset='UTF-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+            <title>Thông báo hủy lịch hẹn</title>
+            <link href='https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap' rel='stylesheet'>
+        </head>
+        <body style='margin:0;padding:0;font-family:Inter,Roboto,Arial,sans-serif;background:#ffebee;'>
+            <table width='100%%' cellpadding='0' cellspacing='0' style='background:#ffebee;'>
+                <tr><td align='center'>
+                    <table width='100%%' style='max-width:480px;background:#fff;border-radius:16px;box-shadow:0 2px 12px #0001;margin:32px 0;padding:0 0 24px 0;'>
+                        <tr><td style='padding:32px 24px 8px 24px;text-align:center;'>
+                            <img src='https://cdn-icons-png.flaticon.com/512/753/753345.png' width='64' alt='Medical.Care' style='margin-bottom:16px;border-radius:12px;'>
+                            <h2 style='margin:0 0 8px 0;font-size:1.5rem;color:#f44336;'>❌ Lịch hẹn đã hủy</h2>
+                            <div style='color:#333;font-size:1.1rem;margin-bottom:8px;'>Kính chào %s, chúng tôi xin lỗi vì sự bất tiện này</div>
+                            <div style='color:#666;font-size:1rem;margin-bottom:16px;'>Lịch hẹn tại <b>%s</b> đã bị hủy bỏ</div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='background:#ffcdd2;border-radius:12px;padding:20px 16px;margin-bottom:18px;'>
+                                <div style='font-size:1.1rem;font-weight:600;color:#d32f2f;margin-bottom:8px;'>🚫 Lịch hẹn đã bị hủy</div>
+                                <div style='margin-bottom:6px;'><b>Mã lịch hẹn:</b> #%s</div>
+                                <div style='margin-bottom:6px;'><b>Thời gian dự kiến:</b> %s</div>
+                                <div style='color:#666;font-size:0.95rem;margin-top:8px;'>Chúng tôi chân thành xin lỗi về sự bất tiện này</div>
+                            </div>
+                            <div style='background:#fff3e0;border-radius:8px;padding:12px 16px;color:#e65100;font-size:0.98rem;margin-bottom:18px;'>
+                                <b>📝 Lý do:</b> %s
+                            </div>
+                            <div style='background:#e8f5e8;border-radius:8px;padding:12px 16px;color:#2e7d32;font-size:0.98rem;margin-bottom:18px;'>
+                                <b>💰 Hoàn tiền:</b> Phí đặt lịch sẽ được hoàn trả trong 3-5 ngày làm việc
+                            </div>
+                            <div style='margin-bottom:18px;text-align:center;'>
+                                <a href='https://medical.care/dat-lich' style='display:inline-block;padding:12px 28px;background:#4caf50;color:#fff;border-radius:8px;font-weight:600;text-decoration:none;font-size:1rem;margin-right:8px;'>Đặt lịch mới</a>
+                                <a href='https://medical.care/support' style='display:inline-block;padding:12px 28px;background:#e3e6ea;color:#f44336;border-radius:8px;font-weight:600;text-decoration:none;font-size:1rem;'>Liên hệ hỗ trợ</a>
+                            </div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='margin:18px 0 0 0;font-size:0.97rem;color:#666;'>
+                                Nếu có thắc mắc, vui lòng liên hệ <b>Hotline: 1900 123 456</b> hoặc trả lời email này.<br>
+                                <span style='color:#aaa;font-size:0.95rem;'>Email này được gửi tự động, vui lòng không trả lời trực tiếp.</span>
+                            </div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='margin:24px 0 0 0;text-align:center;color:#bbb;font-size:0.95rem;'>
+                                &copy; 2025 Medical.Care. All rights reserved.
+                            </div>
+                        </td></tr>
+                    </table>
+                </td></tr>
+            </table>
+        </body>
+        </html>
+        """,
             appointment.getPatient().getFullName(),
             appointment.getClinic().getName(),
             appointment.getAppointmentId(),
             appointment.getAppointmentDateTime().format(DATE_FORMATTER),
-            reason != null && !reason.isEmpty() ? reason : "Không có lý do cụ thể",
-            appointment.getClinic().getName()
+            reason != null && !reason.isEmpty() ? reason : "Không có lý do cụ thể được cung cấp"
         );
     }
 
     private String buildUpdateEmailContent(Appointment appointment) {
         return String.format("""
-            <!DOCTYPE html>
-            <html lang="vi">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                    body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f7f6; }
-                    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-                    .header { background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%); color: white; padding: 40px 20px; text-align: center; }
-                    .header h1 { margin: 0; font-size: 28px; }
-                    .content { padding: 30px; color: #555; }
-                    .content h2 { color: #333; font-size: 22px; }
-                    .appointment-details { background-color: #e0e7ff; border: 1px solid #c7d2fe; border-radius: 8px; padding: 20px; margin: 20px 0; }
-                    .detail-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #c7d2fe; }
-                    .detail-item:last-child { border-bottom: none; }
-                    .detail-item strong { color: #333; }
-                    .cta-button { display: inline-block; background-color: #1a73e8; color: #ffffff; padding: 12px 25px; border-radius: 25px; text-decoration: none; font-weight: bold; margin-top: 20px; }
-                    .footer { background-color: #333; color: #bbb; padding: 20px; text-align: center; font-size: 12px; }
-                    .footer a { color: #667eea; text-decoration: none; }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h1>Cập Nhật Lịch Hẹn</h1>
-                    </div>
-                    <div class="content">
-                        <h2>Chào %s,</h2>
-                        <p>Lịch hẹn của bạn tại <strong>%s</strong> đã có một số thay đổi. Vui lòng xem thông tin cập nhật dưới đây:</p>
-                        
-                        <div class="appointment-details">
-                            <div class="detail-item"><strong>Mã lịch hẹn:</strong><span> #%d</span></div>
-                            <div class="detail-item"><strong>Trạng thái mới:</strong><span style="font-weight: bold; color: #3b82f6;"> %s</span></div>
-                            <div class="detail-item"><strong>Ngày giờ:</strong><span> %s</span></div>
-                            <div class="detail-item"><strong>Bác sĩ:</strong><span> %s</span></div>
-                        </div>
-                        
-                        <p>Vui lòng kiểm tra lại thông tin và sắp xếp thời gian của bạn. Nếu có bất kỳ thắc mắc nào, hãy liên hệ với chúng tôi.</p>
-                        
-                        <p style="text-align:center;">
-                            <a href="#" class="cta-button">Xem chi tiết trên hệ thống</a>
-                        </p>
-                    </div>
-                    <div class="footer">
-                        <p>&copy; 2025 %s. All Rights Reserved.</p>
-                        <p><a href="#">Chính sách bảo mật</a> | <a href="#">Liên hệ</a></p>
-                    </div>
-                </div>
-            </body>
-            </html>
-            """,
+        <!DOCTYPE html>
+        <html lang='vi'>
+        <head>
+            <meta charset='UTF-8'>
+            <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+            <title>Cập nhật lịch hẹn</title>
+            <link href='https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap' rel='stylesheet'>
+        </head>
+        <body style='margin:0;padding:0;font-family:Inter,Roboto,Arial,sans-serif;background:#f0f4ff;'>
+            <table width='100%%' cellpadding='0' cellspacing='0' style='background:#f0f4ff;'>
+                <tr><td align='center'>
+                    <table width='100%%' style='max-width:480px;background:#fff;border-radius:16px;box-shadow:0 2px 12px #0001;margin:32px 0;padding:0 0 24px 0;'>
+                        <tr><td style='padding:32px 24px 8px 24px;text-align:center;'>
+                            <img src='https://cdn-icons-png.flaticon.com/512/3652/3652267.png' width='64' alt='Medical.Care' style='margin-bottom:16px;border-radius:12px;'>
+                            <h2 style='margin:0 0 8px 0;font-size:1.5rem;color:#2196f3;'>🔄 Lịch hẹn được cập nhật</h2>
+                            <div style='color:#333;font-size:1.1rem;margin-bottom:8px;'>Chào %s, lịch hẹn của bạn có thay đổi</div>
+                            <div style='color:#666;font-size:1rem;margin-bottom:16px;'>Thông tin mới tại <b>%s</b></div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='background:#e3f2fd;border-radius:12px;padding:20px 16px;margin-bottom:18px;'>
+                                <div style='font-size:1.1rem;font-weight:600;color:#1976d2;margin-bottom:8px;'>📋 Thông tin lịch hẹn mới</div>
+                                <div style='margin-bottom:6px;'><b>Mã lịch hẹn:</b> #%s</div>
+                                <div style='margin-bottom:6px;'><b>Trạng thái:</b> %s</div>
+                                <div style='margin-bottom:6px;'><b>Bác sĩ:</b> %s</div>
+                                <div style='margin-bottom:6px;'><b>Thời gian:</b> %s</div>
+                            </div>
+                            <div style='background:#fff3e0;border-radius:8px;padding:12px 16px;color:#e65100;font-size:0.98rem;margin-bottom:18px;'>
+                                <b>⚠️ Lưu ý:</b> Vui lòng kiểm tra thông tin mới và sắp xếp thời gian phù hợp
+                            </div>
+                            <div style='margin-bottom:18px;text-align:center;'>
+                                <a href='https://medical.care/lich-hen' style='display:inline-block;padding:12px 28px;background:#2196f3;color:#fff;border-radius:8px;font-weight:600;text-decoration:none;font-size:1rem;margin-right:8px;'>Xem chi tiết</a>
+                                <a href='https://medical.care/support' style='display:inline-block;padding:12px 28px;background:#e3e6ea;color:#2196f3;border-radius:8px;font-weight:600;text-decoration:none;font-size:1rem;'>Liên hệ hỗ trợ</a>
+                            </div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='margin:18px 0 0 0;font-size:0.97rem;color:#666;'>
+                                Nếu có thắc mắc, vui lòng liên hệ <b>Hotline: 1900 123 456</b> hoặc trả lời email này.<br>
+                                <span style='color:#aaa;font-size:0.95rem;'>Email này được gửi tự động, vui lòng không trả lời trực tiếp.</span>
+                            </div>
+                        </td></tr>
+                        <tr><td style='padding:0 24px;'>
+                            <div style='margin:24px 0 0 0;text-align:center;color:#bbb;font-size:0.95rem;'>
+                                &copy; 2025 Medical.Care. All rights reserved.
+                            </div>
+                        </td></tr>
+                    </table>
+                </td></tr>
+            </table>
+        </body>
+        </html>
+        """,
             appointment.getPatient().getFullName(),
             appointment.getClinic().getName(),
             appointment.getAppointmentId(),
-            appointment.getStatus().toString(), // Using status from appointment
-            appointment.getAppointmentDateTime().format(DATE_FORMATTER),
+            appointment.getStatus().toString(),
             appointment.getDoctor().getFullName(),
-            appointment.getClinic().getName()
+            appointment.getAppointmentDateTime().format(DATE_FORMATTER)
         );
     }
 } 

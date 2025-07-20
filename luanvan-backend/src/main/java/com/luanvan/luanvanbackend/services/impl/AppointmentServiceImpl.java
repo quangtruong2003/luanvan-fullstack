@@ -208,11 +208,6 @@ public class AppointmentServiceImpl implements AppointmentService {
             if (isFirstAppointment) {
                 emailService.sendWelcomeOnFirstAppointmentEmail(patient);
             }
-            
-            // Gửi email xác nhận đặt lịch nếu đã thanh toán
-            if (savedAppointment.isDepositPaid()) {
-                emailService.sendAppointmentConfirmationEmail(savedAppointment);
-            }
         } catch (Exception e) {
             // Log lỗi nhưng không ảnh hưởng đến việc tạo lịch hẹn
             System.err.println("Lỗi khi gửi email: " + e.getMessage());
@@ -474,7 +469,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 appointment.setDepositPaid(true);
                 appointment.setPaymentTimestamp(LocalDateTime.now());
                 appointment.setStatus(Appointment.AppointmentStatus.CONFIRMED);
-                // Gửi email xác nhận đã được xử lý ở PaymentService, xóa ở đây để tránh trùng lặp
+                // Gửi email xác nhận đã được xử lý ở PaymentService, không gửi lại ở đây
             } else if (newPaymentStatus == Appointment.PaymentStatus.FAILED) {
                 // Có thể giữ nguyên trạng thái PENDING_PAYMENT hoặc đánh dấu lỗi
                 appointment.setStatus(Appointment.AppointmentStatus.PAYMENT_FAILED);
@@ -542,4 +537,4 @@ public class AppointmentServiceImpl implements AppointmentService {
         
         // Tất cả các chuyển đổi khác đều được phép
     }
-} 
+}

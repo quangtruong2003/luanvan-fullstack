@@ -284,6 +284,13 @@ public class PaymentServiceImpl implements PaymentService {
             throw new ResourceNotFoundException("Appointment not found for this payment.");
         }
 
+        // Chỉ xử lý nếu thanh toán đang ở trạng thái PENDING
+        if (payment.getStatus() != Payment.PaymentStatus.PENDING) {
+            log.warn("Payment with orderId {} already processed. Current status: {}", vnp_TxnRef, payment.getStatus());
+            // Trả về thông tin lịch hẹn hiện tại mà không xử lý lại
+            return convertAppointmentToDTO(appointment);
+        }
+
         if ("00".equals(vnp_ResponseCode)) {
             // Cập nhật trạng thái thanh toán và cuộc hẹn
             payment.setStatus(Payment.PaymentStatus.SUCCESS);
@@ -312,22 +319,7 @@ public class PaymentServiceImpl implements PaymentService {
         paymentRepository.save(payment);
         appointmentRepository.save(appointment);
         
-        return AppointmentDTO.builder()
-                .id(appointment.getAppointmentId())
-                .patientId(appointment.getPatient() != null ? appointment.getPatient().getUserId() : null)
-                .patientName(appointment.getPatient() != null ? appointment.getPatient().getFullName() : null)
-                .doctorId(appointment.getDoctor() != null ? appointment.getDoctor().getUserId() : null)
-                .doctorName(appointment.getDoctor() != null ? appointment.getDoctor().getFullName() : null)
-                .clinicId(appointment.getClinic() != null ? appointment.getClinic().getClinicId() : null)
-                .clinicName(appointment.getClinic() != null ? appointment.getClinic().getName() : null)
-                .clinicAddress(appointment.getClinic() != null ? appointment.getClinic().getAddress() : null)
-                .specialtyId(appointment.getSpecialty() != null ? appointment.getSpecialty().getSpecialtyId() : null)
-                .specialtyName(appointment.getSpecialty() != null ? appointment.getSpecialty().getName() : null)
-                .appointmentDateTime(appointment.getAppointmentDateTime())
-                .reasonForVisit(appointment.getReasonForVisit())
-                .status(appointment.getStatus().name())
-                .isDepositPaid(appointment.isDepositPaid())
-                .build();
+        return convertAppointmentToDTO(appointment);
     }
 
     @Override
@@ -708,5 +700,28 @@ public class PaymentServiceImpl implements PaymentService {
     private String hashAllFields(Map<String, String> fields, String secretKey) {
         // ... existing code ...
         return PaymentUtils.createVNPaySignature(PaymentUtils.buildHashData(fields), secretKey); // Sử dụng lại logic hash đã có
+    }
+
+    private AppointmentDTO convertAppointmentToDTO(Appointment appointment) {
+        return AppointmentDTO.builder()
+                .id(appointment.getAppointmentId())
+                .patientId(appointment.getPatient() != null ? appointment.getPatient().getUserId() : null)
+                .patientName(appointment.getPatient() != null ? appointment.getPatient().getFullName() : null)
+                .doctorId(appointment.getDoctor() != null ? appointment.getDoctor().getUserId() : null)
+                .doctorName(appointment.getDoctor() != null ? appointment.getDoctor().getFullName() : null)
+                .clinicId(appointment.getClinic() != null ? appointment.getClinic().getClinicId() : null)
+                .clinicName(appointment.getClinic() != null ? appointment.getClinic().getName() : null)
+                .clinicAddress(appointment.getClinic() != null ? appointment.getClinic().getAddress() : null)
+                .specialtyId(appointment.getSpecialty() != null ? appointment.getSpecialty().getSpecialtyId() : null)
+                .specialtyName(appointment.getSpecialty() != null ? appointment.getSpecialty().getName() : null)
+                .appointmentDateTime(appointment.getAppointmentDateTime())
+                .reasonForVisit(appointment.getReasonForVisit())
+                .status(appointment.getStatus().name())
+                .isDepositPaid(appointment.isDepositPaid())
+                .build();
+    }
+
+    private SystemConfiguration getSystemConfiguration() {
+        return systemConfigurationRepository.findFirstByOrderByCreatedAtDesc();
     }
 }
