@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Plus, Search, Filter, Edit, Trash2, Calendar, 
   Clock, User, CheckCircle, XCircle, AlertCircle, Save, Building, Stethoscope, Sun, Moon, ChevronLeft, ChevronRight
@@ -59,12 +59,71 @@ const AppointmentManagement = ({ filters, setFilters }) => {
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const [sortOrder, setSortOrder] = useState('asc'); // hoặc 'desc''asc' 
+  const [sortOrder, setSortOrder] = useState('desc'); // sắp xếp theo ngày hẹn 
+  const [bookingSortOrder, setBookingSortOrder] = useState('desc'); // sắp xếp theo thời gian đặt lịch (mới nhất trước)
+  const [primarySort, setPrimarySort] = useState('appointment'); // 'appointment' hoặc 'booking' 
 
   // State for cancellation modal
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [cancellationReason, setCancellationReason] = useState('');
   const [appointmentToCancel, setAppointmentToCancel] = useState(null); // {id, status}
+
+  // Fetch appointments function - moved here to avoid hoisting issues
+  const fetchAppointments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await adminService.getAllAppointments();
+      const appointmentsData = response.content || response || [];
+      setAppointments(appointmentsData);
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+      showError('Không thể tải danh sách lịch hẹn', 'Lỗi');
+    } finally {
+      setLoading(false);
+    }
+  }, [showError]);
+
+  // Other fetch functions - moved here to avoid hoisting issues
+  const fetchDoctors = async () => {
+    try {
+      const response = await apiService.getDoctors();
+      const doctorsData = response.content || response || [];
+      setDoctors(doctorsData);
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+    }
+  };
+
+  const fetchPatients = async () => {
+    try {
+      const response = await adminService.getAllUsers();
+      const allUsers = response.content || response || [];
+      const patientUsers = allUsers.filter(user => 
+        (user.roleName || user.role_name || user.role?.name) === 'PATIENT'
+      );
+      setPatients(patientUsers);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+    }
+  };
+
+  const fetchClinics = async () => {
+    try {
+      const response = await apiService.getClinics();
+      setClinics(response.content || response || []);
+    } catch (error) {
+      console.error('Error fetching clinics:', error);
+    }
+  };
+
+  const fetchSpecialties = async () => {
+    try {
+      const response = await apiService.getSpecialties();
+      setSpecialties(response.content || response || []);
+    } catch (error) {
+      console.error('Error fetching specialties:', error);
+    }
+  };
 
   // Effect to reset page when filters change
   useEffect(() => {
@@ -77,11 +136,11 @@ const AppointmentManagement = ({ filters, setFilters }) => {
     fetchPatients();
     fetchClinics();
     fetchSpecialties();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchAppointments();
-  }, [filters, sortOrder]); // Re-sort when sortOrder changes
+  }, [filters, sortOrder, bookingSortOrder, primarySort, fetchAppointments]); // Re-sort when any sort parameter changes
 
   const statusOptions = [
     { value: 'PENDING_PAYMENT', label: 'Chờ thanh toán', color: 'orange' },
@@ -494,66 +553,37 @@ const AppointmentManagement = ({ filters, setFilters }) => {
     return matchesSearch && matchesStatus && matchesDate && matchesClinic && matchesDoctor && matchesTimeOfDay && matchesSpecialty;
   });
 
-  const fetchAppointments = async () => {
-    try {
-      setLoading(true);
-      const response = await adminService.getAllAppointments();
-      const appointmentsData = response.content || response || [];
-      setAppointments(appointmentsData);
-    } catch (error) {
-      console.error('Error fetching appointments:', error);
-      showError('Không thể tải danh sách lịch hẹn', 'Lỗi');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchDoctors = async () => {
-    try {
-      const response = await apiService.getDoctors();
-      const doctorsData = response.content || response || [];
-      setDoctors(doctorsData);
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
-    }
-  };
-
-  const fetchPatients = async () => {
-    try {
-      const response = await adminService.getAllUsers();
-      const allUsers = response.content || response || [];
-      const patientUsers = allUsers.filter(user => 
-        (user.roleName || user.role_name || user.role?.name) === 'PATIENT'
-      );
-      setPatients(patientUsers);
-    } catch (error)      {
-      console.error('Error fetching patients:', error);
-    }
-  };
-
-  const fetchClinics = async () => {
-    try {
-      const response = await apiService.getClinics();
-      setClinics(response.content || response || []);
-    } catch (error) {
-      console.error('Error fetching clinics:', error);
-    }
-  };
-
-  const fetchSpecialties = async () => {
-    try {
-      const response = await apiService.getSpecialties();
-      setSpecialties(response.content || response || []);
-    } catch (error) {
-      console.error('Error fetching specialties:', error);
-    }
-  };
-
   // Sorting logic
   const sortedAppointments = filteredAppointments.slice().sort((a, b) => {
-    const dateA = new Date(a.appointmentDateTime || a.appointment_date_time).getTime();
-    const dateB = new Date(b.appointmentDateTime || b.appointment_date_time).getTime();
-    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    if (primarySort === 'booking') {
+      // Primary sort: booking timestamp
+      const bookingA = new Date(a.bookingTimestamp || a.booking_timestamp || a.createdAt || a.created_at).getTime();
+      const bookingB = new Date(b.bookingTimestamp || b.booking_timestamp || b.createdAt || b.created_at).getTime();
+      const bookingSort = bookingSortOrder === 'asc' ? bookingA - bookingB : bookingB - bookingA;
+      
+      // If booking timestamps are equal, secondary sort by appointment date
+      if (bookingSort === 0) {
+        const dateA = new Date(a.appointmentDateTime || a.appointment_date_time).getTime();
+        const dateB = new Date(b.appointmentDateTime || b.appointment_date_time).getTime();
+        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      
+      return bookingSort;
+    } else {
+      // Primary sort: appointment date/time
+      const dateA = new Date(a.appointmentDateTime || a.appointment_date_time).getTime();
+      const dateB = new Date(b.appointmentDateTime || b.appointment_date_time).getTime();
+      const appointmentSort = sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+      
+      // If appointment dates are equal, secondary sort by booking timestamp
+      if (appointmentSort === 0) {
+        const bookingA = new Date(a.bookingTimestamp || a.booking_timestamp || a.createdAt || a.created_at).getTime();
+        const bookingB = new Date(b.bookingTimestamp || b.booking_timestamp || b.createdAt || b.created_at).getTime();
+        return bookingSortOrder === 'asc' ? bookingA - bookingB : bookingB - bookingA;
+      }
+      
+      return appointmentSort;
+    }
   });
 
   // Pagination logic
@@ -715,7 +745,7 @@ const AppointmentManagement = ({ filters, setFilters }) => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="bg-gray-50 min-h-screen">
       {isCancelModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 transition-opacity duration-300">
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 scale-95 opacity-0 animate-fade-in-scale">
@@ -762,10 +792,12 @@ const AppointmentManagement = ({ filters, setFilters }) => {
       `}</style>
 
       {/* Main content */}
-      <div className="container mx-auto">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">Quản lý Lịch hẹn</h1>
+      <div className="w-full">
+        <div className="px-4 sm:px-6 lg:px-8">
+          <h1 className="text-3xl font-bold text-gray-800 mb-6">Quản lý Lịch hẹn</h1>
+        </div>
         {/* Header */}
-        <div className="bg-white shadow rounded-lg p-6">
+        <div className="bg-white shadow rounded-lg mx-4 sm:mx-6 lg:mx-8 p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Quản lý Lịch hẹn</h2>
             <div className="flex items-center space-x-4">
@@ -905,7 +937,7 @@ const AppointmentManagement = ({ filters, setFilters }) => {
         </div>
 
         {/* Appointments Table */}
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="bg-white shadow rounded-lg mx-4 sm:mx-6 lg:mx-8 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -918,11 +950,30 @@ const AppointmentManagement = ({ filters, setFilters }) => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     <button 
-                      onClick={() => setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'))}
+                      onClick={() => {
+                        setPrimarySort('appointment');
+                        setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+                      }}
                       className="flex items-center space-x-1 focus:outline-none hover:text-gray-800 transition-colors"
                     >
-                      <span>NGÀY GIỜ</span>
-                      <span className="text-base">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                      <span>NGÀY GIỜ HẸN</span>
+                      <span className="text-base">
+                        {primarySort === 'appointment' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
+                      </span>
+                    </button>
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <button 
+                      onClick={() => {
+                        setPrimarySort('booking');
+                        setBookingSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+                      }}
+                      className="flex items-center space-x-1 focus:outline-none hover:text-gray-800 transition-colors"
+                    >
+                      <span>THỜI GIAN ĐẶT</span>
+                      <span className="text-base">
+                        {primarySort === 'booking' ? (bookingSortOrder === 'asc' ? '↑' : '↓') : ''}
+                      </span>
                     </button>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -990,6 +1041,21 @@ const AppointmentManagement = ({ filters, setFilters }) => {
                       <div className="flex items-center text-sm text-gray-500">
                         <Clock className="h-4 w-4 mr-2" />
                         {(appointment.appointmentDateTime || appointment.appointment_date_time)?.split('T')[1]?.split('.')[0] || 'N/A'}
+                      </div>
+                    </td>
+                    
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {appointment.bookingTimestamp || appointment.booking_timestamp || appointment.createdAt || appointment.created_at ? 
+                          new Date(appointment.bookingTimestamp || appointment.booking_timestamp || appointment.createdAt || appointment.created_at).toLocaleDateString('vi-VN') : 
+                          'N/A'
+                        }
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {appointment.bookingTimestamp || appointment.booking_timestamp || appointment.createdAt || appointment.created_at ? 
+                          new Date(appointment.bookingTimestamp || appointment.booking_timestamp || appointment.createdAt || appointment.created_at).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'}) : 
+                          'N/A'
+                        }
                       </div>
                     </td>
                     
@@ -1103,6 +1169,7 @@ const AppointmentManagement = ({ filters, setFilters }) => {
             </div>
           )}
         </div>
+      </div>
 
         {/* Create Appointment Modal */}
         {showCreateModal && (
@@ -1626,8 +1693,7 @@ const AppointmentManagement = ({ filters, setFilters }) => {
           </div>
         )}
       </div>
-    </div>
-  );
-};
+    );
+  };
 
 export default AppointmentManagement; 

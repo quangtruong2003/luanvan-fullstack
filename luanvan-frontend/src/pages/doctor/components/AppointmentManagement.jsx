@@ -154,7 +154,7 @@ const AppointmentManagement = ({
   .slice(0, 3);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {/* Enhanced Header with Gradient */}
       <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl shadow-lg text-white p-6">
         <div className="flex items-center justify-between">

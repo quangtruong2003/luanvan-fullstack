@@ -484,9 +484,9 @@ const DoctorDashboardNew = () => {
           </div>
         </div>
       )}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="w-full py-6">
         {/* Header */}
-        <header className="bg-white shadow rounded-lg mb-6">
+        <header className="bg-white shadow rounded-lg mb-6 mx-4 sm:mx-6 lg:mx-8">
           <div className="px-6 py-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center">
@@ -518,7 +518,7 @@ const DoctorDashboardNew = () => {
           </div>
         </header>
 
-        <div className="flex space-x-6">
+        <div className="flex space-x-6 mx-4 sm:mx-6 lg:mx-8">
           {/* Sidebar Navigation */}          <DoctorSidebar 
             activeTab={activeTab}
             setActiveTab={setActiveTab}

@@ -20,9 +20,9 @@ This project is a comprehensive online medical appointment booking and managemen
 
 ### Tech Stack
 
-- **Backend**: Java 17, Spring Boot 3, Spring Security, JPA (Hibernate), Maven, PostgreSQL.
+- **Backend**: Java 17, Spring Boot 3, Spring Security, JPA (Hibernate), Maven, MySQL.
 - **Frontend**: React.js, Vite, Tailwind CSS, Axios.
-- **Database**: PostgreSQL.
+- **Database**: MySQL.
 - **Deployment**: Docker.
 
 ### Prerequisites
@@ -32,7 +32,7 @@ Before you begin, ensure you have the following installed on your system:
 - **Apache Maven**: Version 3.8 or later.
 - **Node.js**: Version 18.x or later.
 - **npm**: Version 9.x or later (usually comes with Node.js).
-- **PostgreSQL**: A running instance of PostgreSQL database.
+- **MySQL**: A running instance of MySQL database.
 - **Git**: For cloning the repository.
 
 ### Setup & Installation
@@ -44,23 +44,35 @@ Before you begin, ensure you have the following installed on your system:
     cd luanvan-backend
     ```
 
-2.  **Configure the Database**:
-    - Open the `src/main/resources/application.properties` file.
-    - Update the following properties to match your PostgreSQL configuration:
-      ```properties
-      spring.datasource.url=jdbc:postgresql://localhost:5432/your_database_name
-      spring.datasource.username=your_postgres_username
-      spring.datasource.password=your_postgres_password
+2.  **Add MySQL Dependency** (if not present):
+    - Open the `pom.xml` file.
+    - Ensure the following dependency for MySQL is included. If you have a `postgresql` dependency, replace it.
+      ```xml
+      <dependency>
+          <groupId>com.mysql</groupId>
+          <artifactId>mysql-connector-j</artifactId>
+          <scope>runtime</scope>
+      </dependency>
       ```
-    - Make sure you have created the database `your_database_name` in PostgreSQL. The tables will be created automatically by Flyway migrations.
 
-3.  **Install Dependencies**:
-    Maven will handle the dependencies. You can build the project to ensure everything is downloaded correctly.
+3.  **Configure the Database**:
+    - Open the `src/main/resources/application.properties` file.
+    - Update the following properties to match your MySQL configuration:
+      ```properties
+      spring.datasource.url=jdbc:mysql://localhost:3306/your_database_name?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      spring.datasource.username=your_mysql_username
+      spring.datasource.password=your_mysql_password
+      spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+      ```
+    - Make sure you have created the database `your_database_name` in MySQL. The tables will be created automatically by Flyway migrations.
+
+4.  **Install Dependencies**:
+    If you modified `pom.xml`, update the dependencies. Otherwise, this step ensures everything is correct.
     ```bash
     mvn clean install
     ```
 
-4.  **Run the Backend**:
+5.  **Run the Backend**:
     ```bash
     mvn spring-boot:run
     ```
@@ -99,7 +111,7 @@ Before you begin, ensure you have the following installed on your system:
 
 After completing the setup for both backend and frontend:
 
-1.  Ensure your **PostgreSQL** database is running.
+1.  Ensure your **MySQL** database is running.
 2.  Start the **Backend** server from the `luanvan-backend` directory.
 3.  Start the **Frontend** server from the `luanvan-frontend` directory.
 4.  Open your browser and navigate to `http://localhost:5173` (or the port specified by Vite).
@@ -122,9 +134,9 @@ After completing the setup for both backend and frontend:
 
 ### Công Nghệ Sử Dụng
 
-- **Backend**: Java 17, Spring Boot 3, Spring Security, JPA (Hibernate), Maven, PostgreSQL.
+- **Backend**: Java 17, Spring Boot 3, Spring Security, JPA (Hibernate), Maven, MySQL.
 - **Frontend**: React.js, Vite, Tailwind CSS, Axios.
-- **Cơ sở dữ liệu**: PostgreSQL.
+- **Cơ sở dữ liệu**: MySQL.
 - **Triển khai**: Docker.
 
 ### Yêu Cầu Cần Có
@@ -134,7 +146,7 @@ Trước khi bắt đầu, hãy đảm bảo bạn đã cài đặt các công c
 - **Apache Maven**: Phiên bản 3.8 trở lên.
 - **Node.js**: Phiên bản 18.x trở lên.
 - **npm**: Phiên bản 9.x trở lên (thường đi kèm với Node.js).
-- **PostgreSQL**: Một instance PostgreSQL đang hoạt động.
+- **MySQL**: Một instance MySQL đang hoạt động.
 - **Git**: Để sao chép kho mã nguồn.
 
 ### Cài Đặt & Khởi Chạy
@@ -146,23 +158,35 @@ Trước khi bắt đầu, hãy đảm bảo bạn đã cài đặt các công c
     cd luanvan-backend
     ```
 
-2.  **Cấu hình Cơ sở dữ liệu**:
-    - Mở tệp `src/main/resources/application.properties`.
-    - Cập nhật các thuộc tính sau để khớp với cấu hình PostgreSQL của bạn:
-      ```properties
-      spring.datasource.url=jdbc:postgresql://localhost:5432/ten_database_cua_ban
-      spring.datasource.username=ten_dang_nhap_postgres
-      spring.datasource.password=mat_khau_postgres
+2.  **Thêm Dependency cho MySQL** (nếu chưa có):
+    - Mở tệp `pom.xml`.
+    - Đảm bảo dependency sau cho MySQL đã được thêm vào. Nếu bạn có dependency `postgresql`, hãy thay thế nó.
+      ```xml
+      <dependency>
+          <groupId>com.mysql</groupId>
+          <artifactId>mysql-connector-j</artifactId>
+          <scope>runtime</scope>
+      </dependency>
       ```
-    - Đảm bảo bạn đã tạo database `ten_database_cua_ban` trong PostgreSQL. Các bảng sẽ được tự động tạo bởi Flyway migrations.
 
-3.  **Cài đặt các gói phụ thuộc**:
-    Maven sẽ tự động quản lý các gói phụ thuộc. Bạn có thể build dự án để đảm bảo mọi thứ được tải về chính xác.
+3.  **Cấu hình Cơ sở dữ liệu**:
+    - Mở tệp `src/main/resources/application.properties`.
+    - Cập nhật các thuộc tính sau để khớp với cấu hình MySQL của bạn:
+      ```properties
+      spring.datasource.url=jdbc:mysql://localhost:3306/ten_database_cua_ban?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      spring.datasource.username=ten_dang_nhap_mysql
+      spring.datasource.password=mat_khau_mysql
+      spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+      ```
+    - Đảm bảo bạn đã tạo database `ten_database_cua_ban` trong MySQL. Các bảng sẽ được tự động tạo bởi Flyway migrations.
+
+4.  **Cài đặt các gói phụ thuộc**:
+    Nếu bạn đã sửa đổi `pom.xml`, hãy cập nhật các dependency. Nếu không, bước này đảm bảo mọi thứ đều chính xác.
     ```bash
     mvn clean install
     ```
 
-4.  **Chạy Backend**:
+5.  **Chạy Backend**:
     ```bash
     mvn spring-boot:run
     ```
@@ -201,7 +225,7 @@ Trước khi bắt đầu, hãy đảm bảo bạn đã cài đặt các công c
 
 Sau khi hoàn tất cài đặt cho cả backend và frontend:
 
-1.  Đảm bảo cơ sở dữ liệu **PostgreSQL** của bạn đang chạy.
+1.  Đảm bảo cơ sở dữ liệu **MySQL** của bạn đang chạy.
 2.  Khởi động máy chủ **Backend** từ thư mục `luanvan-backend`.
 3.  Khởi động máy chủ **Frontend** từ thư mục `luanvan-frontend`.
 4.  Mở trình duyệt và truy cập vào `http://localhost:5173` (hoặc cổng do Vite chỉ định).
