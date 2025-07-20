@@ -2,3 +2,7 @@
 logs/
 luanvan-backend/logs/ 
 luanvan-frontend/logs/
+update-backend.sh
+DEPLOYMENT_GUIDE.md
+luanvan-backend/logs/application.log
+
