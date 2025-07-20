@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Calendar, Clock, User, MapPin, Edit, Trash2, Eye, Loader2 } from "lucide-react"
+import { Calendar, Clock, User, MapPin, Eye, Loader2, Bell } from "lucide-react"
 import { apiService } from "../services/api"
 
 const MyAppointments = () => {
@@ -10,6 +10,14 @@ const MyAppointments = () => {
   const [error, setError] = useState(null)
   const [selectedAppointment, setSelectedAppointment] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [activeTab, setActiveTab] = useState("upcoming")
+  const [now, setNow] = useState(new Date())
+
+  // Cập nhật thời gian hiện tại mỗi phút để đồng hồ đếm ngược hoạt động
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000)
+    return () => clearInterval(timer)
+  }, [])
 
   // Lấy dữ liệu lịch hẹn từ API
   useEffect(() => {
@@ -239,37 +247,40 @@ const MyAppointments = () => {
     setShowModal(true)
   }
 
-  const handleCancelAppointment = async (id) => {
-    try {
-      const appointment = appointments.find(apt => apt.id === id)
-      if (!appointment) return
-      
-      const confirmCancel = window.confirm(
-        `Bạn có chắc chắn muốn hủy lịch hẹn với ${appointment.doctorName} vào ${appointment.date} lúc ${appointment.time}?`
-      )
-      
-      if (!confirmCancel) return
+  const upcomingAppointments = appointments
+    .filter((apt) => apt.status === "confirmed" || apt.status === "pending")
+    .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`))
 
-      console.log('🔄 Cancelling appointment:', id)
-      
-      // TODO: Implement API call để hủy lịch hẹn
-      // await apiService.cancelAppointmentByPatient(id, 'Hủy bởi bệnh nhân')
-      
-      // Update local state
-      setAppointments((prev) => prev.map((apt) => (apt.id === id ? { ...apt, status: "cancelled" } : apt)))
-      
-      console.log('✅ Appointment cancelled locally')
-      alert('Đã hủy lịch hẹn! (Tạm thời chỉ cập nhật local, cần triển khai API)')
-      
-    } catch (err) {
-      console.error('❌ Error cancelling appointment:', err)
-      alert('Không thể hủy lịch hẹn. Vui lòng thử lại hoặc liên hệ hỗ trợ.')
+  const pastAppointments = appointments
+    .filter((apt) => apt.status === "completed" || apt.status === "cancelled")
+    .sort((a, b) => new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`))
+
+  const nextAppointment = upcomingAppointments[0]
+
+  const renderCountdown = (appointment) => {
+    if (!appointment) return null
+    const target = new Date(`${appointment.date}T${appointment.time}`)
+    const difference = target - now
+
+    if (difference <= 0) {
+      return <span className="text-sm text-gray-600">Đang hoặc đã diễn ra</span>
     }
+
+    const days = Math.floor(difference / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((difference / (1000 * 60 * 60)) % 24)
+    const minutes = Math.floor((difference / 1000 / 60) % 60)
+
+    const parts = []
+    if (days > 0) parts.push(`${days} ngày`)
+    if (hours > 0) parts.push(`${hours} giờ`)
+    if (minutes > 0 && days === 0) parts.push(`${minutes} phút`)
+
+    if (parts.length === 0) {
+      return <span className="text-lg font-medium text-red-600">Sắp diễn ra</span>
+    }
+
+    return <span className="text-lg font-medium">{parts.join(" ")}</span>
   }
-
-  const upcomingAppointments = appointments.filter((apt) => apt.status === "confirmed" || apt.status === "pending")
-
-  const pastAppointments = appointments.filter((apt) => apt.status === "completed" || apt.status === "cancelled")
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -291,6 +302,46 @@ const MyAppointments = () => {
             </button>
           )}
         </div>
+
+        {/* Next Appointment Highlight */}
+        {!loading && !error && nextAppointment && (
+          <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-lg shadow-md mb-8 transition-all duration-300 hover:shadow-lg">
+            <div className="flex items-center mb-4">
+              <Bell className="w-6 h-6 mr-3 text-blue-600" />
+              <h2 className="text-xl font-bold text-blue-900">Lịch hẹn tiếp theo của bạn</h2>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-y-4 gap-x-6 text-left">
+              <div>
+                <p className="text-sm font-semibold text-blue-700 flex items-center gap-1">
+                  <User className="w-4 h-4" /> Bác sĩ
+                </p>
+                <p className="text-lg font-medium">{nextAppointment.doctorName}</p>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-blue-700 flex items-center gap-1">
+                  <Calendar className="w-4 h-4" /> Thời gian
+                </p>
+                <p className="text-lg font-medium">
+                  {nextAppointment.time} - {new Date(nextAppointment.date).toLocaleDateString("vi-VN")}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-blue-700 flex items-center gap-1">
+                  <Clock className="w-4 h-4" /> Thời gian còn lại
+                </p>
+                {renderCountdown(nextAppointment)}
+              </div>
+              <div className="flex items-center justify-start md:justify-end lg:col-span-1">
+                <button
+                  onClick={() => handleViewDetails(nextAppointment)}
+                  className="bg-blue-600 text-white hover:bg-blue-700 px-5 py-2.5 rounded-lg text-sm font-semibold shadow transition-transform transform hover:scale-105"
+                >
+                  Xem chi tiết
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Loading State */}
         {loading && (
@@ -316,132 +367,147 @@ const MyAppointments = () => {
         {/* Content - chỉ hiển thị khi không loading và không có lỗi */}
         {!loading && !error && (
           <>
+            <div className="border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                <button
+                  onClick={() => setActiveTab("upcoming")}
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === "upcoming"
+                      ? "border-blue-500 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  Lịch hẹn sắp tới ({upcomingAppointments.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab("past")}
+                  className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                    activeTab === "past"
+                      ? "border-blue-500 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  Lịch sử khám bệnh ({pastAppointments.length})
+                </button>
+              </nav>
+            </div>
 
-        {/* Upcoming Appointments */}
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Lịch hẹn sắp tới ({upcomingAppointments.length})</h2>
-          {upcomingAppointments.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-8 text-center">
-              <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">Bạn chưa có lịch hẹn nào sắp tới</p>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {upcomingAppointments.map((appointment) => (
-                <div key={appointment.id} className="bg-white rounded-lg shadow-md p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4 mb-3">
-                        <div className="flex items-center gap-2">
-                          <User className="w-5 h-5 text-blue-600" />
-                          <span className="font-semibold text-gray-900">{appointment.doctorName}</span>
-                        </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(appointment.status)}`}
-                        >
-                          {getStatusText(appointment.status)}
-                        </span>
-                      </div>
-                      <p className="text-gray-600 mb-2">{appointment.specialty}</p>
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          {new Date(appointment.date).toLocaleDateString("vi-VN")}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {appointment.time}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
-                          {appointment.clinicName}
-                        </div>
-                      </div>
+            <div className="mt-8">
+              {activeTab === "upcoming" && (
+                <div>
+                  {upcomingAppointments.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow p-8 text-center">
+                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Bạn chưa có lịch hẹn nào sắp tới</p>
                     </div>
-                    <div className="flex gap-2 mt-4 lg:mt-0">
-                      <button
-                        onClick={() => handleViewDetails(appointment)}
-                        className="flex items-center gap-1 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Chi tiết
-                      </button>
-                      {appointment.status === "pending" && (
-                        <>
-                          {/* <button className="flex items-center gap-1 px-3 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors">
-                            <Edit className="w-4 h-4" />
-                            Sửa
-                          </button> */}
-                          {/* <button
-                            onClick={() => handleCancelAppointment(appointment.id)}
-                            className="flex items-center gap-1 px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                            Hủy
-                          </button> */}
-                        </>
-                      )}
+                  ) : (
+                    <div className="grid gap-4">
+                      {upcomingAppointments.map((appointment) => (
+                        <div key={appointment.id} className="bg-white rounded-lg shadow-md p-6">
+                          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-4 mb-3">
+                                <div className="flex items-center gap-2">
+                                  <User className="w-5 h-5 text-blue-600" />
+                                  <span className="font-semibold text-gray-900">{appointment.doctorName}</span>
+                                </div>
+                                <span
+                                  className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                                    appointment.status
+                                  )}`}
+                                >
+                                  {getStatusText(appointment.status)}
+                                </span>
+                              </div>
+                              <p className="text-gray-600 mb-2">{appointment.specialty}</p>
+                              <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-4 h-4" />
+                                  {new Date(appointment.date).toLocaleDateString("vi-VN")}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-4 h-4" />
+                                  {appointment.time}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="w-4 h-4" />
+                                  {appointment.clinicName}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 mt-4 lg:mt-0">
+                              <button
+                                onClick={() => handleViewDetails(appointment)}
+                                className="flex items-center gap-1 px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              >
+                                <Eye className="w-4 h-4" />
+                                Chi tiết
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              )}
 
-        {/* Past Appointments */}
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Lịch sử khám bệnh ({pastAppointments.length})</h2>
-          {pastAppointments.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-8 text-center">
-              <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">Chưa có lịch sử khám bệnh</p>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {pastAppointments.map((appointment) => (
-                <div key={appointment.id} className="bg-white rounded-lg shadow-md p-6 opacity-75">
-                  <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4 mb-3">
-                        <div className="flex items-center gap-2">
-                          <User className="w-5 h-5 text-gray-500" />
-                          <span className="font-semibold text-gray-700">{appointment.doctorName}</span>
-                        </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(appointment.status)}`}
-                        >
-                          {getStatusText(appointment.status)}
-                        </span>
-                      </div>
-                      <p className="text-gray-500 mb-2">{appointment.specialty}</p>
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          {new Date(appointment.date).toLocaleDateString("vi-VN")}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {appointment.time}
-                        </div>
-                      </div>
+              {activeTab === "past" && (
+                <div>
+                  {pastAppointments.length === 0 ? (
+                    <div className="bg-white rounded-lg shadow p-8 text-center">
+                      <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Chưa có lịch sử khám bệnh</p>
                     </div>
-                    <div className="flex gap-2 mt-4 lg:mt-0">
-                      <button
-                        onClick={() => handleViewDetails(appointment)}
-                        className="flex items-center gap-1 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Chi tiết
-                      </button>
+                  ) : (
+                    <div className="grid gap-4">
+                      {pastAppointments.map((appointment) => (
+                        <div key={appointment.id} className="bg-white rounded-lg shadow-md p-6 opacity-75">
+                          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-4 mb-3">
+                                <div className="flex items-center gap-2">
+                                  <User className="w-5 h-5 text-gray-500" />
+                                  <span className="font-semibold text-gray-700">{appointment.doctorName}</span>
+                                </div>
+                                <span
+                                  className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                                    appointment.status
+                                  )}`}
+                                >
+                                  {getStatusText(appointment.status)}
+                                </span>
+                              </div>
+                              <p className="text-gray-500 mb-2">{appointment.specialty}</p>
+                              <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="w-4 h-4" />
+                                  {new Date(appointment.date).toLocaleDateString("vi-VN")}
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Clock className="w-4 h-4" />
+                                  {appointment.time}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 mt-4 lg:mt-0">
+                              <button
+                                onClick={() => handleViewDetails(appointment)}
+                                className="flex items-center gap-1 px-3 py-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                              >
+                                <Eye className="w-4 h-4" />
+                                Chi tiết
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
-        </>
+          </>
         )}
       </div>
 

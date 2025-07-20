@@ -303,13 +303,13 @@ public class EmailServiceImpl implements EmailService {
                         <p>Cảm ơn bạn đã đặt lịch hẹn tại <strong>%s</strong>. Lịch hẹn của bạn đã được ghi nhận với các thông tin chi tiết dưới đây:</p>
                         
                         <div class="appointment-details">
-                            <div class="detail-item"><strong>Mã lịch hẹn:</strong><span>#%d</span></div>
-                            <div class="detail-item"><strong>Trạng thái:</strong><span style="font-weight: bold; color: %s;">%s</span></div>
-                            <div class="detail-item"><strong>Bác sĩ:</strong><span>%s</span></div>
-                            <div class="detail-item"><strong>Chuyên khoa:</strong><span>%s</span></div>
-                            <div class="detail-item"><strong>Ngày giờ:</strong><span>%s</span></div>
-                            <div class="detail-item"><strong>Địa chỉ:</strong><span>%s</span></div>
-                            <div class="detail-item"><strong>Tiền đặt cọc:</strong><span>%s</span></div>
+                            <div class="detail-item"><strong>Mã lịch hẹn:</strong><span> #%d</span></div>
+                            <div class="detail-item"><strong>Trạng thái:</strong><span style="font-weight: bold; color: %s;"> %s</span></div>
+                            <div class="detail-item"><strong>Bác sĩ:</strong><span> %s</span></div>
+                            <div class="detail-item"><strong>Chuyên khoa:</strong><span> %s</span></div>
+                            <div class="detail-item"><strong>Ngày giờ:</strong><span> %s</span></div>
+                            <div class="detail-item"><strong>Địa chỉ:</strong><span> %s</span></div>
+                            <div class="detail-item"><strong>Tiền đặt cọc:</strong><span> %s</span></div>
                         </div>
                         
                         <h3>Lưu ý quan trọng:</h3>
@@ -383,9 +383,9 @@ public class EmailServiceImpl implements EmailService {
                         <p>Đây là lời nhắc nhở thân thiện về lịch hẹn sắp tới của bạn tại <strong>%s</strong>.</p>
                         
                         <div class="appointment-details">
-                            <div class="detail-item"><strong>Mã lịch hẹn:</strong><span>#%d</span></div>
-                            <div class="detail-item"><strong>Bác sĩ:</strong><span>%s</span></div>
-                            <div class="detail-item"><strong>Ngày giờ:</strong><span>%s</span></div>
+                            <div class="detail-item"><strong>Mã lịch hẹn:</strong><span> #%d</span></div>
+                            <div class="detail-item"><strong>Bác sĩ:</strong><span> %s</span></div>
+                            <div class="detail-item"><strong>Ngày giờ:</strong><span> %s</span></div>
                 </div>
                 
                         <h3>Vui lòng chuẩn bị:</h3>
@@ -446,7 +446,7 @@ public class EmailServiceImpl implements EmailService {
                     </div>
                     <div class="content">
                         <h2>Chào %s,</h2>
-                        <p>Chúng tôi rất tiếc phải thông báo rằng lịch hẹn của bạn tại <strong>%s</strong> đã được hủy.</p>
+                        <p>Chúng tôi rất tiếc phải thông báo rằng lịch hẹn của bạn tại <strong> %s</strong> đã được hủy.</p>
                         
                         <div class="appointment-details">
                             <div class="detail-item"><strong>Mã lịch hẹn:</strong> #%d</div>

@@ -302,8 +302,16 @@ const Home = () => {
                                 
                          
                                 
-                                {/* Hover overlay */}
-                                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                {/* Hover overlay with button */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-purple-500/10 to-pink-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end justify-center p-6">
+                                  <Link
+                                    to={`/book-appointment?clinicId=${clinic.clinic_id || clinic.clinicId}`}
+                                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold py-3 px-6 rounded-xl transition-all duration-300 transform scale-0 group-hover:scale-100 delay-100 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                                  >
+                                    <Calendar className="w-5 h-5" />
+                                    Đặt lịch tại đây
+                                  </Link>
+                                </div>
                               </div>
                             </div>
                           ))}

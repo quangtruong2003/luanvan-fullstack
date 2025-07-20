@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { 
   Search, Filter, MapPin, Star, Calendar, Clock, User, 
   Stethoscope, Award, TrendingUp, ArrowRight, Heart,
@@ -19,15 +19,38 @@ const BookAppointment = () => {
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
+  const location = useLocation();
+
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
         setLoading(true);
-        await Promise.all([
-          fetchDoctors(),
-          fetchSpecialties(),
-          fetchClinics()
+        // Use Promise.all to fetch concurrently
+        const [doctorsResponse, specialtiesResponse, clinicsResponse] = await Promise.all([
+          apiService.getDoctors({ page: 0, size: 100 }),
+          apiService.getSpecialties(),
+          apiService.getClinics()
         ]);
+        
+        // Process responses
+        const allDoctors = doctorsResponse.content || doctorsResponse || [];
+        const allSpecialties = specialtiesResponse.content || specialtiesResponse || [];
+        const allClinics = clinicsResponse.content || clinicsResponse || [];
+
+        setDoctors(allDoctors);
+        setSpecialties(allSpecialties);
+        setFilteredSpecialties(allSpecialties);
+        setClinics(allClinics);
+        
+        // Check for clinicId from URL after initial data is loaded
+        const params = new URLSearchParams(location.search);
+        const clinicIdFromUrl = params.get('clinicId');
+        
+        if (clinicIdFromUrl && allClinics.some(c => (c.clinic_id || c.clinicId) == clinicIdFromUrl)) {
+          setSelectedClinic(clinicIdFromUrl);
+          // Setting the state is async. The filtering logic will be handled by the other useEffect.
+        }
+        
       } catch (error) {
         console.error('Error fetching initial data:', error);
       } finally {
@@ -37,35 +60,40 @@ const BookAppointment = () => {
     };
 
     fetchInitialData();
-  }, []);
+  }, [location.search]);
 
   useEffect(() => {
-    // When selectedClinic changes, filter the specialties dropdown
+    // This effect now correctly depends on the necessary states.
+    // It runs when a clinic is selected (either by user or from URL).
     if (selectedClinic) {
-        const selectedClinicId = parseInt(selectedClinic);
-        const clinic = clinics.find(c => (c.clinic_id === selectedClinicId || c.clinicId === selectedClinicId));
+        const clinicIdNum = parseInt(selectedClinic);
+        const clinic = clinics.find(c => (c.clinic_id === clinicIdNum || c.clinicId === clinicIdNum));
         
-        // Backend might not return specialties for each clinic, so we need to derive it
-        // from the full doctor list if necessary. For now, assume clinic object has specialties.
-        if (clinic && clinic.specialties && clinic.specialties.length > 0) {
-            setFilteredSpecialties(clinic.specialties);
-        } else {
-            // Fallback: if clinic object doesn't contain specialties, we can derive them.
-            // This is computationally more intensive and depends on having a complete doctor list.
-            const specialtiesInClinic = doctors
-                .flatMap(doctor => doctor.specialties)
-                .filter(spec => spec.clinic?.clinic_id === selectedClinicId || spec.clinic?.clinicId === selectedClinicId);
-            
+        if (clinic) {
+            // Logic to filter specialties based on doctors available at the selected clinic.
+            const doctorsInClinic = doctors.filter(doctor =>
+                doctor.specialties?.some(s => s.clinic?.clinic_id === clinicIdNum || s.clinic?.clinicId === clinicIdNum)
+            );
+
+            const specialtiesInClinic = doctorsInClinic.flatMap(doctor => doctor.specialties);
             const uniqueSpecialties = Array.from(new Map(specialtiesInClinic.map(spec => [spec.specialty_id || spec.specialtyId, spec])).values());
-            setFilteredSpecialties(uniqueSpecialties);
+            
+            // Filter out specialties that are not associated with the selected clinic
+            const finalSpecialties = uniqueSpecialties.filter(spec => 
+                spec.clinic?.clinic_id === clinicIdNum || spec.clinic?.clinicId === clinicIdNum
+            );
+            
+            setFilteredSpecialties(finalSpecialties.length > 0 ? finalSpecialties : []);
+        } else {
+             setFilteredSpecialties([]);
         }
     } else {
-        // If no clinic is selected, show all specialties
+        // If no clinic is selected, show all specialties.
         setFilteredSpecialties(specialties);
     }
-    // Reset specialty selection when clinic changes
+    // Reset specialty selection when clinic changes.
     setSelectedSpecialty('');
-  }, [selectedClinic, clinics, specialties, doctors]);
+  }, [selectedClinic, clinics, doctors, specialties]);
 
   const fetchDoctors = async () => {
     try {
