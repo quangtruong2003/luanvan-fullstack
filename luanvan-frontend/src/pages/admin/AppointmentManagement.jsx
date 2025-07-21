@@ -8,7 +8,7 @@ import { useNotification } from '../../components/NotificationSystem';
 
 const AppointmentManagement = ({ filters, setFilters }) => {
   // Notification system
-  const { showSuccess, showError, showApiError, showValidationError } = useNotification();
+  const { showSuccess, showError, showApiError } = useNotification();
   
   // Helper function to extract a more detailed error message from API responses
   const getApiErrorMessage = (error, defaultMessage) => {
@@ -165,15 +165,9 @@ const AppointmentManagement = ({ filters, setFilters }) => {
     // Existing logic for other status changes
     try {
       // For non-cancellation, we send a simple status update
-      const updatedAppointmentDTO = await adminService.updateAppointmentStatus(appointmentId, { status: newStatus });
-      setAppointments(prev =>
-        prev.map(appt =>
-          appt.appointmentId === appointmentId
-            ? { ...appt, status: updatedAppointmentDTO.status }
-            : appt
-        )
-      );
+      await adminService.updateAppointmentStatus(appointmentId, { status: newStatus });
       showSuccess('Trạng thái lịch hẹn đã được cập nhật.');
+      await fetchAppointments(); // Refetch to ensure UI consistency
     } catch (error) {
       console.error('❌ Error details:', {
         message: error.message,
@@ -197,16 +191,10 @@ const AppointmentManagement = ({ filters, setFilters }) => {
         status: status,
         cancellationReason: reason
       };
-      const updatedAppointmentDTO = await adminService.updateAppointmentStatus(id, payload);
+      await adminService.updateAppointmentStatus(id, payload);
       
-      // Update local state
-      setAppointments(prev =>
-        prev.map(appt =>
-          appt.appointmentId === id
-            ? { ...appt, status: updatedAppointmentDTO.status, reason: updatedAppointmentDTO.reason }
-            : appt
-        )
-      );
+      // Update local state by refetching
+      await fetchAppointments();
       showSuccess('Lịch hẹn đã được hủy thành công.');
     } catch (error) {
        console.error('❌ Error details:', {
