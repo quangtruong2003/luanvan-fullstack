@@ -14,7 +14,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
   console.log('🎯 ClinicManagement component rendered');
   
   // Notification system
-  const { showSuccess, showError, showWarning, showInfo, showApiError, showValidationError, showAuthError } = useNotification();
+  const { showSuccess, showError, showWarning, showInfo } = useNotification();
   
   // Check authentication status
   const token = localStorage.getItem('token');
@@ -470,6 +470,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
       return;
     }
 
+    setLoading(true);
     try {
       await adminService.createClinicSpecialty(clinicId, {
         name: specialtyFormData.name,
@@ -482,6 +483,8 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
     } catch (error) {
       console.error('Error creating specialty:', error);
       showError(error.message, 'Lỗi khi tạo chuyên khoa');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -495,6 +498,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
       return;
     }
 
+    setLoading(true);
     try {
       // FIX: Add clinicId to the request body to match SpecialtyDTO
       await adminService.updateClinicSpecialty(clinicId, specialtyId, {
@@ -509,6 +513,8 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
     } catch (error) {
       console.error('Error updating specialty:', error);
       showError(error.message, 'Lỗi khi cập nhật chuyên khoa');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -516,6 +522,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa chuyên khoa này? Hành động này không thể hoàn tác.')) {
       return;
     }
+    setLoading(true);
     try {
       await adminService.deleteClinicSpecialty(clinicId, specialtyId);
       await fetchClinics();
@@ -523,6 +530,8 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
     } catch (error) {
       console.error('Error deleting specialty:', error);
       showError(error.message, 'Lỗi khi xóa chuyên khoa');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1367,9 +1376,20 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                    disabled={loading}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                   >
-                    Tạo phòng khám
+                    {loading ? (
+                      <div className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Đang tạo...</span>
+                      </div>
+                    ) : (
+                      'Tạo phòng khám'
+                    )}
                   </button>
                 </div>
               </form>
@@ -1676,9 +1696,20 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+                    disabled={loading}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                   >
-                    Cập nhật phòng khám & ca làm việc
+                    {loading ? (
+                      <div className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Đang cập nhật...</span>
+                      </div>
+                    ) : (
+                      'Cập nhật phòng khám & ca làm việc'
+                    )}
                   </button>
                 </div>
               </form>
@@ -1738,9 +1769,20 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700"
+                  disabled={loading}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
                 >
-                  {specialtyFormData.isEdit ? 'Cập nhật chuyên khoa' : 'Thêm chuyên khoa'}
+                  {loading ? (
+                    <div className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>{specialtyFormData.isEdit ? 'Đang cập nhật...' : 'Đang thêm...'}</span>
+                    </div>
+                  ) : (
+                    specialtyFormData.isEdit ? 'Cập nhật chuyên khoa' : 'Thêm chuyên khoa'
+                  )}
                 </button>
               </div>
             </form>
