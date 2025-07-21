@@ -1,4 +1,4 @@
-# 🏥 Hệ Thống Đặt Lịch Khám Bệnh Thông Minh - Medistar
+# 🏥 Hệ Thống Đặt Lịch Khám Bệnh Thông Minh - Medical.Care
 
 Dự án này là một hệ thống quản lý và đặt lịch khám bệnh trực tuyến toàn diện, được xây dựng với mục tiêu hiện đại hóa quy trình chăm sóc sức khỏe. Hệ thống bao gồm một backend mạnh mẽ được xây dựng bằng Spring Boot và một frontend linh hoạt, thân thiện với người dùng được xây dựng bằng React (Vite).
 
@@ -46,7 +46,7 @@ Before you begin, ensure you have the following installed on your system:
 
 2.  **Add MySQL Dependency** (if not present):
     - Open the `pom.xml` file.
-    - Ensure the following dependency for MySQL is included. If you have a `postgresql` dependency, replace it.
+    - Ensure the following dependency for MySQL is included. If you have a `mysql` dependency, replace it.
       ```xml
       <dependency>
           <groupId>com.mysql</groupId>
@@ -160,7 +160,7 @@ Trước khi bắt đầu, hãy đảm bảo bạn đã cài đặt các công c
 
 2.  **Thêm Dependency cho MySQL** (nếu chưa có):
     - Mở tệp `pom.xml`.
-    - Đảm bảo dependency sau cho MySQL đã được thêm vào. Nếu bạn có dependency `postgresql`, hãy thay thế nó.
+    - Đảm bảo dependency sau cho MySQL đã được thêm vào. Nếu bạn có dependency `mysql`, hãy thay thế nó.
       ```xml
       <dependency>
           <groupId>com.mysql</groupId>
