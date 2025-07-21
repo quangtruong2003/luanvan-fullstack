@@ -46,7 +46,7 @@ class DoctorManagementErrorBoundary extends React.Component {
 
 const DoctorManagement = () => {
   // Notification system
-  const { showSuccess, showError, showWarning, showInfo, showApiError, showValidationError, showAuthError } = useNotification();
+  const { showSuccess, showError, showWarning, showInfo, showApiError } = useNotification();
   
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(false);

@@ -496,9 +496,11 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
     }
 
     try {
+      // FIX: Add clinicId to the request body to match SpecialtyDTO
       await adminService.updateClinicSpecialty(clinicId, specialtyId, {
         name: specialtyFormData.name,
-        description: specialtyFormData.description
+        description: specialtyFormData.description,
+        clinicId: parseInt(clinicId) // Ensure clinicId is sent and is a number
       });
       await fetchClinics();
       setShowSpecialtyModal(false);
