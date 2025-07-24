@@ -742,10 +742,19 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
     return time.substring(0, 5);
   };
 
-  const filteredClinics = clinics.filter(clinic => 
-    clinic.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    clinic.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    clinic.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const normalizeText = (text = '') =>
+    text
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
+  const filteredClinics = clinics.filter(clinic => {
+    const preparedSearchTerm = normalizeText(searchTerm);
+    return normalizeText(clinic.name).includes(preparedSearchTerm) ||
+    normalizeText(clinic.address).includes(preparedSearchTerm) ||
+    normalizeText(clinic.description).includes(preparedSearchTerm)
+  }
   );
 
   // Sort clinics

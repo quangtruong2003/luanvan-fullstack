@@ -258,18 +258,25 @@ const UserManagement = () => {
     }
   };
 
+  const normalizeText = (text = '') =>
+    text
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
   const filteredUsers = allUsers.filter(user => {
     const userName = user.full_name || '';
     const userEmail = user.email || '';
     const userPhone = user.phone_number || '';
     const userRole = user.role_name || '';
     
-    const preparedSearchTerm = searchTerm.toLowerCase().trim();
+    const preparedSearchTerm = normalizeText(searchTerm.trim());
 
     const matchesSearch = 
-      userName.toLowerCase().includes(preparedSearchTerm) ||
-      userEmail.toLowerCase().includes(preparedSearchTerm) ||
-      userPhone.includes(searchTerm.trim());
+      normalizeText(userName).includes(preparedSearchTerm) ||
+      normalizeText(userEmail).includes(preparedSearchTerm) ||
+      normalizeText(userPhone).includes(preparedSearchTerm);
     
     const matchesRole = !filterRole || userRole === filterRole;
 

@@ -59,8 +59,8 @@ const AppointmentManagement = ({ filters, setFilters }) => {
   const [availableSlots, setAvailableSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState('');
   const [slotsLoading, setSlotsLoading] = useState(false);
-  const [sortOrder, setSortOrder] = useState('desc'); // sắp xếp theo ngày hẹn 
-  const [bookingSortOrder, setBookingSortOrder] = useState('desc'); // sắp xếp theo thời gian đặt lịch (mới nhất trước)
+  const [sortOrder, setSortOrder] = useState('asc'); // sắp xếp theo ngày hẹn 
+  const [bookingSortOrder, setBookingSortOrder] = useState('asc'); // sắp xếp theo thời gian đặt lịch (mới nhất trước)
   const [primarySort, setPrimarySort] = useState('appointment'); // 'appointment' hoặc 'booking' 
 
   // State for cancellation modal
@@ -136,11 +136,11 @@ const AppointmentManagement = ({ filters, setFilters }) => {
     fetchPatients();
     fetchClinics();
     fetchSpecialties();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchAppointments]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    fetchAppointments();
-  }, [filters, sortOrder, bookingSortOrder, primarySort, fetchAppointments]); // Re-sort when any sort parameter changes
+    // fetchAppointments(); -> Loại bỏ dòng này để không fetch lại khi filter
+  }, [filters, sortOrder, bookingSortOrder, primarySort]); // Re-sort when any sort parameter changes
 
   const statusOptions = [
     { value: 'PENDING_PAYMENT', label: 'Chờ thanh toán', color: 'orange' },
@@ -473,6 +473,13 @@ const AppointmentManagement = ({ filters, setFilters }) => {
     return statusOption ? statusOption.color : 'gray';
   };
 
+  const normalizeText = (text = '') =>
+    text
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
   const filteredAppointments = appointments.filter(appointment => {
     const patientName = appointment.patient?.user?.fullName || 
                        appointment.patient?.user?.full_name ||
@@ -496,14 +503,14 @@ const AppointmentManagement = ({ filters, setFilters }) => {
 
     const reasonForVisit = appointment.reasonForVisit || appointment.reason_for_visit || '';
     
-    const preparedSearchTerm = searchTerm.toLowerCase().trim();
+    const preparedSearchTerm = normalizeText(searchTerm.trim());
 
     const matchesSearch = 
-      patientName.toLowerCase().includes(preparedSearchTerm) ||
-      doctorName.toLowerCase().includes(preparedSearchTerm) ||
-      patientPhone.includes(searchTerm.trim()) ||
-      doctorPhone.includes(searchTerm.trim()) ||
-      reasonForVisit.toLowerCase().includes(preparedSearchTerm);
+      normalizeText(patientName).includes(preparedSearchTerm) ||
+      normalizeText(doctorName).includes(preparedSearchTerm) ||
+      normalizeText(patientPhone).includes(preparedSearchTerm) ||
+      normalizeText(doctorPhone).includes(preparedSearchTerm) ||
+      normalizeText(reasonForVisit).includes(preparedSearchTerm);
     
     const matchesStatus = !statusFilter || appointment.status === statusFilter;
     

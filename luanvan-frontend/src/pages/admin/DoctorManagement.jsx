@@ -519,15 +519,24 @@ const DoctorManagement = () => {
     setShowDeleteModal(true);
   };
 
+  const normalizeText = (text = '') =>
+    text
+      .toString()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+
   const filteredDoctors = doctors.filter(doctor => {
     const user = doctor.user || {};
     const userName = user.fullName || user.full_name || '';
     const userEmail = user.email || '';
     const doctorBio = doctor.bio || '';
     
-    const matchesSearch = userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         doctorBio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         userEmail.toLowerCase().includes(searchTerm.toLowerCase());
+    const preparedSearchTerm = normalizeText(searchTerm);
+
+    const matchesSearch = normalizeText(userName).includes(preparedSearchTerm) ||
+                         normalizeText(doctorBio).includes(preparedSearchTerm) ||
+                         normalizeText(userEmail).includes(preparedSearchTerm);
     
     const matchesSpecialty = !filterSpecialty || 
                             doctor.specialties?.some(s => {
