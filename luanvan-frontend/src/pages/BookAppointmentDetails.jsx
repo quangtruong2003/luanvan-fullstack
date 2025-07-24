@@ -26,7 +26,7 @@ const BookAppointmentDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser } = useAuth();
-  const { showError } = useNotification();
+  const { showSuccess, showError } = useNotification();
   
   // Nhận thông tin từ trang trước
   const { slotData, doctorData, clinicData, date } = location.state || {};
@@ -89,6 +89,31 @@ const BookAppointmentDetails = () => {
     }
   }, []);
 
+  const handlePhoneUpdateIfNeeded = async () => {
+    const newPhoneNumber = formData.patientPhone.trim();
+    // Chỉ cập nhật nếu SĐT mới hợp lệ và khác với SĐT đã lưu
+    if (newPhoneNumber && newPhoneNumber !== userInfo.phone_number) {
+      try {
+        setLoading(true);
+        // Sử dụng adminService để cập nhật cho user cụ thể
+        await adminService.updateUser(userInfo.user_id, { phoneNumber: newPhoneNumber });
+        
+        // Cập nhật lại state local để UI đồng bộ
+        setUserInfo(prev => ({ ...prev, phone_number: newPhoneNumber }));
+        
+        showSuccess('Cập nhật số điện thoại thành công!');
+        return true; // Báo hiệu cập nhật thành công
+      } catch (err) {
+        console.error('Lỗi khi cập nhật số điện thoại:', err);
+        showError('Không thể cập nhật số điện thoại của bạn. Vui lòng thử lại.');
+        setError('Cập nhật số điện thoại thất bại.');
+        return false; // Báo hiệu cập nhật thất bại
+      } finally {
+        setLoading(false);
+      }
+    }
+    return true; // Không cần cập nhật
+  };
   // Đồng bộ thông tin user vào form khi userInfo được load
   useEffect(() => {
     if (userInfo && userInfo.user_id) {
@@ -262,6 +287,16 @@ const BookAppointmentDetails = () => {
     console.log(`Phone validation passed: {inputPhone: '${formData.patientPhone}', currentPhone: '${userInfo.phone_number}', finalPhone: '${inputPhone || currentPhone}', normalizedPhone: '${inputPhone}', willUpdate: ${phoneNeedsUpdate}}`);
 
     try {
+      // BƯỚC 1: Cập nhật số điện thoại nếu cần
+      const phoneUpdateSuccess = await handlePhoneUpdateIfNeeded();
+      
+      // Nếu cập nhật SĐT thất bại, dừng toàn bộ quá trình
+      if (!phoneUpdateSuccess) {
+        setLoading(false);
+        return;
+      }
+
+
         if (!date || !slotData || !doctorData) {
             throw new Error("Thông tin lịch hẹn không đầy đủ. Vui lòng thử lại.");
         }
@@ -392,7 +427,7 @@ const BookAppointmentDetails = () => {
         // Thông tin bổ sung để hiển thị trên trang thanh toán
       const appointmentInfo = {
           patientName: formData.patientName,
-          patientPhone: inputPhone || currentPhone,
+          patientPhone: formData.patientPhone || userInfo.phone_number,
           doctorName: doctorData.full_name || doctorData.user?.full_name,
           specialtyName: slotData.specialty?.name || (doctorData.specialties && doctorData.specialties[0]?.name),
           clinicName: slotData.clinic?.name || doctorData.clinic?.name || clinicData?.name,
@@ -407,8 +442,7 @@ const BookAppointmentDetails = () => {
           state: {
                 appointmentData,
                 appointmentInfo,
-                phoneUpdateSuccess: phoneNeedsUpdate,
-            }
+          }
         });
 
     } catch (error) {
