@@ -346,15 +346,16 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
     @Scheduled(fixedDelay = 600000)
     @Transactional
     public void deleteExpiredSlotsScheduled() {
-        // Chỉ xóa các slot đã qua và có trạng thái là AVAILABLE, CANCELLED_BY_CLINIC, hoặc ON_LEAVE
-        // Không bao giờ xóa slot có trạng thái BOOKED để bảo toàn lịch sử.
-        LocalDateTime now = LocalDateTime.now();
+        // Chỉ xóa các slot đã qua, có trạng thái cho phép xóa, và CHƯA TỪNG được đặt
+        // để bảo toàn tính toàn vẹn của khóa ngoại trong bảng appointments.
+        LocalDate currentDate = LocalDate.now();
+        LocalTime currentTime = LocalTime.now();
         List<AvailabilitySlot.SlotStatus> deletableStatuses = List.of(
                 AvailabilitySlot.SlotStatus.AVAILABLE,
                 AvailabilitySlot.SlotStatus.CANCELLED_BY_CLINIC,
                 AvailabilitySlot.SlotStatus.ON_LEAVE
         );
-        List<AvailabilitySlot> expiredSlots = slotRepository.findExpiredSlotsWithStatuses(now, deletableStatuses);
+        List<AvailabilitySlot> expiredSlots = slotRepository.findTrulyExpiredAndUnusedSlots(currentDate, currentTime, deletableStatuses);
         if (!expiredSlots.isEmpty()) {
             slotRepository.deleteAll(expiredSlots);
         }

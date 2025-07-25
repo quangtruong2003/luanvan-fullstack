@@ -54,8 +54,8 @@ const N8nChatWidget = () => {
           
           // Tin nhắn khởi tạo
           initialMessages: [
-            'Xin chào! 👋',
-            'Tôi là trợ lý AI của Medical.Care. Tôi có thể giúp gì cho bạn?'
+            'Xin chào! 👋 Tôi là trợ lý AI của Medical.Care. Tôi có thể giúp gì cho bạn?',
+            'Hãy bắt đầu với câu "Xin chào" để bắt đầu cuộc trò chuyện',
           ],
           
           // Cấu hình i18n

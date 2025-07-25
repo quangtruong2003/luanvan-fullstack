@@ -268,6 +268,22 @@ public class AppointmentController {
     }
 
     /**
+     * Cập nhật trạng thái thanh toán đặt cọc (chỉ Admin)
+     */
+    @PutMapping("/{appointmentId}/deposit-status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Appointment> updateDepositStatus(
+            @PathVariable Long appointmentId,
+            @RequestBody Map<String, Boolean> payload) {
+        Boolean isPaid = payload.get("is_deposit_paid");
+        if (isPaid == null) {
+            return ResponseEntity.badRequest().build(); // Hoặc trả về lỗi rõ ràng hơn
+        }
+        Appointment appointment = appointmentService.updateDepositStatus(appointmentId, isPaid);
+        return ResponseEntity.ok(appointment);
+    }
+
+    /**
      * Lấy danh sách lịch hẹn sắp tới cần nhắc nhở (chỉ Admin)
      */
     @GetMapping("/upcoming-reminders")

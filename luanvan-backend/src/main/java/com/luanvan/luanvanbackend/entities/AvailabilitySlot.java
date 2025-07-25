@@ -3,6 +3,8 @@ package com.luanvan.luanvanbackend.entities;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "availability_slots")
@@ -42,6 +44,10 @@ public class AvailabilitySlot {
     
     @Column(name = "created_from_shift_id")
     private Long createdFromShiftId; // ID của StandardWorkShift mà slot này được tạo từ
+
+    @OneToMany(mappedBy = "slot")
+    @JsonIgnore
+    private List<Appointment> appointments;
     
     public enum SlotStatus {
         AVAILABLE, BOOKED, CANCELLED_BY_CLINIC, ON_LEAVE
@@ -171,6 +177,14 @@ public class AvailabilitySlot {
     
     public void setCreatedFromShiftId(Long createdFromShiftId) {
         this.createdFromShiftId = createdFromShiftId;
+    }
+
+    public List<Appointment> getAppointments() {
+        return appointments;
+    }
+
+    public void setAppointments(List<Appointment> appointments) {
+        this.appointments = appointments;
     }
     
     // Utility methods

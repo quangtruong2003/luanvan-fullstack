@@ -274,6 +274,23 @@ public class AppointmentServiceImpl implements AppointmentService {
             appointment.setClinic(clinic);
         }
         
+        // Cập nhật trạng thái thanh toán đặt cọc (isDepositPaid)
+        if (appointmentDTO.getIsDepositPaid() != null) {
+            boolean depositPaid = appointmentDTO.getIsDepositPaid();
+            appointment.setDepositPaid(depositPaid);
+
+            // Logic đi kèm: Nếu cọc đã được thanh toán, xác nhận lịch hẹn.
+            // Ngược lại, có thể chuyển về trạng thái chờ thanh toán nếu hợp lệ.
+            if (depositPaid && appointment.getStatus() == Appointment.AppointmentStatus.PENDING_PAYMENT) {
+                appointment.setStatus(Appointment.AppointmentStatus.CONFIRMED);
+                appointment.setPaymentTimestamp(LocalDateTime.now()); // Ghi nhận thời điểm xác nhận thanh toán
+            } else if (!depositPaid && appointment.getStatus() == Appointment.AppointmentStatus.CONFIRMED) {
+                 // Cân nhắc: Có nên cho phép chuyển từ CONFIRMED về PENDING_PAYMENT không?
+                 // Tạm thời cho phép để linh hoạt trong quản lý.
+                 appointment.setStatus(Appointment.AppointmentStatus.PENDING_PAYMENT);
+            }
+        }
+        
         Appointment savedAppointment = appointmentRepository.save(appointment);
         
         // Gửi email thông báo cập nhật
@@ -536,5 +553,37 @@ public class AppointmentServiceImpl implements AppointmentService {
         // NO_SHOW → CANCELLED_BY_CLINIC (nếu cần)
         
         // Tất cả các chuyển đổi khác đều được phép
+    }
+
+    @Override
+    @Transactional
+    public Appointment updateDepositStatus(Long appointmentId, boolean isDepositPaid) {
+        Appointment appointment = getAppointmentById(appointmentId);
+
+        appointment.setDepositPaid(isDepositPaid);
+
+        // Logic đi kèm: Nếu cọc đã được thanh toán, xác nhận lịch hẹn.
+        // Ngược lại, chuyển về trạng thái chờ thanh toán.
+        if (isDepositPaid) {
+            // Chỉ chuyển sang CONFIRMED nếu đang ở trạng thái chờ hoặc thanh toán lỗi
+            if (appointment.getStatus() == Appointment.AppointmentStatus.PENDING_PAYMENT ||
+                appointment.getStatus() == Appointment.AppointmentStatus.PAYMENT_FAILED) {
+                appointment.setStatus(Appointment.AppointmentStatus.CONFIRMED);
+                appointment.setPaymentTimestamp(LocalDateTime.now());
+            }
+        } else {
+            // Nếu đánh dấu là chưa trả tiền, chuyển về PENDING_PAYMENT
+            // Điều này hữu ích khi admin muốn sửa sai một giao dịch được xác nhận nhầm
+             if (appointment.getStatus() == Appointment.AppointmentStatus.CONFIRMED) {
+                appointment.setStatus(Appointment.AppointmentStatus.PENDING_PAYMENT);
+             }
+        }
+
+        Appointment savedAppointment = appointmentRepository.save(appointment);
+
+        // Gửi email thông báo cập nhật
+        emailService.sendAppointmentUpdateEmail(savedAppointment);
+
+        return savedAppointment;
     }
 }

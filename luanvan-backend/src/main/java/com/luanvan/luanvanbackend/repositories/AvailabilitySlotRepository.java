@@ -132,8 +132,9 @@ public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySl
     // Tìm slot theo doctor, date và startTime (cho ghi đè tuyệt đối)
     List<AvailabilitySlot> findByDoctorDoctorIdAndDateAndStartTime(Long doctorId, LocalDate date, LocalTime startTime);
 
-    @Query("SELECT s FROM AvailabilitySlot s WHERE " +
-            "FUNCTION('TIMESTAMP', s.date, s.endTime) < :expiryDateTime " +
-            "AND s.status IN :statuses")
+    @Query("SELECT s FROM AvailabilitySlot s WHERE s.endTime < :expiryDateTime AND s.status IN :statuses")
     List<AvailabilitySlot> findExpiredSlotsWithStatuses(@Param("expiryDateTime") LocalDateTime expiryDateTime, @Param("statuses") List<AvailabilitySlot.SlotStatus> statuses);
+
+    @Query("SELECT s FROM AvailabilitySlot s LEFT JOIN s.appointments a WHERE (s.date < :currentDate OR (s.date = :currentDate AND s.endTime < :currentTime)) AND s.status IN :statuses AND a.appointmentId IS NULL")
+    List<AvailabilitySlot> findTrulyExpiredAndUnusedSlots(@Param("currentDate") LocalDate currentDate, @Param("currentTime") LocalTime currentTime, @Param("statuses") List<AvailabilitySlot.SlotStatus> statuses);
 }

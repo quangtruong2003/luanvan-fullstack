@@ -153,4 +153,6 @@ public interface AppointmentService {
      * @param appointmentId ID của lịch hẹn cần xóa.
      */
     void deleteAppointment(Long appointmentId);
+
+    Appointment updateDepositStatus(Long appointmentId, boolean isDepositPaid);
 } 
