@@ -5,7 +5,17 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import './DoctorCalendar.css';
 import { useUser, useClerk } from '@clerk/clerk-react';
-import { Calendar as LucideCalendar, Clock, User, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { Calendar as LucideCalendar, Clock, User, ChevronLeft, ChevronRight, AlertCircle, Info } from 'lucide-react';
+import { clinicOfflineService } from '../services/clinicOfflineService'; // Import the service
+
+// Helper function to format a Date object to 'YYYY-MM-DD' string, ignoring timezone.
+const formatDateToYYYYMMDD = (dateObj) => {
+  if (!dateObj) return '';
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const formatWorkingHours = (shifts) => {
   if (!shifts || shifts.length === 0) {
@@ -106,6 +116,7 @@ const DoctorSchedule = () => {
   const { isSignedIn, isLoaded } = useUser();
   const { openSignIn } = useClerk();
   const [minimumAdvanceBookingDays, setMinimumAdvanceBookingDays] = useState(1);
+  const [offlineDates, setOfflineDates] = useState([]); // State for offline dates
   const navigate = useNavigate();
 
   // Load minimum advance booking days from database
@@ -195,42 +206,43 @@ const DoctorSchedule = () => {
         
         if (foundClinic && clinicId) {
             setClinic(foundClinic);
-            // Fetch work shifts for the clinic
-            try {
-              console.log('🔍 Fetching work shifts for clinicId:', clinicId);
-              console.log('🔍 Clinic object:', foundClinic);
-              
-              setWorkShiftsError(null); // Clear previous errors
-              const shifts = await apiService.getStandardWorkShiftsByClinic(clinicId);
-              console.log('✅ Raw API response for work shifts:', shifts);
-              
-              if (shifts && Array.isArray(shifts) && shifts.length > 0) {
-                console.log(`✅ Successfully loaded ${shifts.length} work shifts`);
-                shifts.forEach((shift, index) => {
-                  console.log(`  Shift ${index}:`, {
-                    shiftId: shift.shiftId,
-                    shiftName: shift.shiftName,
-                    dayOfWeek: shift.dayOfWeek,
-                    startTime: shift.startTime,
-                    endTime: shift.endTime,
-                    isDefault: shift.isDefault
-                  });
-                });
-                setWorkShifts(shifts);
-              } else if (shifts && shifts.data && Array.isArray(shifts.data)) {
-                console.log('✅ Setting work shifts from .data property:', shifts.data.length, 'items');
-                setWorkShifts(shifts.data);
-              } else {
-                console.warn('⚠️ No work shifts found for clinic:', clinicId);
-                console.warn('⚠️ Response:', shifts);
+            // Fetch work shifts and offline dates for the clinic
+            const fetchClinicDetails = async () => {
+              try {
+                console.log('🔍 Fetching details for clinicId:', clinicId);
+                setWorkShiftsError(null);
+                
+                // Fetch both in parallel
+                const [shiftsResponse, offlineDatesResponse] = await Promise.all([
+                  apiService.getStandardWorkShiftsByClinic(clinicId),
+                  clinicOfflineService.getAllClinicOfflineDates(clinicId)
+                ]);
+
+                // Handle work shifts
+                if (shiftsResponse && Array.isArray(shiftsResponse) && shiftsResponse.length > 0) {
+                  setWorkShifts(shiftsResponse);
+                } else {
+                  console.warn('⚠️ No work shifts found for clinic:', clinicId);
+                  setWorkShifts([]);
+                  setWorkShiftsError('Chưa có lịch làm việc cho phòng khám này');
+                }
+
+                // Handle offline dates
+                if (offlineDatesResponse && Array.isArray(offlineDatesResponse)) {
+                  console.log(`✅ Successfully loaded ${offlineDatesResponse.length} offline dates`);
+                  setOfflineDates(offlineDatesResponse);
+                } else {
+                  setOfflineDates([]);
+                }
+
+              } catch (error) {
+                console.error("❌ Error fetching clinic details for clinic", clinicId, ":", error);
                 setWorkShifts([]);
-                setWorkShiftsError('Chưa có lịch làm việc cho phòng khám này');
+                setOfflineDates([]);
+                setWorkShiftsError(`Lỗi tải chi tiết phòng khám: ${error.message}`);
               }
-            } catch (shiftError) {
-              console.error("❌ Error fetching work shifts for clinic", clinicId, ":", shiftError);
-              setWorkShifts([]);
-              setWorkShiftsError(`Lỗi tải lịch làm việc: ${shiftError.message}`);
-            }
+            };
+            fetchClinicDetails();
         } else {
             console.warn('⚠️ Could not find clinic info or clinicId');
             console.log('🔍 Clinic search debug:', {
@@ -298,6 +310,18 @@ const DoctorSchedule = () => {
     fetchDoctorData();
   }, [doctorId]);
 
+  // Create a memoized map of offline dates for quick lookups
+  const offlineDatesMap = React.useMemo(() => {
+    const map = new Map();
+    offlineDates.forEach(d => {
+      // Assuming d.date from API is a string like '2025-08-02' or '2025-08-02T...'
+      // We just take the date part to avoid timezone issues with new Date().
+      const dateKey = d.date.substring(0, 10);
+      map.set(dateKey, d.reason || 'Phòng khám nghỉ');
+    });
+    return map;
+  }, [offlineDates]);
+
   // Fetch available slots for the doctor by date
   const fetchAvailableSlots = async (date) => {
     if (!date || !doctorId) return;
@@ -319,8 +343,15 @@ const DoctorSchedule = () => {
   const handleDateSelect = (date) => {
     const normalizedDate = new Date(date);
     normalizedDate.setHours(0, 0, 0, 0);
+
+    const dateString = formatDateToYYYYMMDD(normalizedDate); // Use helper
+    if (offlineDatesMap.has(dateString)) {
+      console.log('Selected date is an offline day, not fetching slots.');
+      setSlots([]); // Clear slots for offline day
+    } else {
+      fetchAvailableSlots(normalizedDate);
+    }
     setSelectedDate(normalizedDate);
-    fetchAvailableSlots(normalizedDate);
   };
 
   // When a slot is selected
@@ -359,7 +390,12 @@ const DoctorSchedule = () => {
     const tileDate = new Date(date);
     tileDate.setHours(0, 0, 0, 0);
     
+    const dateString = formatDateToYYYYMMDD(tileDate); // Use helper
     let classes = 'calendar-tile ';
+
+    if (offlineDatesMap.has(dateString)) {
+      classes += 'calendar-tile-offline ';
+    }
     
     // Past date styling
     if (tileDate.getTime() < today.getTime()) {
@@ -385,6 +421,10 @@ const DoctorSchedule = () => {
     
     return classes.trim();
   };
+
+  // Check if the selected date is an offline day
+  const isSelectedDateOffline = selectedDate && offlineDatesMap.has(formatDateToYYYYMMDD(selectedDate));
+  const offlineReason = isSelectedDateOffline ? offlineDatesMap.get(formatDateToYYYYMMDD(selectedDate)) : '';
 
   if (loading) {
     return (
@@ -580,7 +620,7 @@ const DoctorSchedule = () => {
                   value={selectedDate}
                   className="w-full border-0 shadow-none modern-calendar"
                   tileClassName={getTileClassName}
-                  tileDisabled={({ date }) => date < minDate || date > maxDate}
+                  tileDisabled={({ date }) => date < minDate || date > maxDate} // Only disable past/future dates, not offline dates
                   locale="vi-VN"
                   formatShortWeekday={(locale, date) => {
                     const weekdays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
@@ -614,6 +654,19 @@ const DoctorSchedule = () => {
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                         <p className="text-gray-600">Đang tải các khung giờ khám...</p>
                       </div>
+                    </div>
+                  ) : isSelectedDateOffline ? (
+                    <div className="text-center py-12 bg-red-50 text-red-700 rounded-xl">
+                      <AlertCircle className="w-16 h-16 mx-auto mb-4" />
+                      <h3 className="text-lg font-bold mb-2">Phòng khám nghỉ</h3>
+                      <p className="text-sm">
+                        Phòng khám <span className="font-semibold">{clinic?.name || ''}</span> không làm việc vào ngày này.
+                      </p>
+                      {offlineReason && (
+                        <p className="text-sm mt-2">
+                          <strong>Lý do:</strong> {offlineReason}
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <div>
@@ -665,6 +718,10 @@ const DoctorSchedule = () => {
                     </svg>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">Chọn ngày khám</h3>
                     <p className="text-gray-600">Vui lòng chọn ngày trên lịch để xem các khung giờ khám có sẵn</p>
+                    <div className="mt-4 flex items-center justify-center text-sm text-gray-500">
+                      <span className="w-3 h-3 rounded-full bg-red-400 mr-2"></span>
+                      <span>Ngày nghỉ của phòng khám</span>
+                    </div>
                   </div>
                 </div>
               )}

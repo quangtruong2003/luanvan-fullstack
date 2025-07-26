@@ -3,18 +3,49 @@ import {
   Plus, Search, Filter, Edit, Trash2, Eye, Building, 
   MapPin, Phone, Mail, Clock, Users, AlertCircle, Calendar,
   Star, StarOff, ChevronDown, ChevronUp, Stethoscope, BookOpen,
-  Wifi, WifiOff, RefreshCcw, Database
+  Wifi, WifiOff, RefreshCcw, Database, CalendarOff, Repeat, Calendar as CalendarIcon, Save
 } from 'lucide-react';
 import { adminService, apiService } from '../../services/api';
 import { useNotification } from '../../components/NotificationSystem';
+import { clinicOfflineService } from '../../services/clinicOfflineService';
 
-
+// Add custom animation styles
+const animationStyles = `
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+    70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+  }
+  .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
+  .animate-slideIn { animation: slideIn 0.4s ease-out forwards; }
+  .animate-pulse-blue { animation: pulse 1.5s infinite; }
+  .transition-height { transition: max-height 0.3s ease-in-out; }
+`;
 
 const ClinicManagement = ({ onAuthError, onNavigate }) => {
   console.log('🎯 ClinicManagement component rendered');
   
+  // Add the animation style to the document head
+  useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.innerHTML = animationStyles;
+    document.head.appendChild(styleElement);
+    
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
+  
   // Notification system
-  const { showSuccess, showError, showWarning, showInfo } = useNotification();
+  const { showSuccess, showError, showWarning } = useNotification();
   
   // Check authentication status
   const token = localStorage.getItem('token');
@@ -40,7 +71,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
   const [showWorkShiftModal, setShowWorkShiftModal] = useState(false);
 
   const [selectedClinic, setSelectedClinic] = useState(null);
-  const [expandedClinic, setExpandedClinic] = useState(null);
+  const [expandedClinics, setExpandedClinics] = useState([]);
   const [deleteLoading, setDeleteLoading] = useState(false);
   
   // Form states
@@ -70,19 +101,29 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
   });
 
   const daysOfWeek = [
-    { value: 'MONDAY', label: 'Thứ 2' },
-    { value: 'TUESDAY', label: 'Thứ 3' },
-    { value: 'WEDNESDAY', label: 'Thứ 4' },
-    { value: 'THURSDAY', label: 'Thứ 5' },
-    { value: 'FRIDAY', label: 'Thứ 6' },
-    { value: 'SATURDAY', label: 'Thứ 7' },
-    { value: 'SUNDAY', label: 'Chủ nhật' }
+    { value: 'MONDAY', label: 'Thứ 2', short: 'T2' },
+    { value: 'TUESDAY', label: 'Thứ 3', short: 'T3' },
+    { value: 'WEDNESDAY', label: 'Thứ 4', short: 'T4' },
+    { value: 'THURSDAY', label: 'Thứ 5', short: 'T5' },
+    { value: 'FRIDAY', label: 'Thứ 6', short: 'T6' },
+    { value: 'SATURDAY', label: 'Thứ 7', short: 'T7' },
+    { value: 'SUNDAY', label: 'Chủ nhật', short: 'CN' }
   ];
 
   const shiftTypes = [
     { value: 'morning', label: 'Ca sáng', icon: '🌅' },
     { value: 'afternoon', label: 'Ca chiều', icon: '🌇' }
   ];
+
+  const [activeTab, setActiveTab] = useState('workShifts'); // 'workShifts' or 'offlineDates'
+  const [offlineDates, setOfflineDates] = useState([]);
+  const [loadingOfflineDates, setLoadingOfflineDates] = useState(false);
+  const [offlineDateFormData, setOfflineDateFormData] = useState({
+    date: new Date().toISOString().split('T')[0], // Today's date in YYYY-MM-DD
+    reason: '',
+    isRecurring: false,
+    recurringType: 'NONE'
+  });
 
   useEffect(() => {
     console.log('🚀 ClinicManagement useEffect triggered');
@@ -545,9 +586,6 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
 
       // Delete existing shifts (use edit data - standardWorkShifts)
       const currentShifts = getClinicWorkShiftsForEdit(clinicId);
-      if (currentShifts.length > 0) {
-        showInfo(`Đang xóa ${currentShifts.length} ca làm việc cũ...`, 'Đang xử lý');
-      }
       
       for (const shift of currentShifts) {
         try {
@@ -561,10 +599,22 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
       const shiftsToCreate = [];
       let shiftCounter = 1;
       
+      // Use a Set to track unique shifts to prevent duplicates
+      const uniqueShifts = new Set();
+      
       for (const day of workShiftFormData.selectedDays) {
         for (const shiftType of workShiftFormData.shifts) {
           const startTime = shiftType === 'morning' ? workShiftFormData.morningStart : workShiftFormData.afternoonStart;
           const endTime = shiftType === 'morning' ? workShiftFormData.morningEnd : workShiftFormData.afternoonEnd;
+          
+          // Create a unique key for the shift
+          const shiftKey = `${day}-${shiftType}-${startTime}-${endTime}`;
+
+          if (uniqueShifts.has(shiftKey)) {
+            console.log(`Skipping duplicate shift: ${shiftKey}`);
+            continue;
+          }
+          uniqueShifts.add(shiftKey);
           
           const dayLabel = daysOfWeek.find(d => d.value === day)?.label || day;
           const shiftData = {
@@ -580,7 +630,19 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
         }
       }
 
-      showInfo(`Đang tạo ${shiftsToCreate.length} ca làm việc mới...`, 'Đang xử lý');
+      if (shiftsToCreate.length === 0) {
+        showWarning('Không có ca làm việc mới hợp lệ nào để tạo.', 'Cảnh báo');
+        // It's possible all new shifts were duplicates of existing ones
+        // or the form was submitted without any valid new shifts.
+        // We still need to refresh the data in case some old shifts were deleted.
+        await Promise.all([
+          fetchClinics(),
+          fetchStandardWorkShifts()
+        ]);
+        setShowWorkShiftModal(false);
+        resetWorkShiftForm();
+        return;
+      }
       
       for (const shiftData of shiftsToCreate) {
         await adminService.createStandardWorkShift(shiftData);
@@ -591,7 +653,13 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
         fetchClinics(),
         fetchStandardWorkShifts()
       ]);
-      showSuccess(`Đã cập nhật thành công ${shiftsToCreate.length} ca làm việc!`, 'Hoàn thành');
+      
+      // Simple success message
+      showSuccess(`Đã cập nhật thành công ${shiftsToCreate.length} ca làm việc.`, 'Hoàn thành');
+      
+      // Close the modal after successful save
+      setShowWorkShiftModal(false);
+      resetWorkShiftForm();
     } catch (error) {
       console.error('Error saving work shifts:', error);
       showError(error.message, 'Lỗi khi lưu ca làm việc');
@@ -610,7 +678,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
         fetchClinics(),
         fetchStandardWorkShifts()
       ]);
-      showSuccess('Ca làm việc đã được xóa thành công!');
+      showSuccess('Đã xóa ca làm việc thành công');
     } catch (error) {
       console.error('Error deleting work shift:', error);
       showError(error.message, 'Lỗi khi xóa ca làm việc');
@@ -685,9 +753,12 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
   };
 
   const openWorkShiftModal = (clinic) => {
+    console.log('Opening work shift modal for clinic:', clinic);
     setSelectedClinic(clinic);
     loadWorkShiftsForEdit(clinic.clinic_id || clinic.clinicId);
+    fetchOfflineDates(clinic.clinic_id || clinic.clinicId);
     setShowWorkShiftModal(true);
+    setActiveTab('workShifts'); // Mặc định hiển thị tab ca làm việc
   };
 
   const loadWorkShiftsForEdit = (clinicId) => {
@@ -789,6 +860,110 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
       </div>
     );
   }
+
+  const toggleExpandClinic = (clinicId) => {
+    if (expandedClinics.includes(clinicId)) {
+      setExpandedClinics(expandedClinics.filter(id => id !== clinicId));
+    } else {
+      setExpandedClinics([...expandedClinics, clinicId]);
+    }
+  };
+
+  // Thêm hàm fetch ngày nghỉ
+  const fetchOfflineDates = async (clinicId) => {
+    if (!clinicId) return;
+    
+    setLoadingOfflineDates(true);
+    try {
+      const data = await clinicOfflineService.getAllClinicOfflineDates(clinicId);
+      setOfflineDates(data || []);
+    } catch (error) {
+      console.error('Error fetching offline dates:', error);
+      showError('Không thể tải danh sách ngày nghỉ');
+    } finally {
+      setLoadingOfflineDates(false);
+    }
+  };
+  
+  // Thêm lại hàm resetOfflineDateForm
+  const resetOfflineDateForm = () => {
+    setOfflineDateFormData({
+      date: new Date().toISOString().split('T')[0],
+      reason: '',
+      isRecurring: false,
+      recurringType: 'NONE'
+    });
+  };
+  
+  // Xử lý thêm ngày nghỉ mới
+  const handleAddOfflineDate = async () => {
+    if (!selectedClinic) return;
+    
+    const clinicId = selectedClinic.clinic_id || selectedClinic.clinicId;
+    
+    try {
+      // Validate dữ liệu
+      if (!offlineDateFormData.date) {
+        showError('Vui lòng chọn ngày nghỉ');
+        return;
+      }
+      
+      // Gửi request tạo ngày nghỉ mới
+      await clinicOfflineService.createClinicOfflineDate(clinicId, offlineDateFormData);
+      
+      // Tải lại danh sách
+      await fetchOfflineDates(clinicId);
+      
+      // Reset form và hiện thông báo
+      resetOfflineDateForm();
+      showSuccess('Đã thêm ngày nghỉ thành công');
+    } catch (error) {
+      console.error('Error adding offline date:', error);
+      showError(error.message || 'Không thể thêm ngày nghỉ');
+    }
+  };
+  
+  // Xử lý xóa ngày nghỉ
+  const handleDeleteOfflineDate = async (offlineDateId) => {
+    if (!selectedClinic || !offlineDateId) return;
+    
+    const clinicId = selectedClinic.clinic_id || selectedClinic.clinicId;
+    
+    try {
+      // Xác nhận xóa
+      if (!window.confirm('Bạn có chắc chắn muốn xóa ngày nghỉ này?')) {
+        return;
+      }
+      
+      // Gửi request xóa
+      await clinicOfflineService.deleteClinicOfflineDate(clinicId, offlineDateId);
+      
+      // Tải lại danh sách
+      await fetchOfflineDates(clinicId);
+      
+      // Hiện thông báo
+      showSuccess('Đã xóa ngày nghỉ thành công');
+    } catch (error) {
+      console.error('Error deleting offline date:', error);
+      showError(error.message || 'Không thể xóa ngày nghỉ');
+    }
+  };
+  
+  // Định dạng ngày hiển thị
+  const formatDate = (dateString) => {
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString('vi-VN', options);
+  };
+  
+  // Định dạng loại lặp lại
+  const getRecurringTypeLabel = (recurringType) => {
+    switch (recurringType) {
+      case 'WEEKLY': return 'Hàng tuần';
+      case 'MONTHLY': return 'Hàng tháng';
+      case 'YEARLY': return 'Hàng năm';
+      default: return 'Không lặp lại';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -942,8 +1117,8 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {sortedClinics.map((clinic, index) => (
-                  <tr key={clinic.clinic_id || clinic.clinicId} 
-                      className={`hover:bg-gradient-to-r hover:from-blue-25 hover:to-indigo-25 transition-all duration-200 ${
+                  <React.Fragment key={clinic.clinic_id || clinic.clinicId}>
+                    <tr className={`hover:bg-gradient-to-r hover:from-blue-25 hover:to-indigo-25 transition-all duration-200 ${
                         index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                       }`}>
                     
@@ -1072,29 +1247,29 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                               <span className="text-xs font-medium text-gray-700">
                                 {getClinicWorkShiftsForDisplay(clinic.clinic_id || clinic.clinicId).length} ca làm việc
                               </span>
-                              <div className="flex items-center space-x-1">
-                                <button
-                                  onClick={() => openWorkShiftModal(clinic)}
-                                  className="text-green-600 hover:text-green-800 transition-colors"
-                                  title="Cấu hình ca làm việc"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    const id = clinic.clinic_id || clinic.clinicId;
-                                    setExpandedClinic(expandedClinic === id ? null : id);
-                                  }}
-                                  className="text-green-600 hover:text-green-800 transition-colors"
-                                  title="Xem chi tiết ca làm việc"
-                                >
-                                  {expandedClinic === (clinic.clinic_id || clinic.clinicId) ? (
-                                    <ChevronUp className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronDown className="h-4 w-4" />
-                                  )}
-                                </button>
-                              </div>
+                                <div className="flex items-center space-x-1">
+                                  <button
+                                    onClick={() => openWorkShiftModal(clinic)}
+                                    className="text-green-600 hover:text-green-800 transition-colors"
+                                    title="Cấu hình ca làm việc"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                              <button
+                                onClick={() => {
+                                  const id = clinic.clinic_id || clinic.clinicId;
+                                      toggleExpandClinic(id);
+                                }}
+                                className="text-green-600 hover:text-green-800 transition-colors"
+                                title="Xem chi tiết ca làm việc"
+                              >
+                                    {expandedClinics.includes(clinic.clinic_id || clinic.clinicId) ? (
+                                  <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4" />
+                                )}
+                              </button>
+                                </div>
                             </div>
                             
                             <div className="space-y-1">
@@ -1131,7 +1306,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                             </div>
                             <p className="text-xs text-gray-500 mb-2">Chưa có ca làm việc</p>
                             <button
-                              onClick={() => openWorkShiftModal(clinic)}
+                                onClick={() => openWorkShiftModal(clinic)}
                               className="inline-flex items-center px-3 py-1 text-xs font-medium text-green-600 bg-green-50 rounded-full hover:bg-green-100 transition-colors"
                             >
                               <Plus className="h-3 w-3 mr-1" />
@@ -1169,6 +1344,96 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                       </div>
                     </td>
                   </tr>
+
+                    {/* Expanded Work Shifts Row - will be shown when expanded */}
+                    {expandedClinics.includes(clinic.clinic_id || clinic.clinicId) && (
+                      <tr>
+                        <td colSpan="4" className="px-6 py-4 bg-gray-50">
+                          <div className="animate-slideIn">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-sm font-medium text-gray-800 flex items-center">
+                                <Clock className="h-4 w-4 mr-2 text-green-600" />
+                                Danh sách ca làm việc của {clinic.name}
+                              </h4>
+                              <button
+                                onClick={() => openWorkShiftModal(clinic)}
+                                className="flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-full hover:bg-green-700 transition-colors duration-200"
+                              >
+                                <Plus className="h-3 w-3 mr-1" />
+                                Thêm/Sửa ca làm việc
+                              </button>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                              {getClinicWorkShiftsForDisplay(clinic.clinic_id || clinic.clinicId).map((shift) => (
+                                <div 
+                                  key={shift.shiftId || shift.workingHoursId || shift.working_hours_id}
+                                  className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 group"
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      <div className="flex items-center space-x-2">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                          (shift.isDefault || shift.is_default) ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800'
+                                        }`}>
+                                          {(shift.isDefault || shift.is_default) ? (
+                                            <><Star className="h-3 w-3 mr-1 fill-current" /> Mặc định</>
+                                          ) : (
+                                            <><Clock className="h-3 w-3 mr-1" /> Thông thường</>
+                                          )}
+                                        </span>
+                                      </div>
+                                      
+                                      <div className="mt-2 text-sm font-medium text-gray-900">
+                                        {getDayLabel(shift.dayOfWeek || shift.day_of_week)}
+                                      </div>
+                                      
+                                      <div className="mt-1 flex items-center text-sm text-gray-600">
+                                        {(shift.startTime || shift.start_time).includes('08:00') || (shift.startTime || shift.start_time).includes('09:00') ? (
+                                          <span className="flex items-center">
+                                            <span className="text-base mr-1">🌅</span> 
+                                            <span>{formatTime(shift.startTime || shift.start_time)} - {formatTime(shift.endTime || shift.end_time)}</span>
+                                          </span>
+                                        ) : (
+                                          <span className="flex items-center">
+                                            <span className="text-base mr-1">🌇</span>
+                                            <span>{formatTime(shift.startTime || shift.start_time)} - {formatTime(shift.endTime || shift.end_time)}</span>
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                      <button
+                                        onClick={() => handleDeleteWorkShift(shift.shiftId)}
+                                        className="p-1 hover:bg-red-100 rounded-full transition-colors duration-200"
+                                        title="Xóa ca làm việc"
+                                      >
+                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                              {getClinicWorkShiftsForDisplay(clinic.clinic_id || clinic.clinicId).length === 0 && (
+                                <div className="col-span-full flex flex-col items-center justify-center py-6 bg-white rounded-lg border border-gray-200">
+                                  <Clock className="h-10 w-10 text-gray-400 mb-2" />
+                                  <p className="text-sm text-gray-500 mb-3">Chưa có ca làm việc nào</p>
+                                  <button
+                                    onClick={() => openWorkShiftModal(clinic)}
+                                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-full hover:bg-green-700 transition-colors duration-200 animate-pulse-blue"
+                                  >
+                                    <Plus className="h-3 w-3 mr-1" />
+                                    Thêm ca làm việc đầu tiên
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -1197,68 +1462,6 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                 </button>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Expanded Work Shifts Details */}
-        {expandedClinic && (
-          <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
-            <div className="mb-3 flex justify-between items-center">
-              <h4 className="text-sm font-medium text-gray-700">Chi tiết ca làm việc</h4>
-              <button
-                onClick={() => {
-                  const clinic = clinics.find(c => (c.clinic_id || c.clinicId) === expandedClinic);
-                  if (clinic) openWorkShiftModal(clinic);
-                }}
-                className="text-xs text-blue-600 hover:text-blue-800"
-              >
-                Cấu hình ca làm việc
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {getClinicWorkShiftsForDisplay(expandedClinic).map(shift => (
-                <div key={shift.shiftId || shift.workingHoursId || shift.working_hours_id} 
-                     className="bg-white p-3 rounded-lg border border-gray-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {getDayLabel(shift.dayOfWeek || shift.day_of_week)}
-                      </div>
-                      <div className="text-xs text-gray-600">
-                        {formatTime(shift.startTime || shift.start_time)} - {formatTime(shift.endTime || shift.end_time)}
-                      </div>
-                      {(shift.isDefault || shift.is_default) && (
-                        <div className="flex items-center text-xs text-yellow-600 mt-1">
-                          <Star className="h-3 w-3 mr-1" />
-                          Ca mặc định
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => handleDeleteWorkShift(shift.shiftId || shift.workingHoursId || shift.working_hours_id)}
-                      className="text-red-500 hover:text-red-700"
-                      title="Xóa ca làm việc"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {getClinicWorkShiftsForDisplay(expandedClinic).length === 0 && (
-                <div className="col-span-full text-center py-4">
-                  <p className="text-sm text-gray-500">Chưa có ca làm việc nào</p>
-                  <button
-                    onClick={() => {
-                      const clinic = clinics.find(c => (c.clinic_id || c.clinicId) === expandedClinic);
-                      if (clinic) openWorkShiftModal(clinic);
-                    }}
-                    className="mt-2 text-sm text-blue-600 hover:text-blue-800"
-                  >
-                    Thêm ca làm việc đầu tiên
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         )}
       </div>
@@ -1424,10 +1627,8 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                 Chỉnh sửa phòng khám: {selectedClinic.name}
               </h3>
               <form onSubmit={handleUpdateClinic}>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Thông tin cơ bản */}
                   <div className="space-y-4">
-                    <h4 className="text-md font-medium text-gray-800 border-b pb-2">Thông tin cơ bản</h4>
+                  <h4 className="text-md font-medium text-gray-800 border-b pb-2">Thông tin phòng khám</h4>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1496,216 +1697,12 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                     </div>
                   </div>
 
-                  {/* Ca làm việc */}
-                  <div className="space-y-4">
-                    <h4 className="text-md font-medium text-gray-800 border-b pb-2">Cấu hình ca làm việc</h4>
-                    
-                    {/* Chọn loại ca */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Loại ca làm việc *
-                      </label>
-                      <div className="space-y-2">
-                        {shiftTypes.map(shift => (
-                          <label key={shift.value} className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={workShiftFormData.shifts.includes(shift.value)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setWorkShiftFormData({
-                                    ...workShiftFormData,
-                                    shifts: [...workShiftFormData.shifts, shift.value]
-                                  });
-                                } else {
-                                  setWorkShiftFormData({
-                                    ...workShiftFormData,
-                                    shifts: workShiftFormData.shifts.filter(s => s !== shift.value)
-                                  });
-                                }
-                              }}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
-                            />
-                            <span className="text-sm text-gray-700">
-                              {shift.icon} {shift.label}
-                            </span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Thời gian ca sáng */}
-                    {workShiftFormData.shifts.includes('morning') && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          🌅 Giờ làm việc ca sáng
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Bắt đầu</label>
-                            <input
-                              type="time"
-                              value={workShiftFormData.morningStart}
-                              onChange={(e) => setWorkShiftFormData({
-                                ...workShiftFormData,
-                                morningStart: e.target.value
-                              })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Kết thúc</label>
-                            <input
-                              type="time"
-                              value={workShiftFormData.morningEnd}
-                              onChange={(e) => setWorkShiftFormData({
-                                ...workShiftFormData,
-                                morningEnd: e.target.value
-                              })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Thời gian ca chiều */}
-                    {workShiftFormData.shifts.includes('afternoon') && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          🌇 Giờ làm việc ca chiều
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Bắt đầu</label>
-                            <input
-                              type="time"
-                              value={workShiftFormData.afternoonStart}
-                              onChange={(e) => setWorkShiftFormData({
-                                ...workShiftFormData,
-                                afternoonStart: e.target.value
-                              })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-gray-500 mb-1">Kết thúc</label>
-                            <input
-                              type="time"
-                              value={workShiftFormData.afternoonEnd}
-                              onChange={(e) => setWorkShiftFormData({
-                                ...workShiftFormData,
-                                afternoonEnd: e.target.value
-                              })}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Chọn ngày trong tuần */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Ngày hoạt động *
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {daysOfWeek.map(day => (
-                          <label key={day.value} className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={workShiftFormData.selectedDays.includes(day.value)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setWorkShiftFormData({
-                                    ...workShiftFormData,
-                                    selectedDays: [...workShiftFormData.selectedDays, day.value]
-                                  });
-                                } else {
-                                  setWorkShiftFormData({
-                                    ...workShiftFormData,
-                                    selectedDays: workShiftFormData.selectedDays.filter(d => d !== day.value)
-                                  });
-                                }
-                              }}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
-                            />
-                            <span className="text-sm text-gray-700">{day.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Nút chọn nhanh */}
-                    <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => setWorkShiftFormData({
-                          ...workShiftFormData,
-                          selectedDays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']
-                        })}
-                        className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
-                      >
-                        T2-T6
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setWorkShiftFormData({
-                          ...workShiftFormData,
-                          selectedDays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
-                        })}
-                        className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200"
-                      >
-                        T2-T7
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setWorkShiftFormData({
-                          ...workShiftFormData,
-                          selectedDays: daysOfWeek.map(d => d.value)
-                        })}
-                        className="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200"
-                      >
-                        Tất cả
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setWorkShiftFormData({
-                          ...workShiftFormData,
-                          selectedDays: []
-                        })}
-                        className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-                      >
-                        Bỏ chọn
-                      </button>
-                    </div>
-
-                    {/* Tùy chọn mặc định */}
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="isDefaultEdit"
-                        checked={workShiftFormData.isDefault}
-                        onChange={(e) => setWorkShiftFormData({
-                          ...workShiftFormData,
-                          isDefault: e.target.checked
-                        })}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <label htmlFor="isDefaultEdit" className="ml-2 text-sm text-gray-700">
-                        Đặt làm ca mặc định ⭐
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-6 flex justify-end space-x-3 border-t pt-4">
+                <div className="mt-6 flex justify-end space-x-3">
                   <button
                     type="button"
                     onClick={() => {
                       setShowEditModal(false);
                       resetForm();
-                      resetWorkShiftForm();
                     }}
                     className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                   >
@@ -1725,7 +1722,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                         <span>Đang cập nhật...</span>
                       </div>
                     ) : (
-                      'Cập nhật phòng khám & ca làm việc'
+                      'Cập nhật phòng khám'
                     )}
                   </button>
                 </div>
@@ -1885,249 +1882,484 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
 
       {/* Work Shift Configuration Modal */}
       {showWorkShiftModal && selectedClinic && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm transition-all duration-300">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white transform transition-all duration-300 ease-in-out">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
                 <Clock className="h-5 w-5 mr-2 text-green-600" />
-                Cấu hình ca làm việc
+                Cấu hình ca làm việc & ngày nghỉ
                 <span className="text-sm font-normal text-gray-500 ml-2">
                   cho {selectedClinic?.name}
                 </span>
               </h3>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                handleSaveWorkShifts();
-              }}>
-                <div className="space-y-5">
-                  {/* Chọn loại ca */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Loại ca làm việc *
-                    </label>
-                    <div className="space-y-2">
-                      {shiftTypes.map(shift => (
-                        <label key={shift.value} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={workShiftFormData.shifts.includes(shift.value)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setWorkShiftFormData({
-                                  ...workShiftFormData,
-                                  shifts: [...workShiftFormData.shifts, shift.value]
-                                });
-                              } else {
-                                setWorkShiftFormData({
-                                  ...workShiftFormData,
-                                  shifts: workShiftFormData.shifts.filter(s => s !== shift.value)
-                                });
-                              }
-                            }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
-                          />
-                          <span className="text-sm text-gray-700">
-                            {shift.icon} {shift.label}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
 
-                  {/* Thời gian ca sáng */}
-                  {workShiftFormData.shifts.includes('morning') && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        🌅 Giờ làm việc ca sáng
-                      </label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Bắt đầu</label>
-                          <input
-                            type="time"
-                            value={workShiftFormData.morningStart}
-                            onChange={(e) => setWorkShiftFormData({
-                              ...workShiftFormData,
-                              morningStart: e.target.value
-                            })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Kết thúc</label>
-                          <input
-                            type="time"
-                            value={workShiftFormData.morningEnd}
-                            onChange={(e) => setWorkShiftFormData({
-                              ...workShiftFormData,
-                              morningEnd: e.target.value
-                            })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Thời gian ca chiều */}
-                  {workShiftFormData.shifts.includes('afternoon') && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        🌇 Giờ làm việc ca chiều
-                      </label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Bắt đầu</label>
-                          <input
-                            type="time"
-                            value={workShiftFormData.afternoonStart}
-                            onChange={(e) => setWorkShiftFormData({
-                              ...workShiftFormData,
-                              afternoonStart: e.target.value
-                            })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Kết thúc</label>
-                          <input
-                            type="time"
-                            value={workShiftFormData.afternoonEnd}
-                            onChange={(e) => setWorkShiftFormData({
-                              ...workShiftFormData,
-                              afternoonEnd: e.target.value
-                            })}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Chọn ngày trong tuần */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Ngày hoạt động *
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {daysOfWeek.map(day => (
-                        <label key={day.value} className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={workShiftFormData.selectedDays.includes(day.value)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setWorkShiftFormData({
-                                  ...workShiftFormData,
-                                  selectedDays: [...workShiftFormData.selectedDays, day.value]
-                                });
-                              } else {
-                                setWorkShiftFormData({
-                                  ...workShiftFormData,
-                                  selectedDays: workShiftFormData.selectedDays.filter(d => d !== day.value)
-                                });
-                              }
-                            }}
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
-                          />
-                          <span className="text-sm text-gray-700">{day.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Nút chọn nhanh */}
-                  <div className="flex space-x-2">
-                    <button
-                      type="button"
-                      onClick={() => setWorkShiftFormData({
-                        ...workShiftFormData,
-                        selectedDays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']
-                      })}
-                      className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
-                    >
-                      T2-T6
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setWorkShiftFormData({
-                        ...workShiftFormData,
-                        selectedDays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
-                      })}
-                      className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200"
-                    >
-                      T2-T7
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setWorkShiftFormData({
-                        ...workShiftFormData,
-                        selectedDays: daysOfWeek.map(d => d.value)
-                      })}
-                      className="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200"
-                    >
-                      Tất cả
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setWorkShiftFormData({
-                        ...workShiftFormData,
-                        selectedDays: []
-                      })}
-                      className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-                    >
-                      Bỏ chọn
-                    </button>
-                  </div>
-
-                  {/* Tùy chọn mặc định */}
+              {/* Tabs */}
+              <div className="flex border-b mb-4">
+                <button
+                  className={`px-4 py-2 ${
+                    activeTab === 'workShifts'
+                      ? 'border-b-2 border-blue-500 text-blue-600 font-medium transition-all duration-200'
+                      : 'text-gray-600 hover:text-blue-500 transition-all duration-200'
+                  }`}
+                  onClick={() => setActiveTab('workShifts')}
+                >
                   <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isDefaultWorkShift"
-                      checked={workShiftFormData.isDefault}
-                      onChange={(e) => setWorkShiftFormData({
-                        ...workShiftFormData,
-                        isDefault: e.target.checked
-                      })}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <label htmlFor="isDefaultWorkShift" className="ml-2 text-sm text-gray-700">
-                      Đặt làm ca mặc định ⭐
-                    </label>
+                    <Clock className="h-4 w-4 mr-1" />
+                    <span>Ca làm việc</span>
                   </div>
-                </div>
+                </button>
+                <button
+                  className={`px-4 py-2 ${
+                    activeTab === 'offlineDates'
+                      ? 'border-b-2 border-blue-500 text-blue-600 font-medium transition-all duration-200'
+                      : 'text-gray-600 hover:text-blue-500 transition-all duration-200'
+                  }`}
+                  onClick={() => setActiveTab('offlineDates')}
+                >
+                  <div className="flex items-center">
+                    <CalendarOff className="h-4 w-4 mr-1" />
+                    <span>Ngày nghỉ</span>
+                  </div>
+                </button>
+              </div>
 
-                <div className="mt-6 flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowWorkShiftModal(false);
-                      resetWorkShiftForm();
-                    }}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <div className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span>Đang lưu...</span>
+              {/* Tab Content: Ca làm việc */}
+              {activeTab === 'workShifts' && (
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSaveWorkShifts();
+                }}
+                className="animate-fadeIn">
+                  <div className="space-y-5">
+                    {/* Chọn loại ca */}
+                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Loại ca làm việc *
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {shiftTypes.map(shift => (
+                          <label key={shift.value} 
+                            className={`flex items-center p-3 rounded-lg border transition-all duration-200 cursor-pointer
+                            ${workShiftFormData.shifts.includes(shift.value) 
+                              ? 'bg-blue-50 border-blue-300 shadow-sm' 
+                              : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={workShiftFormData.shifts.includes(shift.value)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setWorkShiftFormData({
+                                    ...workShiftFormData,
+                                    shifts: [...workShiftFormData.shifts, shift.value]
+                                  });
+                                } else {
+                                  setWorkShiftFormData({
+                                    ...workShiftFormData,
+                                    shifts: workShiftFormData.shifts.filter(s => s !== shift.value)
+                                  });
+                                }
+                              }}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                            />
+                            <span className="text-sm text-gray-700 flex items-center">
+                              <span className="text-xl mr-2">{shift.icon}</span> 
+                              <span>{shift.label}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Chọn ngày trong tuần */}
+                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Ngày làm việc trong tuần *
+                      </label>
+                      <div className="grid grid-cols-7 gap-2">
+                        {daysOfWeek.map(day => (
+                          <div key={day.value} className="flex flex-col items-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (workShiftFormData.selectedDays.includes(day.value)) {
+                                  setWorkShiftFormData({
+                                    ...workShiftFormData,
+                                    selectedDays: workShiftFormData.selectedDays.filter(d => d !== day.value)
+                                  });
+                                } else {
+                                  setWorkShiftFormData({
+                                    ...workShiftFormData,
+                                    selectedDays: [...workShiftFormData.selectedDays, day.value]
+                                  });
+                                }
+                              }}
+                              className={`w-10 h-10 rounded-full flex items-center justify-center focus:outline-none transition-all duration-200 transform
+                                ${workShiftFormData.selectedDays.includes(day.value)
+                                  ? 'bg-green-600 text-white shadow-md scale-110'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                              {day.short}
+                            </button>
+                            <span className="text-xs mt-1 text-gray-600">{day.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Cấu hình giờ cho ca sáng */}
+                    {workShiftFormData.shifts.includes('morning') && (
+                      <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 shadow-sm transform transition-all duration-300 ease-in-out">
+                        <h4 className="text-sm font-medium text-blue-800 mb-3 flex items-center">
+                          <span className="text-xl mr-2">🌅</span>
+                          <span>Cấu hình giờ ca sáng</span>
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Giờ bắt đầu
+                            </label>
+                            <input
+                              type="time"
+                              value={workShiftFormData.morningStart}
+                              onChange={(e) => setWorkShiftFormData({
+                                ...workShiftFormData,
+                                morningStart: e.target.value
+                              })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Giờ kết thúc
+                            </label>
+                            <input
+                              type="time"
+                              value={workShiftFormData.morningEnd}
+                              onChange={(e) => setWorkShiftFormData({
+                                ...workShiftFormData,
+                                morningEnd: e.target.value
+                              })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Cấu hình giờ cho ca chiều */}
+                    {workShiftFormData.shifts.includes('afternoon') && (
+                      <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-100 shadow-sm transform transition-all duration-300 ease-in-out">
+                        <h4 className="text-sm font-medium text-yellow-800 mb-3 flex items-center">
+                          <span className="text-xl mr-2">🌇</span>
+                          <span>Cấu hình giờ ca chiều</span>
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Giờ bắt đầu
+                            </label>
+                            <input
+                              type="time"
+                              value={workShiftFormData.afternoonStart}
+                              onChange={(e) => setWorkShiftFormData({
+                                ...workShiftFormData,
+                                afternoonStart: e.target.value
+                              })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Giờ kết thúc
+                            </label>
+                            <input
+                              type="time"
+                              value={workShiftFormData.afternoonEnd}
+                              onChange={(e) => setWorkShiftFormData({
+                                ...workShiftFormData,
+                                afternoonEnd: e.target.value
+                              })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Tùy chọn ca mặc định */}
+                    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="isDefault"
+                          checked={workShiftFormData.isDefault}
+                          onChange={(e) => setWorkShiftFormData({
+                            ...workShiftFormData,
+                            isDefault: e.target.checked
+                          })}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2 h-4 w-4"
+                        />
+                        <label htmlFor="isDefault" className="text-sm font-medium text-gray-700 cursor-pointer">
+                          <div className="flex items-center">
+                            <Star className={`h-4 w-4 mr-1 ${workShiftFormData.isDefault ? 'text-yellow-500 fill-current' : 'text-gray-400'} transition-colors duration-200`} />
+                            <span>Đặt làm ca mặc định</span>
+                          </div>
+                        </label>
+                      </div>
+                      {workShiftFormData.isDefault && (
+                        <p className="mt-2 text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                          Ca làm việc mặc định sẽ được áp dụng tự động khi tạo lịch làm việc mới cho bác sĩ.
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-6 flex justify-end space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowWorkShiftModal(false);
+                          resetWorkShiftForm();
+                        }}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 transition-colors duration-200"
+                      >
+                        {loading ? (
+                          <div className="flex items-center justify-center">
+                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Đang lưu...</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center">
+                            <Save className="h-4 w-4 mr-1" />
+                            <span>Lưu ca làm việc</span>
+                          </div>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              )}
+
+              {/* Tab Content: Ngày nghỉ */}
+              {activeTab === 'offlineDates' && (
+                <div className="space-y-6 animate-fadeIn">
+                  <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <h4 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+                      <Calendar className="h-5 w-5 mr-2 text-red-500" />
+                      <span>Thêm ngày nghỉ mới</span>
+                    </h4>
+                    
+                    <div className="space-y-4">
+                      {/* Chọn ngày */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Ngày nghỉ *
+                          </label>
+                          <input
+                            type="date"
+                            value={offlineDateFormData.date}
+                            onChange={(e) => setOfflineDateFormData({
+                              ...offlineDateFormData,
+                              date: e.target.value
+                            })}
+                            min={new Date().toISOString().split('T')[0]} // Không cho chọn ngày quá khứ
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Lý do nghỉ
+                          </label>
+                          <input
+                            type="text"
+                            value={offlineDateFormData.reason}
+                            onChange={(e) => setOfflineDateFormData({
+                              ...offlineDateFormData,
+                              reason: e.target.value
+                            })}
+                            placeholder="Ví dụ: Nghỉ lễ, Sửa chữa cơ sở vật chất..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Tùy chọn lặp lại */}
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <div className="flex items-center mb-2">
+                          <input
+                            type="checkbox"
+                            id="isRecurring"
+                            checked={offlineDateFormData.isRecurring}
+                            onChange={(e) => setOfflineDateFormData({
+                              ...offlineDateFormData,
+                              isRecurring: e.target.checked,
+                              recurringType: e.target.checked ? offlineDateFormData.recurringType : 'NONE'
+                            })}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2 h-4 w-4"
+                          />
+                          <label htmlFor="isRecurring" className="text-sm font-medium text-gray-700 cursor-pointer">
+                            <div className="flex items-center">
+                              <Repeat className="h-4 w-4 mr-1 text-blue-600" />
+                              <span>Lặp lại ngày nghỉ</span>
+                            </div>
+                          </label>
+                        </div>
+                        
+                        {offlineDateFormData.isRecurring && (
+                          <div className="mt-3 pl-6 animate-fadeIn">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Kiểu lặp lại
+                            </label>
+                            <select
+                              value={offlineDateFormData.recurringType}
+                              onChange={(e) => setOfflineDateFormData({
+                                ...offlineDateFormData,
+                                recurringType: e.target.value
+                              })}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                            >
+                              <option value="WEEKLY">Hàng tuần (cùng thứ)</option>
+                              <option value="MONTHLY">Hàng tháng (cùng ngày)</option>
+                              <option value="YEARLY">Hàng năm (cùng ngày)</option>
+                            </select>
+                            
+                            <div className="mt-2 text-xs text-gray-500 bg-white p-3 rounded border border-gray-100">
+                              <p className="mb-1 font-medium">Giải thích:</p>
+                              {offlineDateFormData.recurringType === 'WEEKLY' && (
+                                <p className="flex items-center">
+                                  <span className="text-blue-500 mr-1">•</span>
+                                  Lặp lại vào thứ này hàng tuần (ví dụ: nghỉ thứ 7 hàng tuần)
+                                </p>
+                              )}
+                              {offlineDateFormData.recurringType === 'MONTHLY' && (
+                                <p className="flex items-center">
+                                  <span className="text-blue-500 mr-1">•</span>
+                                  Lặp lại vào ngày này hàng tháng (ví dụ: nghỉ ngày 15 hàng tháng)
+                                </p>
+                              )}
+                              {offlineDateFormData.recurringType === 'YEARLY' && (
+                                <p className="flex items-center">
+                                  <span className="text-blue-500 mr-1">•</span>
+                                  Lặp lại vào ngày này hàng năm (ví dụ: nghỉ ngày Tết hàng năm)
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Nút thêm mới */}
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleAddOfflineDate}
+                          disabled={loadingOfflineDates}
+                          className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors duration-200"
+                        >
+                          {loadingOfflineDates ? (
+                            <div className="flex items-center">
+                              <div className="animate-spin h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full"></div>
+                              <span>Đang xử lý...</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center">
+                              <Plus className="h-4 w-4 mr-1" />
+                              <span>Thêm ngày nghỉ</span>
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Danh sách ngày nghỉ */}
+                  <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <h4 className="text-md font-medium text-gray-800 mb-3 flex justify-between items-center">
+                      <div className="flex items-center">
+                        <CalendarOff className="h-5 w-5 mr-2 text-red-500" />
+                        <span>Danh sách ngày nghỉ</span>
+                      </div>
+                      <span className="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                        {offlineDates.length} ngày
+                      </span>
+                    </h4>
+                    
+                    {loadingOfflineDates ? (
+                      <div className="flex justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
+                      </div>
+                    ) : offlineDates.length === 0 ? (
+                      <div className="text-center py-8">
+                        <div className="text-gray-400 mb-2">
+                          <CalendarIcon className="h-12 w-12 mx-auto" />
+                        </div>
+                        <p className="text-gray-500">Chưa có ngày nghỉ nào được thiết lập</p>
                       </div>
                     ) : (
-                      'Lưu ca làm việc'
+                      <div className="space-y-2 mt-3">
+                        {offlineDates.map((date) => (
+                          <div
+                            key={date.offlineDateId}
+                            className="flex justify-between items-center p-3 bg-red-50 border border-red-100 rounded-lg hover:shadow-sm transition-all duration-200"
+                          >
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {formatDate(date.date)}
+                              </div>
+                              {date.reason && (
+                                <div className="text-sm text-gray-600">
+                                  {date.reason}
+                                </div>
+                              )}
+                              {date.isRecurring && (
+                                <div className="flex items-center text-xs text-blue-600 mt-1">
+                                  <Repeat className="h-3 w-3 mr-1" />
+                                  <span>{getRecurringTypeLabel(date.recurringType)}</span>
+                                </div>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleDeleteOfflineDate(date.offlineDateId)}
+                              className="p-2 hover:bg-red-100 rounded-full transition-colors duration-200"
+                              title="Xóa ngày nghỉ"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     )}
-                  </button>
+                  </div>
+                  
+                  {/* Nút đóng */}
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowWorkShiftModal(false);
+                        resetWorkShiftForm();
+                        resetOfflineDateForm();
+                      }}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      Đóng
+                    </button>
+                  </div>
                 </div>
-              </form>
+              )}
             </div>
           </div>
         </div>

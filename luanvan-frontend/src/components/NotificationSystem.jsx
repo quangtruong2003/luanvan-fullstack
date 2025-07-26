@@ -233,8 +233,8 @@ export const useNotification = () => {
 };
 
 // Component hiển thị một thông báo đơn lẻ với animation và progress bar
-const ToastNotification = ({ notification, onRemove, index }) => {
-  const { id, type, title, message, duration, actions, progress } = notification;
+const ToastNotification = ({ notification, onRemove, index, onClearAll }) => {
+  const { id, type, title, message, duration, actions } = notification;
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(duration);
@@ -357,6 +357,7 @@ const ToastNotification = ({ notification, onRemove, index }) => {
       onMouseMove={handleTouchMove}
       onMouseUp={handleTouchEnd}
       onMouseLeave={handleTouchEnd}
+      onClick={onClearAll}
     >
       {/* Progress bar */}
       {duration > 0 && !isDragging && (
@@ -440,7 +441,15 @@ export const NotificationProvider = ({ children }) => {
       ...notification,
     };
 
-    setNotifications(prev => [newNotification, ...prev].slice(0, 6)); // Limit to 6 notifications
+    setNotifications(prev => {
+      // Find and remove existing notification with same content
+      const filteredPrev = prev.filter(
+        n => !(n.type === newNotification.type && n.title === newNotification.title && n.message === newNotification.message)
+      );
+      // Add the new notification to the top
+      return [newNotification, ...filteredPrev].slice(0, 6);
+    });
+
     return id;
   }, []);
 
@@ -693,6 +702,7 @@ export const NotificationProvider = ({ children }) => {
               notification={notification}
               onRemove={removeNotification}
               index={index}
+              onClearAll={clearAll}
             />
           ))}
         </div>
