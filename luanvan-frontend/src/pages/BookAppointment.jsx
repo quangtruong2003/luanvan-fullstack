@@ -12,6 +12,7 @@ const BookAppointment = () => {
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [selectedClinic, setSelectedClinic] = useState('');
   const [doctors, setDoctors] = useState([]);
+  const [allDoctors, setAllDoctors] = useState([]);
   const [specialties, setSpecialties] = useState([]);
   const [filteredSpecialties, setFilteredSpecialties] = useState([]);
   const [clinics, setClinics] = useState([]);
@@ -27,17 +28,18 @@ const BookAppointment = () => {
         setLoading(true);
         // Use Promise.all to fetch concurrently
         const [doctorsResponse, specialtiesResponse, clinicsResponse] = await Promise.all([
-          apiService.getDoctors({ page: 0, size: 100 }),
+          apiService.getDoctors({ page: 0, size: 200 }),
           apiService.getSpecialties(),
           apiService.getClinics()
         ]);
         
         // Process responses
-        const allDoctors = doctorsResponse.content || doctorsResponse || [];
+        const allDocs = doctorsResponse.content || doctorsResponse || [];
         const allSpecialties = specialtiesResponse.content || specialtiesResponse || [];
         const allClinics = clinicsResponse.content || clinicsResponse || [];
 
-        setDoctors(allDoctors);
+        setAllDoctors(allDocs);
+        setDoctors(allDocs);
         setSpecialties(allSpecialties);
         setFilteredSpecialties(allSpecialties);
         setClinics(allClinics);
@@ -71,7 +73,7 @@ const BookAppointment = () => {
         
         if (clinic) {
             // Logic to filter specialties based on doctors available at the selected clinic.
-            const doctorsInClinic = doctors.filter(doctor =>
+            const doctorsInClinic = allDoctors.filter(doctor =>
                 doctor.specialties?.some(s => s.clinic?.clinic_id === clinicIdNum || s.clinic?.clinicId === clinicIdNum)
             );
 
@@ -93,89 +95,49 @@ const BookAppointment = () => {
     }
     // Reset specialty selection when clinic changes.
     setSelectedSpecialty('');
-  }, [selectedClinic, clinics, doctors, specialties]);
+  }, [selectedClinic, clinics, allDoctors, specialties]);
 
-  const fetchDoctors = async () => {
-    try {
-      const response = await apiService.getDoctors({ page: 0, size: 100 }); // Increased size to get more data for filtering
-      setDoctors(response.content || response || []);
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
-      setDoctors([]);
-    }
-  };
 
-  const fetchSpecialties = async () => {
-    try {
-      const response = await apiService.getSpecialties();
-      const allSpecialties = response.content || response || [];
-      setSpecialties(allSpecialties);
-      setFilteredSpecialties(allSpecialties);
-    } catch (error) {
-      console.error('Error fetching specialties:', error);
-      setSpecialties([]);
-      setFilteredSpecialties([]);
-    }
-  };
-
-  const fetchClinics = async () => {
-    try {
-      const response = await apiService.getClinics();
-      setClinics(response.content || response || []);
-    } catch (error) {
-      console.error('Error fetching clinics:', error);
-      setClinics([]);
-    }
-  };
-
-  const fetchDoctorsBySpecialty = async () => {
-    if (!selectedSpecialty) {
-      await fetchDoctors();
-      return;
-    }
-
-    try {
-      const response = await apiService.getDoctorsBySpecialty(selectedSpecialty);
-      setDoctors(response.content || response || []);
-    } catch (error) {
-      console.error('Error fetching doctors by specialty:', error);
-      setDoctors([]);
-    }
-  };
-
-  const handleSearch = async () => {
+  const handleFilterAndSearch = () => {
     setLoading(true);
     setSearchPerformed(true);
-    
-    try {
-      if (searchQuery.trim()) {
-        const response = await apiService.searchDoctorsByName(searchQuery);
-        setDoctors(response.content || response || []);
-      } else {
-        await fetchDoctorsBySpecialty();
-      }
-    } catch (error) {
-      console.error('Error searching:', error);
-      setDoctors([]);
-    } finally {
-      setLoading(false);
+
+    let filtered = [...allDoctors];
+
+    // Filter by search query (name)
+    if (searchQuery.trim()) {
+      const lowercasedQuery = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(doctor =>
+        doctor.user?.full_name?.toLowerCase().includes(lowercasedQuery) ||
+        doctor.user?.fullName?.toLowerCase().includes(lowercasedQuery)
+      );
     }
+
+    // Filter by clinic
+    if (selectedClinic) {
+      const clinicIdNum = parseInt(selectedClinic);
+      filtered = filtered.filter(doctor =>
+        doctor.specialties?.some(s => s.clinic?.clinic_id === clinicIdNum || s.clinic?.clinicId === clinicIdNum)
+      );
+    }
+
+    // Filter by specialty
+    if (selectedSpecialty) {
+      const specialtyIdNum = parseInt(selectedSpecialty);
+      filtered = filtered.filter(doctor =>
+        doctor.specialties?.some(s => s.specialty_id === specialtyIdNum || s.specialtyId === specialtyIdNum)
+      );
+    }
+
+    setDoctors(filtered);
+    setLoading(false);
   };
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
-      handleSearch();
+      handleFilterAndSearch();
     }
   };
-
-  const filteredDoctors = doctors.filter(doctor => {
-    if (!selectedClinic) return true;
-    
-    return doctor.specialties?.some(specialty => 
-      specialty.clinic?.clinicId === parseInt(selectedClinic) ||
-      specialty.clinic?.clinic_id === parseInt(selectedClinic)
-    );
-  });
 
   const DoctorCard = ({ doctor }) => (
     <div className="group relative bg-white/80 backdrop-blur-xl rounded-3xl p-6 border border-white/20 shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-4 hover:scale-105">
@@ -382,7 +344,7 @@ const BookAppointment = () => {
 
                   {/* Search Button */}
                   <button
-                    onClick={handleSearch}
+                    onClick={handleFilterAndSearch}
                     disabled={loading}
                     className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-gray-900 font-semibold py-3 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-yellow-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -409,7 +371,7 @@ const BookAppointment = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {loading ? (
           <LoadingSpinner />
-        ) : filteredDoctors.length > 0 ? (
+        ) : doctors.length > 0 ? (
           <div className={`transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
             {/* Results Header */}
             <div className="text-center mb-12">
@@ -417,13 +379,13 @@ const BookAppointment = () => {
                 Bác sĩ chuyên khoa hàng đầu
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Tìm thấy {filteredDoctors.length} bác sĩ phù hợp với yêu cầu của bạn
+                Tìm thấy {doctors.length} bác sĩ phù hợp với yêu cầu của bạn
               </p>
             </div>
 
             {/* Doctors Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {filteredDoctors.map((doctor, index) => (
+              {doctors.map((doctor, index) => (
                 <div
                   key={doctor.doctor_id || doctor.doctorId}
                   className={`transform transition-all duration-700 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}
