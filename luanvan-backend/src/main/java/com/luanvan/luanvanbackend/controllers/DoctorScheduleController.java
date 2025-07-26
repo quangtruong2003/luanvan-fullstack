@@ -13,6 +13,7 @@ import com.luanvan.luanvanbackend.services.DoctorService;
 import com.luanvan.luanvanbackend.services.SpecialtyService;
 import com.luanvan.luanvanbackend.services.StandardWorkShiftService;
 import com.luanvan.luanvanbackend.services.UserService;
+import com.luanvan.luanvanbackend.services.ClinicOfflineDateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -50,6 +51,7 @@ public class DoctorScheduleController {
     private final StandardWorkShiftService standardWorkShiftService;
     private final SpecialtyService specialtyService;
     private final AvailabilitySlotMapper availabilitySlotMapper;
+    private final ClinicOfflineDateService clinicOfflineDateService;
 
     /**
      * Helper method để lấy user hiện tại từ authentication
@@ -288,7 +290,7 @@ public class DoctorScheduleController {
     public ResponseEntity<Map<String, Object>> createBulkSlotsFromWorkShifts(
             Authentication auth,
             @RequestBody Map<String, Object> request) {
-          try {
+        try {
             User currentUser = getCurrentUserFromAuth(auth);
             Doctor doctor = doctorService.getDoctorByUserId(currentUser.getUserId());
             
@@ -373,7 +375,9 @@ public class DoctorScheduleController {
             
             int createdSlotsCount = 0;
             int skippedSlotsCount = 0;
+            int skippedOfflineDaysCount = 0;
             List<String> errors = new ArrayList<>();
+            List<String> offlineDates = new ArrayList<>();
             LocalDate currentDate = startDate;
             
             // Nếu overwrite, xóa các slot auto-generated cũ trước khi tạo mới
@@ -389,6 +393,22 @@ public class DoctorScheduleController {
             }
 
             while (!currentDate.isAfter(endDate)) {
+                // Kiểm tra xem ngày hiện tại có phải là ngày nghỉ của phòng khám không
+                boolean isClinicOffline = false;
+                try {
+                    isClinicOffline = clinicOfflineDateService.isClinicOfflineOnDate(clinicId, currentDate);
+                    if (isClinicOffline) {
+                        log.info("Bỏ qua tạo slot cho ngày {} vì phòng khám đóng cửa", currentDate);
+                        offlineDates.add(currentDate.toString());
+                        skippedOfflineDaysCount++;
+                        currentDate = currentDate.plusDays(1);
+                        continue; // Chuyển sang ngày tiếp theo
+                    }
+                } catch (Exception e) {
+                    log.warn("Không thể kiểm tra ngày nghỉ của phòng khám: {}", e.getMessage());
+                    // Tiếp tục thực hiện nếu không thể kiểm tra
+                }
+                
                 for (StandardWorkShift shift : workShifts) {
                     if (shift.getDayOfWeek() == currentDate.getDayOfWeek()) {
                         // Create slots for this shift
@@ -442,10 +462,12 @@ public class DoctorScheduleController {
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("message", String.format("Đã tạo %d slots, bỏ qua %d slots đã tồn tại", 
-                createdSlotsCount, skippedSlotsCount));
+            response.put("message", String.format("Đã tạo %d slots, bỏ qua %d slots đã tồn tại và %d ngày nghỉ của phòng khám", 
+                createdSlotsCount, skippedSlotsCount, skippedOfflineDaysCount));
             response.put("createdSlotsCount", createdSlotsCount);
             response.put("skippedSlotsCount", skippedSlotsCount);
+            response.put("skippedOfflineDaysCount", skippedOfflineDaysCount);
+            response.put("offlineDates", offlineDates);
             response.put("totalWorkShifts", workShifts.size());
             response.put("dateRange", String.format("%s đến %s", startDate, endDate));
             response.put("specialtyId", specialtyId);

@@ -37,6 +37,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSpecialtyModal, setShowSpecialtyModal] = useState(false);
+  const [showWorkShiftModal, setShowWorkShiftModal] = useState(false);
 
   const [selectedClinic, setSelectedClinic] = useState(null);
   const [expandedClinic, setExpandedClinic] = useState(null);
@@ -379,16 +380,9 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
     try {
       await adminService.updateClinic(clinicId, formData);
       
-      // Update work shifts if configured
-      if (workShiftFormData.selectedDays.length > 0 && workShiftFormData.shifts.length > 0) {
-        await handleSaveWorkShifts();
-        showInfo('Ca làm việc cũng đã được cập nhật!', 'Thông tin bổ sung');
-      }
-      
       await fetchClinics();
       setShowEditModal(false);
       resetForm();
-      resetWorkShiftForm();
       showSuccess('Phòng khám đã được cập nhật thành công!');
     } catch (error) {
       console.error('Error updating clinic:', error);
@@ -667,7 +661,6 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
       email: clinic.email || '',
       description: clinic.description || ''
     });
-    loadWorkShiftsForEdit(clinic.clinic_id || clinic.clinicId);
     setShowEditModal(true);
   };
 
@@ -689,6 +682,12 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
       resetSpecialtyForm();
     }
     setShowSpecialtyModal(true);
+  };
+
+  const openWorkShiftModal = (clinic) => {
+    setSelectedClinic(clinic);
+    loadWorkShiftsForEdit(clinic.clinic_id || clinic.clinicId);
+    setShowWorkShiftModal(true);
   };
 
   const loadWorkShiftsForEdit = (clinicId) => {
@@ -1073,20 +1072,29 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                               <span className="text-xs font-medium text-gray-700">
                                 {getClinicWorkShiftsForDisplay(clinic.clinic_id || clinic.clinicId).length} ca làm việc
                               </span>
-                              <button
-                                onClick={() => {
-                                  const id = clinic.clinic_id || clinic.clinicId;
-                                  setExpandedClinic(expandedClinic === id ? null : id);
-                                }}
-                                className="text-green-600 hover:text-green-800 transition-colors"
-                                title="Xem chi tiết ca làm việc"
-                              >
-                                {expandedClinic === (clinic.clinic_id || clinic.clinicId) ? (
-                                  <ChevronUp className="h-4 w-4" />
-                                ) : (
-                                  <ChevronDown className="h-4 w-4" />
-                                )}
-                              </button>
+                              <div className="flex items-center space-x-1">
+                                <button
+                                  onClick={() => openWorkShiftModal(clinic)}
+                                  className="text-green-600 hover:text-green-800 transition-colors"
+                                  title="Cấu hình ca làm việc"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const id = clinic.clinic_id || clinic.clinicId;
+                                    setExpandedClinic(expandedClinic === id ? null : id);
+                                  }}
+                                  className="text-green-600 hover:text-green-800 transition-colors"
+                                  title="Xem chi tiết ca làm việc"
+                                >
+                                  {expandedClinic === (clinic.clinic_id || clinic.clinicId) ? (
+                                    <ChevronUp className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronDown className="h-4 w-4" />
+                                  )}
+                                </button>
+                              </div>
                             </div>
                             
                             <div className="space-y-1">
@@ -1123,7 +1131,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                             </div>
                             <p className="text-xs text-gray-500 mb-2">Chưa có ca làm việc</p>
                             <button
-                              onClick={() => openEditModal(clinic)}
+                              onClick={() => openWorkShiftModal(clinic)}
                               className="inline-flex items-center px-3 py-1 text-xs font-medium text-green-600 bg-green-50 rounded-full hover:bg-green-100 transition-colors"
                             >
                               <Plus className="h-3 w-3 mr-1" />
@@ -1200,7 +1208,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
               <button
                 onClick={() => {
                   const clinic = clinics.find(c => (c.clinic_id || c.clinicId) === expandedClinic);
-                  if (clinic) openEditModal(clinic);
+                  if (clinic) openWorkShiftModal(clinic);
                 }}
                 className="text-xs text-blue-600 hover:text-blue-800"
               >
@@ -1242,7 +1250,7 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                   <button
                     onClick={() => {
                       const clinic = clinics.find(c => (c.clinic_id || c.clinicId) === expandedClinic);
-                      if (clinic) openEditModal(clinic);
+                      if (clinic) openWorkShiftModal(clinic);
                     }}
                     className="mt-2 text-sm text-blue-600 hover:text-blue-800"
                   >
@@ -1870,6 +1878,256 @@ const ClinicManagement = ({ onAuthError, onNavigate }) => {
                   </div>
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Work Shift Configuration Modal */}
+      {showWorkShiftModal && selectedClinic && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                <Clock className="h-5 w-5 mr-2 text-green-600" />
+                Cấu hình ca làm việc
+                <span className="text-sm font-normal text-gray-500 ml-2">
+                  cho {selectedClinic?.name}
+                </span>
+              </h3>
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                handleSaveWorkShifts();
+              }}>
+                <div className="space-y-5">
+                  {/* Chọn loại ca */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Loại ca làm việc *
+                    </label>
+                    <div className="space-y-2">
+                      {shiftTypes.map(shift => (
+                        <label key={shift.value} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={workShiftFormData.shifts.includes(shift.value)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setWorkShiftFormData({
+                                  ...workShiftFormData,
+                                  shifts: [...workShiftFormData.shifts, shift.value]
+                                });
+                              } else {
+                                setWorkShiftFormData({
+                                  ...workShiftFormData,
+                                  shifts: workShiftFormData.shifts.filter(s => s !== shift.value)
+                                });
+                              }
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                          />
+                          <span className="text-sm text-gray-700">
+                            {shift.icon} {shift.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Thời gian ca sáng */}
+                  {workShiftFormData.shifts.includes('morning') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        🌅 Giờ làm việc ca sáng
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Bắt đầu</label>
+                          <input
+                            type="time"
+                            value={workShiftFormData.morningStart}
+                            onChange={(e) => setWorkShiftFormData({
+                              ...workShiftFormData,
+                              morningStart: e.target.value
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Kết thúc</label>
+                          <input
+                            type="time"
+                            value={workShiftFormData.morningEnd}
+                            onChange={(e) => setWorkShiftFormData({
+                              ...workShiftFormData,
+                              morningEnd: e.target.value
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Thời gian ca chiều */}
+                  {workShiftFormData.shifts.includes('afternoon') && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        🌇 Giờ làm việc ca chiều
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Bắt đầu</label>
+                          <input
+                            type="time"
+                            value={workShiftFormData.afternoonStart}
+                            onChange={(e) => setWorkShiftFormData({
+                              ...workShiftFormData,
+                              afternoonStart: e.target.value
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Kết thúc</label>
+                          <input
+                            type="time"
+                            value={workShiftFormData.afternoonEnd}
+                            onChange={(e) => setWorkShiftFormData({
+                              ...workShiftFormData,
+                              afternoonEnd: e.target.value
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chọn ngày trong tuần */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Ngày hoạt động *
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {daysOfWeek.map(day => (
+                        <label key={day.value} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={workShiftFormData.selectedDays.includes(day.value)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setWorkShiftFormData({
+                                  ...workShiftFormData,
+                                  selectedDays: [...workShiftFormData.selectedDays, day.value]
+                                });
+                              } else {
+                                setWorkShiftFormData({
+                                  ...workShiftFormData,
+                                  selectedDays: workShiftFormData.selectedDays.filter(d => d !== day.value)
+                                });
+                              }
+                            }}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2"
+                          />
+                          <span className="text-sm text-gray-700">{day.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Nút chọn nhanh */}
+                  <div className="flex space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setWorkShiftFormData({
+                        ...workShiftFormData,
+                        selectedDays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY']
+                      })}
+                      className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
+                    >
+                      T2-T6
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWorkShiftFormData({
+                        ...workShiftFormData,
+                        selectedDays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']
+                      })}
+                      className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-md hover:bg-green-200"
+                    >
+                      T2-T7
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWorkShiftFormData({
+                        ...workShiftFormData,
+                        selectedDays: daysOfWeek.map(d => d.value)
+                      })}
+                      className="px-3 py-1 text-xs bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200"
+                    >
+                      Tất cả
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWorkShiftFormData({
+                        ...workShiftFormData,
+                        selectedDays: []
+                      })}
+                      className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                    >
+                      Bỏ chọn
+                    </button>
+                  </div>
+
+                  {/* Tùy chọn mặc định */}
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="isDefaultWorkShift"
+                      checked={workShiftFormData.isDefault}
+                      onChange={(e) => setWorkShiftFormData({
+                        ...workShiftFormData,
+                        isDefault: e.target.checked
+                      })}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="isDefaultWorkShift" className="ml-2 text-sm text-gray-700">
+                      Đặt làm ca mặc định ⭐
+                    </label>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowWorkShiftModal(false);
+                      resetWorkShiftForm();
+                    }}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <div className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Đang lưu...</span>
+                      </div>
+                    ) : (
+                      'Lưu ca làm việc'
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
