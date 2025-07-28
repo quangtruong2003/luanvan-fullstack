@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate, useLocation, Link, useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   CreditCard, 
   User, 
@@ -19,30 +19,22 @@ import {
   XCircle,
   AlertTriangle
 } from 'lucide-react';
-import { authService, adminService, apiService } from '../services/api';
+import { authService, adminService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../components/NotificationSystem';
 import { clinicOfflineService } from '../services/clinicOfflineService';
-import DatePicker from 'react-datepicker';
-import "react-datepicker/dist/react-datepicker.css";
-import { vi } from 'date-fns/locale';
 
 
 const BookAppointmentDetails = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { doctorId } = useParams(); // Lấy doctorId từ URL
   const { currentUser } = useAuth();
-  const { showSuccess, showError, showWarning } = useNotification();
+  const { showSuccess, showError } = useNotification();
   
-  // State cho thông tin từ API
-  const [doctorData, setDoctorData] = useState(null);
-  const [availableSlots, setAvailableSlots] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [offlineDates, setOfflineDates] = useState([]);
-
-  // State cho form thông tin bệnh nhân
+  // Nhận thông tin từ trang trước
+  const { slotData, doctorData, clinicData, date } = location.state || {};
+  
+  // State cho thông tin người dùng (fallback khi currentUser chưa có)
   const [userInfo, setUserInfo] = useState({
     user_id: null,
     full_name: '',
@@ -67,58 +59,11 @@ const BookAppointmentDetails = () => {
   
   // Thêm state kiểm tra phòng khám nghỉ
   const [isClinicOffline, setIsClinicOffline] = useState(false);
-  const [checkingClinicOffline, setCheckingClinicOffline] = useState(false);
+  const [offlineReason, setOfflineReason] = useState('');
+  const [checkingClinicOffline, setCheckingClinicOffline] = useState(true);
 
-  // Lấy clinic ID từ doctorData một cách an toàn
-  const clinicId = useMemo(() => {
-    if (!doctorData) return null;
-    return doctorData.specialties?.[0]?.clinic?.clinic_id || doctorData.specialties?.[0]?.clinic?.id || null;
-  }, [doctorData]);
-
-  // Fetch dữ liệu chính của trang: thông tin bác sĩ và các slot có sẵn
-  const fetchPageData = useCallback(async () => {
-    if (!doctorId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      // Lấy thông tin chi tiết bác sĩ
-      const doctorDetails = await apiService.getDoctorById(doctorId);
-      setDoctorData(doctorDetails);
-
-      // Lấy các slot có sẵn của bác sĩ
-      const slots = await apiService.getAvailableSlotsByDoctor(doctorId);
-      setAvailableSlots(slots || []);
-
-    } catch (err) {
-      console.error('Error fetching page data:', err);
-      setError('Không thể tải thông tin bác sĩ. Vui lòng thử lại.');
-      showError('Lỗi tải dữ liệu bác sĩ', err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [doctorId, showError]);
-
-  // Fetch ngày nghỉ của phòng khám khi có clinicId
-  useEffect(() => {
-    const fetchOfflineDatesForClinic = async () => {
-      if (!clinicId) return;
-      try {
-        const dates = await clinicOfflineService.getAllClinicOfflineDates(clinicId);
-        setOfflineDates(dates || []);
-      } catch (err) {
-        console.error('Error fetching offline dates:', err);
-      }
-    };
-    fetchOfflineDatesForClinic();
-  }, [clinicId]);
-
-  // Effect chính để tải dữ liệu khi component mount
-  useEffect(() => {
-    fetchPageData();
-  }, [fetchPageData]);
-
-  // Hàm lấy thông tin người dùng từ API
-  const fetchUserInfoFromAPI = useCallback(async () => {
+  // Hàm lấy thông tin người dùng từ API - chỉ sử dụng API, không localStorage
+  const fetchUserInfoFromAPI = async () => {
     try {
       const userData = await authService.getCurrentUserFromAPI();
       if (userData) {
@@ -138,18 +83,117 @@ const BookAppointmentDetails = () => {
       console.error('Error fetching user info from API:', err);
       setError('Không thể lấy thông tin người dùng. Vui lòng đăng nhập lại.');
     }
-  }, [showError]);
+  };
   
-  // Tải thông tin người dùng và cấu hình thanh toán
+  // Chỉ load thông tin người dùng từ API khi component mount
   useEffect(() => {
+    console.log('Loading user info from API...');
+    
     const token = localStorage.getItem('token');
     if (token) {
       fetchUserInfoFromAPI();
     } else {
-      showWarning('Vui lòng đăng nhập để có trải nghiệm tốt nhất.');
+      setError('Vui lòng đăng nhập để tiếp tục.');
     }
-    loadConfig();
-  }, [fetchUserInfoFromAPI, loadConfig]);
+  }, []);
+
+  // Kiểm tra ngày nghỉ của phòng khám
+  useEffect(() => {
+    const checkClinicOfflineStatus = async () => {
+      // Chờ cho đến khi có clinicId và ngày
+      if (!clinicData || !date) {
+        // Nếu không có clinicData, không cần kiểm tra
+        if (!clinicData) setCheckingClinicOffline(false);
+        return;
+      }
+  
+      // Sử dụng hàm getClinicId để đảm bảo có ID
+      const getClinicId = () => {
+        if (slotData?.clinic?.clinic_id) return slotData.clinic.clinic_id;
+        if (slotData?.clinicId) return slotData.clinicId;
+        if (slotData?.clinic?.id) return slotData.clinic.id;
+        if (doctorData?.clinic?.clinic_id) return doctorData.clinic.clinic_id;
+        if (doctorData?.clinicId) return doctorData.clinicId;
+        if (doctorData?.clinic?.id) return doctorData.clinic.id;
+        if (clinicData?.clinic_id) return clinicData.clinic_id;
+        if (clinicData?.id) return clinicData.id;
+        if (doctorData?.specialties?.[0]?.clinic?.clinic_id) return doctorData.specialties[0].clinic.clinic_id;
+        if (doctorData?.specialties?.[0]?.clinic?.id) return doctorData.specialties[0].clinic.id;
+        return null;
+      };
+      const actualClinicId = getClinicId();
+  
+      if (!actualClinicId) {
+        console.warn("Không tìm thấy clinic ID để kiểm tra ngày nghỉ.");
+        setCheckingClinicOffline(false);
+        return;
+      }
+  
+      setCheckingClinicOffline(true);
+      try {
+        const formattedDate = new Date(date).toISOString().split('T')[0];
+        const offlineInfo = await clinicOfflineService.isClinicOfflineOnDate(actualClinicId, formattedDate);
+        
+        console.log(`[Offline Check] Clinic ${actualClinicId} on ${formattedDate}:`, offlineInfo);
+
+        if (offlineInfo && offlineInfo.isOffline) {
+          setIsClinicOffline(true);
+          setOfflineReason(offlineInfo.reason || 'Nghỉ không rõ lý do');
+          showError(`Phòng khám không làm việc vào ngày ${new Date(date).toLocaleDateString('vi-VN')}.`, `Lý do: ${offlineInfo.reason}`);
+        } else {
+          setIsClinicOffline(false);
+          setOfflineReason('');
+        }
+      } catch (err) {
+        console.error("Lỗi khi kiểm tra ngày nghỉ của phòng khám:", err);
+        // Không chặn người dùng nếu API lỗi, chỉ log lại
+      } finally {
+        setCheckingClinicOffline(false);
+      }
+    };
+  
+    checkClinicOfflineStatus();
+  }, [date, clinicData, doctorData, slotData, showError]);
+
+
+  const handlePhoneUpdateIfNeeded = async () => {
+    const newPhoneNumber = formData.patientPhone.trim();
+    // Chỉ cập nhật nếu SĐT mới hợp lệ và khác với SĐT đã lưu
+    if (newPhoneNumber && newPhoneNumber !== userInfo.phone_number) {
+      try {
+        setLoading(true);
+        // Sử dụng adminService để cập nhật cho user cụ thể
+        await adminService.updateUser(userInfo.user_id, { phoneNumber: newPhoneNumber });
+        
+        // Cập nhật lại state local để UI đồng bộ
+        setUserInfo(prev => ({ ...prev, phone_number: newPhoneNumber }));
+        
+        showSuccess('Cập nhật số điện thoại thành công!');
+        return true; // Báo hiệu cập nhật thành công
+      } catch (err) {
+        console.error('Lỗi khi cập nhật số điện thoại:', err);
+        showError('Không thể cập nhật số điện thoại của bạn. Vui lòng thử lại.');
+        setError('Cập nhật số điện thoại thất bại.');
+        return false; // Báo hiệu cập nhật thất bại
+      } finally {
+        setLoading(false);
+      }
+    }
+    return true; // Không cần cập nhật
+  };
+  // Đồng bộ thông tin user vào form khi userInfo được load
+  useEffect(() => {
+    if (userInfo && userInfo.user_id) {
+      setFormData(prev => ({
+        ...prev,
+        patientName: userInfo.full_name,
+        patientEmail: userInfo.email,
+        // CHỈ cập nhật SĐT nếu trong form đang trống hoặc chưa có input từ user
+        // Điều này đảm bảo không ghi đè số điện thoại mà user đã nhập
+        patientPhone: prev.patientPhone || userInfo.phone_number || '',
+      }));
+    }
+  }, [userInfo]);
 
   // Sửa: fetchPaymentConfig giờ chỉ lấy và lưu trữ, không quyết định logic
   useEffect(() => {
@@ -279,99 +323,6 @@ const BookAppointmentDetails = () => {
   }, [date, slotData, doctorData, clinicData, currentUser, userInfo, formData]);
 
 
-  const handlePhoneUpdateIfNeeded = async () => {
-    const newPhoneNumber = formData.patientPhone.trim();
-    // Chỉ cập nhật nếu SĐT mới hợp lệ và khác với SĐT đã lưu
-    if (newPhoneNumber && newPhoneNumber !== userInfo.phone_number) {
-      try {
-        setLoading(true);
-        // Sử dụng adminService để cập nhật cho user cụ thể
-        await adminService.updateUser(userInfo.user_id, { phoneNumber: newPhoneNumber });
-        
-        // Cập nhật lại state local để UI đồng bộ
-        setUserInfo(prev => ({ ...prev, phone_number: newPhoneNumber }));
-        
-        showSuccess('Cập nhật số điện thoại thành công!');
-        return true; // Báo hiệu cập nhật thành công
-      } catch (err) {
-        console.error('Lỗi khi cập nhật số điện thoại:', err);
-        showError('Không thể cập nhật số điện thoại của bạn. Vui lòng thử lại.');
-        setError('Cập nhật số điện thoại thất bại.');
-        return false; // Báo hiệu cập nhật thất bại
-      } finally {
-        setLoading(false);
-      }
-    }
-    return true; // Không cần cập nhật
-  };
-  // Đồng bộ thông tin user vào form khi userInfo được load
-  useEffect(() => {
-    if (userInfo && userInfo.user_id) {
-      setFormData(prev => ({
-        ...prev,
-        patientName: userInfo.full_name,
-        patientEmail: userInfo.email,
-        // CHỈ cập nhật SĐT nếu trong form đang trống hoặc chưa có input từ user
-        // Điều này đảm bảo không ghi đè số điện thoại mà user đã nhập
-        patientPhone: prev.patientPhone || userInfo.phone_number || '',
-      }));
-    }
-  }, [userInfo]);
-
-  //=================================================================
-  // Logic xử lý hiển thị và chọn ngày
-  //=================================================================
-  const offlineDatesSet = useMemo(() => 
-    new Set(offlineDates.map(d => new Date(d.date).toISOString().split('T')[0]))
-  , [offlineDates]);
-
-  const availableDatesSet = useMemo(() => 
-    new Set(availableSlots.map(s => s.date))
-  , [availableSlots]);
-
-  const isDayHighlighted = (date) => {
-    const dateString = date.toISOString().split('T')[0];
-    return availableDatesSet.has(dateString) && !offlineDatesSet.has(dateString);
-  };
-  
-  const filterDate = (date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date >= today; // Chỉ cho phép chọn từ ngày hôm nay trở đi
-  };
-
-  const renderDayContents = (day, date) => {
-    const dateString = date.toISOString().split('T')[0];
-    const isOffline = offlineDatesSet.has(dateString);
-    const isAvailable = availableDatesSet.has(dateString);
-    const isSelectable = isAvailable && !isOffline;
-
-    let tooltipText = '';
-    if (isOffline) {
-      const offlineInfo = offlineDates.find(d => new Date(d.date).toISOString().split('T')[0] === dateString);
-      tooltipText = `Ngày nghỉ: ${offlineInfo?.reason || 'Lý do không xác định'}`;
-    }
-
-    return (
-      <div className="relative" title={tooltipText}>
-        {day}
-        {isOffline && <span className="absolute bottom-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>}
-        {isSelectable && <span className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full"></span>}
-      </div>
-    );
-  };
-
-  // Lọc các slot có sẵn cho ngày đã chọn
-  const slotsForSelectedDate = useMemo(() => {
-    if (!selectedDate) return [];
-    const dateString = selectedDate.toISOString().split('T')[0];
-    return availableSlots
-      .filter(slot => slot.date === dateString)
-      .sort((a, b) => (a.startTime || a.start_time).localeCompare(b.startTime || b.start_time));
-  }, [selectedDate, availableSlots]);
-  //=================================================================
-
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -380,15 +331,15 @@ const BookAppointmentDetails = () => {
   const handleBookAppointment = async (e) => {
     e.preventDefault();
     
-    // Kiểm tra xem phòng khám có nghỉ vào ngày này không
+    // Thêm kiểm tra ở đây để chắc chắn
     if (isClinicOffline) {
-      showError("Phòng khám không làm việc vào ngày này. Vui lòng chọn ngày khác.", "Không thể đặt lịch");
+      showError("Không thể đặt lịch vì phòng khám không làm việc vào ngày này.", "Lỗi");
       return;
     }
 
     // Ngăn chặn việc submit nếu cấu hình chưa được tải xong
-    if (loadingConfig) {
-      showError("Hệ thống đang tải cấu hình, vui lòng đợi trong giây lát.", "Vui lòng đợi");
+    if (loadingConfig || checkingClinicOffline) {
+      showError("Hệ thống đang tải cấu hình hoặc kiểm tra lịch, vui lòng đợi.", "Vui lòng đợi");
       return;
     }
 
@@ -575,13 +526,15 @@ const BookAppointmentDetails = () => {
     }
   };
 
-  if (loadingConfig || !userInfo.user_id) { // Thêm điều kiện chờ userInfo
+  if (loadingConfig || !userInfo.user_id || checkingClinicOffline) { // Thêm điều kiện chờ kiểm tra
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-50">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
           <p className="mt-4 text-lg text-gray-700 font-semibold">
-            {loadingConfig ? "Đang tải cấu hình..." : "Đang tải thông tin người dùng..."}
+            {loadingConfig ? "Đang tải cấu hình..." : 
+             checkingClinicOffline ? "Đang kiểm tra lịch làm việc..." :
+             "Đang tải thông tin người dùng..."}
           </p>
         </div>
       </div>
@@ -621,43 +574,16 @@ const BookAppointmentDetails = () => {
   // Format ngày hiển thị
   const formattedDate = date 
     ? new Date(date).toLocaleDateString('vi-VN', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      })
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
     : 'Không xác định';
 
   return (
-    <div className="bg-gray-50 min-h-screen py-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Breadcrumb và thông tin phòng khám */}
-        <div className="flex items-center mb-8">
-          <Link to="/book-appointment" className="text-blue-600 hover:text-blue-800 mr-2 flex items-center">
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            <span>Quay lại tìm kiếm</span>
-          </Link>
-          <span className="text-gray-400 mx-2">/</span>
-          <span className="text-gray-600">Chi tiết đặt lịch khám</span>
-        </div>
-
-        {isClinicOffline && (
-          <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4">
-            <div className="flex items-center">
-              <XCircle className="h-5 w-5 text-red-600 mr-2" />
-              <p className="font-medium text-red-700">Phòng khám không làm việc vào ngày này</p>
-            </div>
-            <p className="text-sm text-red-600 mt-1">Vui lòng chọn một ngày khác để đặt lịch khám.</p>
-            <div className="mt-3">
-              <Link to="/book-appointment" className="inline-flex items-center px-4 py-2 border border-red-500 text-sm font-medium rounded-md text-red-600 bg-white hover:bg-red-50">
-                Quay lại chọn ngày khác
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Thông tin cuộc hẹn và form đặt lịch */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden p-6 mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8">
+      <div className="max-w-7xl mx-auto px-4">
           {/* Modern Header */}
           <div className="text-center mb-12">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full mb-6 shadow-lg">
@@ -667,110 +593,318 @@ const BookAppointmentDetails = () => {
               Xác nhận thông tin đặt lịch
             </h1>
             <p className="text-gray-600 text-lg max-w-2xl mx-auto leading-relaxed">
-              Vui lòng chọn ngày và giờ khám phù hợp
+            Vui lòng kiểm tra và xác nhận thông tin trước khi đặt lịch khám bệnh
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            {/* Date Picker Section */}
-            <div className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-white/20">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                <Calendar className="w-6 h-6 mr-2 text-blue-500"/>
-                Chọn ngày khám
-              </h3>
-              <DatePicker
-                selected={selectedDate}
-                onChange={(date) => {
-                  setSelectedDate(date);
-                  setSelectedSlot(null); // Reset slot khi đổi ngày
-                  const dateString = date.toISOString().split('T')[0];
-                  if (offlineDatesSet.has(dateString)) {
-                    const offlineInfo = offlineDates.find(d => new Date(d.date).toISOString().split('T')[0] === dateString);
-                    showWarning(`Ngày ${date.toLocaleDateString('vi-VN')} là ngày nghỉ của phòng khám.`, `${offlineInfo?.reason || 'Lý do không xác định'}`);
-                  }
-                }}
-                inline
-                locale={vi}
-                dateFormat="dd/MM/yyyy"
-                minDate={new Date()}
-                filterDate={filterDate}
-                highlightDates={Array.from(availableDatesSet).map(d => new Date(d))}
-                dayClassName={date => offlineDatesSet.has(date.toISOString().split('T')[0]) ? 'react-datepicker__day--disabled react-datepicker__day--offline' : null}
-                renderDayContents={renderDayContents}
-              />
-               <style>{`
-                .react-datepicker__day--offline {
-                  background-color: #fecaca !important;
-                  color: #dc2626 !important;
-                  cursor: not-allowed;
-                }
-                .react-datepicker__day--highlighted {
-                  background-color: #dbeafe !important;
-                  color: #2563eb !important;
-                }
-              `}</style>
+        {isClinicOffline && (
+            <div className="mb-8 max-w-3xl mx-auto bg-red-50 border-l-4 border-red-500 p-6 rounded-2xl shadow-lg">
+                <div className="flex items-center">
+                    <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-5">
+                        <AlertTriangle className="h-6 w-6 text-red-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-xl text-red-800">Phòng khám không làm việc</h3>
+                        <p className="text-red-700 mt-1">
+                            Phòng khám nghỉ vào ngày <strong>{new Date(date).toLocaleDateString('vi-VN')}</strong>.
+                        </p>
+                        {offlineReason && (
+                             <p className="text-sm text-red-600 mt-2">Lý do: <strong>{offlineReason}</strong></p>
+                        )}
+                    </div>
             </div>
-
-            {/* Time Slot Section */}
-            <div className="bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-xl border border-white/20">
-              <h3 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-                <Clock className="w-6 h-6 mr-2 text-purple-500"/>
-                Chọn giờ khám
-              </h3>
-              {selectedDate && !offlineDatesSet.has(selectedDate.toISOString().split('T')[0]) ? (
-                slotsForSelectedDate.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
-                    {slotsForSelectedDate.map(slot => (
+                <div className="mt-5 text-center">
                       <button
-                        key={slot.slotId || slot.id}
-                        onClick={() => setSelectedSlot(slot)}
-                        disabled={slot.status !== 'AVAILABLE'}
-                        className={`px-4 py-3 rounded-xl text-center font-semibold transition-all duration-200 border-2
-                          ${selectedSlot?.slotId === slot.slotId ? 'bg-blue-600 text-white border-blue-600' : ''}
-                          ${slot.status === 'AVAILABLE' ? 'bg-white border-gray-200 hover:border-blue-500 hover:bg-blue-50' : 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-100'}
-                        `}
-                      >
-                        {slot.startTime?.substring(0, 5) || slot.start_time?.substring(0, 5)}
+                        onClick={() => navigate('/book-appointment')}
+                        className="inline-flex items-center px-6 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                    >
+                        Quay lại chọn ngày khác
                       </button>
-                    ))}
+                </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500">Không có lịch trống trong ngày này.</p>
+        )}
+              
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Enhanced Doctor & Appointment Info Card */}
+          <div className="lg:col-span-1">
+            <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+              {/* Card Header */}
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                    <Stethoscope className="w-6 h-6" />
                   </div>
-                )
-              ) : (
-                 <div className="text-center py-8 text-red-600 bg-red-50 p-4 rounded-xl">
-                   <AlertTriangle className="mx-auto w-8 h-8 mb-2"/>
-                   <p className="font-semibold">Phòng khám nghỉ vào ngày này.</p>
-                   <p className="text-sm">{offlineDates.find(d => new Date(d.date).toISOString().split('T')[0] === selectedDate.toISOString().split('T')[0])?.reason}</p>
-                 </div>
-              )}
+                  <h2 className="text-xl font-bold">Thông tin cuộc hẹn</h2>
             </div>
           </div>
 
-          {/* Submit Button */}
-           {selectedSlot && (
-            <div className="mt-12 text-center animate-fadeIn">
-               <button
-                 onClick={handleBookAppointment}
-                 disabled={loading || !selectedSlot}
-                 className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 mx-auto"
-               >
-                 {loading ? (
-                  <>
-                    <Loader2 className="animate-spin h-5 w-5 mr-2" />
-                    <span>Đang xử lý...</span>
-                  </>
-                 ) : (
-                  <>
-                    <span>Tiếp tục với lịch khám này</span>
-                    <ArrowRight className="w-5 h-5" />
-                  </>
-                 )}
-               </button>
+              {/* Card Content */}
+              <div className="p-6 space-y-6">
+                {/* Doctor Info */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center">
+                      <span className="text-2xl font-bold text-blue-600">
+                        {doctorData?.user?.full_name?.charAt(0) || doctorData?.user?.fullName?.charAt(0) || 'BS'}
+                      </span>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {doctorData?.user?.full_name || 
+                         doctorData?.user?.fullName || 
+                         doctorData?.user?.name ||
+                         doctorData?.fullName ||
+                         doctorData?.full_name ||
+                         doctorData?.name ||
+                         'Bác sĩ không xác định'}
+                      </h3>
+                      <p className="text-blue-600 font-medium">
+                        {doctorData?.specialties?.map(s => s.name || s.specialty_name).join(', ') || 
+                         doctorData?.specialty?.name ||
+                         doctorData?.specialty?.specialty_name ||
+                         slotData?.specialty?.name ||
+                         slotData?.specialty?.specialty_name ||
+                         'Chuyên khoa chung'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Appointment Details */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-100">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <Building2 className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Phòng khám</p>
+                      <p className="font-semibold text-gray-900">
+                        {clinicData?.name || 
+                         clinicData?.clinic_name ||
+                         slotData?.clinic?.name || 
+                         slotData?.clinic?.clinic_name ||
+                         doctorData?.clinic?.name ||
+                         doctorData?.clinic?.clinic_name ||
+                         doctorData?.specialties?.[0]?.clinic?.name ||
+                         doctorData?.specialties?.[0]?.clinic?.clinic_name ||
+                         slotData?.clinicName ||
+                         slotData?.clinic_name ||
+                         doctorData?.clinicName ||
+                         doctorData?.clinic_name ||
+                         'Phòng khám mặc định'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl border border-blue-100">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Calendar className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Ngày khám</p>
+                      <p className="font-semibold text-gray-900">{formattedDate}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl border border-purple-100">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <Clock className="w-5 h-5 text-purple-600" />
+                    </div>
+                      <div>
+                      <p className="text-sm text-gray-500">Giờ khám</p>
+                      <p className="font-semibold text-gray-900">{formattedTime}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start space-x-3 p-3 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl border border-orange-100">
+                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <MapPin className="w-5 h-5 text-orange-600" />
+                      </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Địa chỉ</p>
+                      <p className="font-medium text-gray-900 leading-relaxed">
+                        {clinicData?.address || 
+                         clinicData?.clinic_address ||
+                         slotData?.clinic?.address || 
+                         slotData?.clinic?.clinic_address ||
+                         doctorData?.clinic?.address ||
+                         doctorData?.clinic?.clinic_address ||
+                         doctorData?.specialties?.[0]?.clinic?.address ||
+                         doctorData?.specialties?.[0]?.clinic?.clinic_address ||
+                         slotData?.clinicAddress ||
+                         slotData?.clinic_address ||
+                         doctorData?.clinicAddress ||
+                         doctorData?.clinic_address ||
+                         'Chưa cập nhật địa chỉ'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-           )}
+          </div>
+        
+          {/* Enhanced Patient Form */}
+          <div className="lg:col-span-2">
+            <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+              {/* Form Header */}
+              <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">Thông tin bệnh nhân</h2>
+                    <p className="text-emerald-100">Vui lòng kiểm tra và cập nhật thông tin của bạn</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Form Content */}
+              <div className="p-8">
+                {error && (
+                  <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-2xl">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                        <AlertCircle className="w-5 h-5 text-red-600" />
+                      </div>
+                    <div>
+                        <p className="text-red-800 font-medium">Có lỗi xảy ra</p>
+                        <p className="text-red-600 text-sm">{error}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <form onSubmit={handleBookAppointment} className="space-y-8">
+                  {/* Personal Info Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700">
+                        <User className="w-4 h-4" />
+                        <span>Họ và tên</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="patientName"
+                        value={formData.patientName || userInfo.full_name || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                        placeholder="Họ và tên từ tài khoản"
+                        disabled
+                      />
+                      <p className="text-xs text-gray-500 flex items-center space-x-1">
+                        <CheckCircle className="w-3 h-3" />
+                        <span>Thông tin được lấy từ tài khoản của bạn</span>
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700">
+                        <Mail className="w-4 h-4" />
+                        <span>Email</span>
+                       </label>
+                       <input
+                        type="email"
+                        name="patientEmail"
+                        value={formData.patientEmail || userInfo.email || ''}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                        placeholder="Email từ tài khoản"
+                        disabled
+                      />
+                      <p className="text-xs text-gray-500 flex items-center space-x-1">
+                        <CheckCircle className="w-3 h-3" />
+                        <span>Thông tin được lấy từ tài khoản của bạn</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Phone Input - Always Editable */}
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700">
+                      <Phone className="w-4 h-4" />
+                      <span>Số điện thoại</span>
+                      {/* Thêm dấu * nếu SĐT chưa có */}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="patientPhone"
+                      value={formData.patientPhone || ''}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm"
+                      placeholder="Nhập số điện thoại của bạn"
+                      required
+                      disabled={isClinicOffline} // Vô hiệu hóa nếu phòng khám nghỉ
+                    />
+                    <p className="text-xs text-gray-500">
+                         {userInfo.phone_number 
+                        ? `Sử dụng SĐT đã lưu: ${userInfo.phone_number}. Bạn có thể cập nhật nếu cần.`
+                          : 'Số điện thoại này sẽ được lưu vào hồ sơ của bạn.'}
+                       </p>
+                     </div>
+                  
+                  {/* Reason Input */}
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2 text-sm font-semibold text-gray-700">
+                      <FileText className="w-4 h-4" />
+                      <span>Lý do khám</span>
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      minLength={3}
+                      name="reasonForVisit"
+                      value={formData.reasonForVisit}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white shadow-sm resize-none"
+                      rows="4"
+                      placeholder="Mô tả triệu chứng hoặc lý do khám bệnh..."
+                      required
+                      disabled={isClinicOffline} // Vô hiệu hóa nếu phòng khám nghỉ
+                    ></textarea>
+                  </div>
+                  
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => navigate(-1)}
+                      className="flex-1 sm:flex-none px-8 py-4 bg-gray-100 text-gray-700 font-semibold rounded-2xl hover:bg-gray-200 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                      <span>Quay lại</span>
+                    </button>
+                    
+                      <button
+                        type="submit"
+                      disabled={loading || loadingConfig || isClinicOffline || checkingClinicOffline}
+                      className={`flex-1 px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-2xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 ${
+                        loading || loadingConfig || isClinicOffline || checkingClinicOffline ? 'opacity-50 cursor-not-allowed bg-gray-400' : 'hover:from-blue-700 hover:to-purple-700'
+                      }`}
+                    >
+                      {loading || loadingConfig || checkingClinicOffline ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                          <span>{loadingConfig ? 'Đang kiểm tra...' : checkingClinicOffline ? 'Đang kiểm tra lịch...' : 'Đang xử lý...'}</span>
+                        </>
+                      ) : isClinicOffline ? (
+                        <>
+                          <XCircle className="w-5 h-5" />
+                          <span>Ngày nghỉ</span>
+                         </>
+                        ) : (
+                         <>
+                          <span>Xác nhận đặt lịch</span>
+                           <ArrowRight className="w-5 h-5" />
+                         </>
+                        )}
+                      </button>
+                    </div>
+                </form>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
