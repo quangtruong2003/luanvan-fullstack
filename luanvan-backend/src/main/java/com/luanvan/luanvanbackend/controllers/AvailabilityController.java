@@ -1,6 +1,7 @@
 package com.luanvan.luanvanbackend.controllers;
 
 import com.luanvan.luanvanbackend.dto.AvailabilitySlotDTO;
+import com.luanvan.luanvanbackend.dto.SlotIdRequestDTO;
 import com.luanvan.luanvanbackend.dto.StandardWorkShiftDTO;
 import com.luanvan.luanvanbackend.entities.AvailabilitySlot;
 import com.luanvan.luanvanbackend.entities.StandardWorkShift;
@@ -18,6 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -312,4 +314,18 @@ public class AvailabilityController {
         Page<AvailabilitySlot> slots = availabilitySlotService.getAllSlotsByDoctor(doctorId, pageable);
         return ResponseEntity.ok(slots);
     }
-} 
+
+    /**
+     * Lấy slot ID dựa trên các thông tin chi tiết (public).
+     */
+    @PostMapping("/slots/get_slot_id")
+    public ResponseEntity<Long> getSlotIdByDetails(@Valid @RequestBody SlotIdRequestDTO requestDTO) {
+        Long slotId = availabilitySlotService.getSlotIdByDetails(requestDTO);
+
+        if (slotId != null) {
+            return ResponseEntity.ok(slotId);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+}

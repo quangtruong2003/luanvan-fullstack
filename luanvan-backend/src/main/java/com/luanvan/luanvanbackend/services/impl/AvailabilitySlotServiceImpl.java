@@ -1,6 +1,7 @@
 package com.luanvan.luanvanbackend.services.impl;
 
 import com.luanvan.luanvanbackend.dto.AvailabilitySlotDTO;
+import com.luanvan.luanvanbackend.dto.SlotIdRequestDTO;
 import com.luanvan.luanvanbackend.entities.AvailabilitySlot;
 import com.luanvan.luanvanbackend.entities.Clinic;
 import com.luanvan.luanvanbackend.entities.Doctor;
@@ -28,13 +29,13 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
 
     @Autowired
     private AvailabilitySlotRepository slotRepository;
-    
+
     @Autowired
     private DoctorRepository doctorRepository;
-    
+
     @Autowired
     private ClinicRepository clinicRepository;
-    
+
     @Autowired
     private SpecialtyRepository specialtyRepository;
 
@@ -50,7 +51,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         if (!doctorRepository.existsById(doctorId)) {
             throw new RuntimeException("Không tìm thấy bác sĩ với ID: " + doctorId);
         }
-        
+
         return slotRepository.findByDoctorDoctorId(doctorId);
     }
 
@@ -75,7 +76,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         if (!doctorRepository.existsById(doctorId)) {
             throw new RuntimeException("Không tìm thấy bác sĩ với ID: " + doctorId);
         }
-        
+
         return slotRepository.findByDoctorDoctorIdAndDate(doctorId, date);
     }
 
@@ -85,7 +86,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         if (!doctorRepository.existsById(doctorId)) {
             throw new RuntimeException("Không tìm thấy bác sĩ với ID: " + doctorId);
         }
-        
+
         return slotRepository.findByDoctorDoctorIdAndDateAndStatus(doctorId, date, AvailabilitySlot.SlotStatus.AVAILABLE);
     }
 
@@ -95,11 +96,11 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         if (!doctorRepository.existsById(doctorId)) {
             throw new RuntimeException("Không tìm thấy bác sĩ với ID: " + doctorId);
         }
-        
+
         if (startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("Ngày bắt đầu không thể sau ngày kết thúc");
         }
-        
+
         return slotRepository.findByDoctorDoctorIdAndDateBetween(doctorId, startDate, endDate);
     }
 
@@ -109,11 +110,11 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         if (!doctorRepository.existsById(doctorId)) {
             throw new RuntimeException("Không tìm thấy bác sĩ với ID: " + doctorId);
         }
-        
+
         if (startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("Ngày bắt đầu không thể sau ngày kết thúc");
         }
-        
+
         return slotRepository.findByDoctorDoctorIdAndDateBetweenAndStatus(doctorId, startDate, endDate, AvailabilitySlot.SlotStatus.AVAILABLE);
     }
 
@@ -123,11 +124,11 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         if (!doctorRepository.existsById(doctorId)) {
             throw new RuntimeException("Không tìm thấy bác sĩ với ID: " + doctorId);
         }
-        
+
         if (startDate.isAfter(endDate)) {
             throw new IllegalArgumentException("Ngày bắt đầu không thể sau ngày kết thúc");
         }
-        
+
         return slotRepository.findByDoctorDoctorIdAndDateBetween(doctorId, startDate, endDate);
     }
 
@@ -142,7 +143,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         if (!clinicRepository.existsById(clinicId)) {
             throw new RuntimeException("Không tìm thấy phòng khám với ID: " + clinicId);
         }
-        
+
         return slotRepository.findByClinicClinicId(clinicId);
     }
 
@@ -159,7 +160,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
             clinic = clinicRepository.findById(slotDTO.getClinicId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy phòng khám với ID: " + slotDTO.getClinicId()));
         }
-        
+
         // Lấy thông tin chuyên khoa nếu có
         Specialty specialty = null;
         if (slotDTO.getSpecialtyId() != null) {
@@ -172,7 +173,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         List<AvailabilitySlot> conflictingSlots = slotRepository.findByDoctorDoctorIdAndDateAndStartTime(
             doctor.getDoctorId(), slotDTO.getDate(), slotDTO.getStartTime()
         );
-        
+
         // Xóa tất cả slot trùng giờ, kể cả chuyên khoa khác
         for (AvailabilitySlot conflictSlot : conflictingSlots) {
             // Chỉ xóa nếu không phải slot đã đặt (BOOKED)
@@ -200,12 +201,12 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         }
         slot.setStatus(status);
         slot.setClinic(clinic);
-        
+
         // Set specialty nếu có trong DTO
         if (specialty != null) {
             slot.setSpecialty(specialty);
         }
-        
+
         return slotRepository.save(slot);
     }
 
@@ -213,7 +214,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
     @Transactional
     public List<AvailabilitySlot> createMultipleSlots(List<AvailabilitySlotDTO> slotDTOs) {
         List<AvailabilitySlot> createdSlots = new ArrayList<>();
-        
+
         for (AvailabilitySlotDTO slotDTO : slotDTOs) {
             try {
                 AvailabilitySlot slot = createSlot(slotDTO);
@@ -223,7 +224,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
                 System.err.println("Lỗi khi tạo slot: " + e.getMessage());
             }
         }
-        
+
         return createdSlots;
     }
 
@@ -231,37 +232,37 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
     @Transactional
     public AvailabilitySlot updateSlot(Long slotId, AvailabilitySlotDTO slotDTO) {
         AvailabilitySlot slot = getSlotById(slotId);
-        
+
         // Nếu cập nhật thông tin thời gian, kiểm tra trùng lặp
         if (slotDTO.getDate() != null || slotDTO.getStartTime() != null || slotDTO.getEndTime() != null) {
             LocalDate date = slotDTO.getDate() != null ? slotDTO.getDate() : slot.getDate();
             LocalTime startTime = slotDTO.getStartTime() != null ? slotDTO.getStartTime() : slot.getStartTime();
             LocalTime endTime = slotDTO.getEndTime() != null ? slotDTO.getEndTime() : slot.getEndTime();
-            
+
             // Bỏ qua chính slot đang cập nhật khi kiểm tra trùng lặp
             List<AvailabilitySlot> overlappingSlots = slotRepository.findOverlappingSlots(
                     slot.getDoctor().getDoctorId(), date, startTime, endTime);
-            
+
             boolean isOverlapping = overlappingSlots.stream()
                     .anyMatch(existingSlot -> !existingSlot.getSlotId().equals(slotId));
-            
+
             if (isOverlapping) {
                 throw new RuntimeException("Khung giờ này bị trùng lặp với khung giờ khác đã tồn tại");
             }
-            
+
             // Cập nhật thông tin
             if (slotDTO.getDate() != null) slot.setDate(slotDTO.getDate());
             if (slotDTO.getStartTime() != null) slot.setStartTime(slotDTO.getStartTime());
             if (slotDTO.getEndTime() != null) slot.setEndTime(slotDTO.getEndTime());
         }
-        
+
         // Cập nhật phòng khám nếu có thay đổi
         if (slotDTO.getClinicId() != null) {
             Clinic clinic = clinicRepository.findById(slotDTO.getClinicId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy phòng khám với ID: " + slotDTO.getClinicId()));
             slot.setClinic(clinic);
         }
-        
+
         // Cập nhật trạng thái nếu có
         if (slotDTO.getStatus() != null) {
             try {
@@ -271,7 +272,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
                 throw new RuntimeException("Trạng thái không hợp lệ: " + slotDTO.getStatus());
             }
         }
-        
+
         return slotRepository.save(slot);
     }
 
@@ -399,7 +400,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         List<AvailabilitySlot> conflictingSlots = slotRepository.findByDoctorDoctorIdAndDateAndStartTime(
             doctor.getDoctorId(), date, startTime
         );
-        
+
         // Xóa tất cả slot trùng giờ, kể cả chuyên khoa khác
         for (AvailabilitySlot conflictSlot : conflictingSlots) {
             // Chỉ xóa nếu không phải slot đã đặt (BOOKED) - ghi đè tuyệt đối cho các slot khác
@@ -407,7 +408,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
                 slotRepository.delete(conflictSlot);
             }
         }
-        
+
         // Tạo slot mới
         AvailabilitySlot slot = new AvailabilitySlot();
         slot.setDoctor(doctor);
@@ -420,7 +421,7 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         slot.setAutoGenerated(autoGenerated);
         slot.setCreatedFromShiftId(createdFromShiftId);
         slot.setNotes(notes);
-        
+
         // Gán specialty nếu có - PHẢI CÓ để hiển thị trong UI
         if (specialtyId != null) {
             Specialty specialty = specialtyRepository.findById(specialtyId).orElse(null);
@@ -433,14 +434,14 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
         } else {
             System.out.println("WARNING: No specialtyId provided for createSlotDirect");
         }
-        
+
         AvailabilitySlot savedSlot = slotRepository.save(slot);
-        System.out.println("DEBUG: Slot saved successfully: slotId=" + savedSlot.getSlotId() + 
+        System.out.println("DEBUG: Slot saved successfully: slotId=" + savedSlot.getSlotId() +
             ", specialtyId=" + (savedSlot.getSpecialty() != null ? savedSlot.getSpecialty().getSpecialtyId() : "NULL") +
-            ", notes=" + savedSlot.getNotes() + 
+            ", notes=" + savedSlot.getNotes() +
             ", autoGenerated=" + savedSlot.getAutoGenerated() +
             ", createdFromShiftId=" + savedSlot.getCreatedFromShiftId());
-        
+
         return savedSlot;
     }
 
@@ -461,5 +462,23 @@ public class AvailabilitySlotServiceImpl implements AvailabilitySlotService {
             slots.removeIf(slot -> slot.getStatus() == null || !slot.getStatus().equals(status));
         }
         return slots;
+    }
+
+    @Override
+    public Long getSlotIdByDetails(SlotIdRequestDTO requestDTO) {
+        if (requestDTO == null || requestDTO.getAppointmentDateTime() == null) {
+            throw new IllegalArgumentException("Request DTO or appointment date/time cannot be null.");
+        }
+
+        LocalDateTime appointmentDateTime = requestDTO.getAppointmentDateTime();
+        LocalDate appointmentDate = appointmentDateTime.toLocalDate();
+        LocalTime appointmentTime = appointmentDateTime.toLocalTime();
+
+        return slotRepository.findSlotIdByDetails(
+                requestDTO.getDoctorId(),
+                requestDTO.getSpecialtyId(),
+                requestDTO.getClinicId(),
+                appointmentDate,
+                appointmentTime);
     }
 }

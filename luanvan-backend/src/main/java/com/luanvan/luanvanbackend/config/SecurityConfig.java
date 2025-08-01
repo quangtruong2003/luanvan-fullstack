@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -25,7 +26,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
-import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableWebSecurity
@@ -35,7 +35,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsService userDetailsService;
-    
+
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
 
@@ -86,6 +86,7 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/slots/doctor/*/date/*").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/slots/doctor/*/range").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/slots/specialty/*/date/*").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/availability/slots/get_slot_id").permitAll() // Changed from GET to POST
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/shifts").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/shifts/*").permitAll()
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/availability/shifts/clinic/*").permitAll()
@@ -154,4 +155,4 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-} 
+}
