@@ -101,7 +101,8 @@ public class AppointmentValidationService {
                              newStatus == Appointment.AppointmentStatus.CANCELLED_BY_CLINIC ||
                              newStatus == Appointment.AppointmentStatus.NO_SHOW; // Allow transition to NO_SHOW
             case PAYMENT_FAILED -> newStatus == Appointment.AppointmentStatus.PENDING_PAYMENT ||
-                                   newStatus == Appointment.AppointmentStatus.CANCELLED_BY_CLINIC;
+                                   newStatus == Appointment.AppointmentStatus.CANCELLED_BY_CLINIC ||
+                                   newStatus == Appointment.AppointmentStatus.NO_SHOW; // Allow admin to override to NO_SHOW for cleanup
             case COMPLETED, CANCELLED_BY_PATIENT, CANCELLED_BY_CLINIC, NO_SHOW -> false; // Terminal states
         };
 

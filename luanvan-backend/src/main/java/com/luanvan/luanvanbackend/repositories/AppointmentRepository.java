@@ -177,4 +177,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
             @Param("endDate") LocalDateTime endDate);
 
     List<Appointment> findByStatusAndAppointmentDateTimeBefore(Appointment.AppointmentStatus status, LocalDateTime dateTime);
+
+    List<Appointment> findByStatusAndBookingTimestampBefore(Appointment.AppointmentStatus status, LocalDateTime bookingTimestamp);
 } 

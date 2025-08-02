@@ -207,7 +207,8 @@ const MyAppointments = () => {
       'COMPLETED': 'completed',
       'CANCELLED': 'cancelled',
       'CANCELLED_BY_PATIENT': 'cancelled',
-      'CANCELLED_BY_CLINIC': 'cancelled'
+      'CANCELLED_BY_CLINIC': 'cancelled',
+      'NO_SHOW': 'no_show'
     }
     return statusMapping[apiStatus] || 'pending'
   }
@@ -222,6 +223,8 @@ const MyAppointments = () => {
         return "bg-blue-100 text-blue-800"
       case "cancelled":
         return "bg-red-100 text-red-800"
+      case "no_show":
+        return "bg-gray-200 text-gray-800"
       default:
         return "bg-gray-100 text-gray-800"
     }
@@ -237,6 +240,8 @@ const MyAppointments = () => {
         return "Đã hoàn thành"
       case "cancelled":
         return "Đã hủy"
+      case "no_show":
+        return "Không đến"
       default:
         return "Không xác định"
     }
@@ -252,7 +257,7 @@ const MyAppointments = () => {
     .sort((a, b) => new Date(`${a.date}T${a.time}`) - new Date(`${b.date}T${b.time}`))
 
   const pastAppointments = appointments
-    .filter((apt) => apt.status === "completed" || apt.status === "cancelled")
+    .filter((apt) => apt.status === "completed" || apt.status === "cancelled" || apt.status === "no_show")
     .sort((a, b) => new Date(`${b.date}T${b.time}`) - new Date(`${a.date}T${a.time}`))
 
   const nextAppointment = upcomingAppointments[0]

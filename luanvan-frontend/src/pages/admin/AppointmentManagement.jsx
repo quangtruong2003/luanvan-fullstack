@@ -145,11 +145,11 @@ const AppointmentManagement = ({ filters, setFilters }) => {
   const statusOptions = [
     { value: 'PENDING_PAYMENT', label: 'Chờ thanh toán', color: 'orange' },
     { value: 'CONFIRMED', label: 'Đã xác nhận', color: 'blue' },
-    //{ value: 'COMPLETED', label: 'Hoàn thành', color: 'green' },
+    { value: 'COMPLETED', label: 'Hoàn thành', color: 'green' },
     { value: 'CANCELLED_BY_PATIENT', label: 'Hủy bởi bệnh nhân', color: 'red' },
     { value: 'CANCELLED_BY_CLINIC', label: 'Hủy bởi phòng khám', color: 'red' },
     { value: 'PAYMENT_FAILED', label: 'Thanh toán thất bại', color: 'gray' },
-    //{ value: 'NO_SHOW', label: 'Không đến', color: 'gray' }
+    { value: 'NO_SHOW', label: 'Không đến', color: 'gray' }
   ];
 
   const handleStatusChange = async (appointmentId, newStatus) => {
