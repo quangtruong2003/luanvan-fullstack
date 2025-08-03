@@ -608,7 +608,7 @@ const AdminDashboardNew = () => {
                 </ul>
 
                 {/* Connection Status Details */}
-                <div className="mt-6 pt-4 border-t border-gray-200">
+                {/* <div className="mt-6 pt-4 border-t border-gray-200">
                   <div className="text-xs text-gray-500 space-y-1">
                     <div className="flex justify-between">
                       <span>Phiên bản:</span>
@@ -629,7 +629,7 @@ const AdminDashboardNew = () => {
                       </span>
                     </div>
                   </div>
-                </div>
+                </div> */}
               </nav>
             </div>
 

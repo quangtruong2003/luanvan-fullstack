@@ -363,7 +363,7 @@ const SystemSettings = () => {
       {/* Settings Content */}
       <div className="bg-white shadow rounded-lg p-6">
         {/* Payment Settings Note */}
-        {activeTab === 'general' && (
+        {/* {activeTab === 'general' && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center">
               <AlertCircle className="h-5 w-5 text-blue-600 mr-2" />
@@ -375,7 +375,7 @@ const SystemSettings = () => {
               </div>
             </div>
           </div>
-        )}
+        )} */}
         {renderTabContent()}
       </div>
     </div>

@@ -297,13 +297,7 @@ const PaymentManagement = () => {
 
       {/* Payment Settings Content */}
       <div className="space-y-6">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="text-lg font-semibold text-blue-900 mb-2">Cài đặt Phương thức Thanh toán</h4>
-          <p className="text-sm text-blue-700">
-            Cấu hình các phương thức thanh toán và trạng thái đặt cọc cho hệ thống.
-            <span className="font-medium"> Cài đặt được lưu vào database và đồng bộ trên tất cả thiết bị.</span>
-          </p>
-        </div>
+
 
         {/* General Deposit Setting */}
         <div className="bg-white border border-gray-200 rounded-lg p-4">
