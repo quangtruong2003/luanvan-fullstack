@@ -14,6 +14,12 @@ const formatDateToYYYYMMDD = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Helper function to create a Date object in UTC from a 'YYYY-MM-DD' string.
+const createUTCDate = (dateString) => {
+    if (!dateString) return null;
+    return new Date(`${dateString.substring(0, 10)}T00:00:00.000Z`);
+};
+
 const WeeklyCalendarView = ({ 
   slots = [], 
   workShifts = [], 
@@ -63,8 +69,10 @@ const WeeklyCalendarView = ({
   const offlineDatesMap = useMemo(() => {
     const map = new Map();
     offlineDates.forEach(d => {
-      // The date from backend is already YYYY-MM-DD string, no conversion needed
-      map.set(d.date, d.reason || 'Phòng khám nghỉ');
+        if (d.date) {
+            // Normalize the key to YYYY-MM-DD
+            map.set(d.date.substring(0, 10), d.reason || 'Phòng khám nghỉ');
+        }
     });
     return map;
   }, [offlineDates]);
@@ -107,13 +115,15 @@ const WeeklyCalendarView = ({
     const grouped = {};
     if (!slots) return grouped;
     slots.forEach(slot => {
-      const dateKey = slot.date;
-      if (!dateKey || !slot.startTime) return;
-      const timeKey = slot.startTime.substring(0, 5);
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = {};
-      }
-      grouped[dateKey][timeKey] = slot;
+        if (slot.date && slot.startTime) {
+            // Normalize the key to YYYY-MM-DD by slicing
+            const dateKey = slot.date.substring(0, 10);
+            const timeKey = slot.startTime.substring(0, 5);
+            if (!grouped[dateKey]) {
+                grouped[dateKey] = {};
+            }
+            grouped[dateKey][timeKey] = slot;
+        }
     });
     return grouped;
   }, [slots]);
@@ -123,16 +133,18 @@ const WeeklyCalendarView = ({
     if (!slots || slots.length === 0) return false;
     
     const weekStart = new Date(currentWeek);
+    weekStart.setHours(0, 0, 0, 0);
     const day = weekStart.getDay();
     const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
     weekStart.setDate(diff);
     
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
     
     return slots.some(slot => {
-      const slotDate = new Date(slot.date);
-      return slotDate >= weekStart && slotDate <= weekEnd;
+      const slotDate = createUTCDate(slot.date);
+      return slotDate && slotDate >= weekStart && slotDate <= weekEnd;
     });
   }, [slots, currentWeek]);
 
@@ -145,37 +157,36 @@ const WeeklyCalendarView = ({
     // Find the nearest week with slots
     const findNearestWeekWithSlots = () => {
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
       const sortedSlots = [...slots]
-        .filter(slot => new Date(slot.date) >= today) // Only future slots
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
+        .map(slot => ({ ...slot, utcDate: createUTCDate(slot.date) }))
+        .filter(slot => slot.utcDate && slot.utcDate >= today) // Only future slots
+        .sort((a, b) => a.utcDate - b.utcDate);
 
       if (sortedSlots.length === 0) {
         // If no future slots, check past slots
         const pastSlots = [...slots]
-          .filter(slot => new Date(slot.date) < today)
-          .sort((a, b) => new Date(b.date) - new Date(a.date));
+          .map(slot => ({ ...slot, utcDate: createUTCDate(slot.date) }))
+          .filter(slot => slot.utcDate)
+          .sort((a, b) => b.utcDate - a.utcDate);
         
         if (pastSlots.length > 0) {
-          return new Date(pastSlots[0].date);
+          return pastSlots[0].utcDate;
         }
         return null;
       }
 
-      return new Date(sortedSlots[0].date);
+      return sortedSlots[0].utcDate;
     };
 
     const nearestSlotDate = findNearestWeekWithSlots();
     if (nearestSlotDate) {
-      // Navigate to the week containing the nearest slot
       const targetWeek = new Date(nearestSlotDate);
-      const dayOfWeek = targetWeek.getDay();
-      const diff = targetWeek.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-      targetWeek.setDate(diff);
-      
       setCurrentWeek(targetWeek);
       setHasAutoNavigated(true);
       
-      showInfo(`Đã chuyển đến tuần có lịch khám gần nhất (${nearestSlotDate.toLocaleDateString('vi-VN')})`);
+      showInfo(`Đã chuyển đến tuần có lịch khám gần nhất (${targetWeek.toLocaleDateString('vi-VN')})`);
     }
   }, [slots, currentWeekHasSlots, hasAutoNavigated, showInfo]);
 
@@ -183,11 +194,9 @@ const WeeklyCalendarView = ({
     const newWeek = new Date(currentWeek);
     newWeek.setDate(currentWeek.getDate() + (direction * 7));
     setCurrentWeek(newWeek);
-    // Reset auto-navigation flag when user manually navigates
     setHasAutoNavigated(false);
   };
 
-  // Reset auto-navigation when specialty changes
   useEffect(() => {
     setHasAutoNavigated(false);
   }, [selectedSpecialty]);
@@ -199,30 +208,25 @@ const WeeklyCalendarView = ({
       return;
     }
 
-    // If a slot is booked, always allow showing details regardless of readOnly mode
     if (currentSlot && (currentSlot.status === 'BOOKED' || currentSlot.status === 'CONFIRMED') && onShowAppointmentDetails) {
       const slotId = currentSlot.slotId || currentSlot.slot_id;
       onShowAppointmentDetails(slotId);
       return;
     }
 
-    // If in readOnly mode, prevent any other actions
     if (readOnly || loading) {
       return;
     }
     
     if (currentSlot) {
-      // Tạo datetime object để truyền vào handleAdvancedToggleSlot
       const slotDateTime = new Date(date);
       const [hours, minutes] = time.split(':').map(Number);
       slotDateTime.setHours(hours, minutes, 0, 0);
       
-      // Get specialty and clinic names for display
       const specialty = specialties.find(s => (s.specialtyId || s.specialty_id) === selectedSpecialty);
       const specialtyName = specialty?.name || 'Chuyên khoa không xác định';
       const clinicName = specialty?.clinic?.name || 'Phòng khám không xác định';
       
-      // Gọi với đầy đủ tham số
       onSlotToggle(
         currentSlot.slotId || currentSlot.slot_id, 
         currentSlot.status,
@@ -231,7 +235,6 @@ const WeeklyCalendarView = ({
         clinicName
       );
     } else if (onCreateNewSlot && canCreateNewSlot(date, time)) {
-      // Thực hiện tạo slot ngay lập tức - ghi đè tuyệt đối
       const [hours, minutes] = time.split(':').map(Number);
       const startTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
       
@@ -344,7 +347,6 @@ const WeeklyCalendarView = ({
                 const isOffline = offlineDatesMap.has(dateStr);
                 const offlineReason = isOffline ? offlineDatesMap.get(dateStr) : '';
 
-                // Determine if the slot is interactive
                 const isClickableForDetails = currentSlot && (currentSlot.status === 'BOOKED' || currentSlot.status === 'CONFIRMED');
                 const isInteractive = (!readOnly && !isOffline) || isClickableForDetails;
 
@@ -354,7 +356,7 @@ const WeeklyCalendarView = ({
                 let hoverBgColor = 'hover:bg-gray-100';
                 let content = <Plus className="w-4 h-4" />;
                 let title = readOnly ? 'Lịch chỉ xem' : 'Click để tạo slot mới';
-                let isDisabled = loading || past; // Remove !isInteractive from here
+                let isDisabled = loading || past;
 
                 if (isOffline) {
                   bgColor = 'bg-gray-200';
@@ -362,7 +364,7 @@ const WeeklyCalendarView = ({
                   borderColor = 'border-gray-300';
                   content = <AlertTriangle className="w-4 h-4 text-orange-500" />;
                   title = `Ngày nghỉ: ${offlineReason}. Click để xem chi tiết.`;
-                  isDisabled = loading || past; // Can be clicked even if offline, unless it's in the past
+                  isDisabled = loading || past;
                 } else if (currentSlot) {
                   switch (currentSlot.status) {
                     case 'AVAILABLE':
@@ -381,7 +383,7 @@ const WeeklyCalendarView = ({
                       hoverBgColor = 'hover:bg-blue-200';
                       content = <User className="w-4 h-4" />;
                       title = `Đã đặt bởi: ${currentSlot.patient?.fullName || 'Bệnh nhân'}. Click để xem chi tiết.`;
-                      isDisabled = loading; // Can be clicked to see details
+                      isDisabled = loading;
                       break;
                     case 'CANCELLED_BY_CLINIC':
                     case 'DISABLED':
@@ -398,10 +400,10 @@ const WeeklyCalendarView = ({
                       bgColor = 'bg-yellow-100';
                       textColor = 'text-yellow-700';
                       borderColor = 'border-yellow-300';
-                      hoverBgColor = ''; // No hover for pending slots
+                      hoverBgColor = '';
                       content = <Clock className="w-4 h-4" />;
                       title = 'Chờ xác nhận từ bệnh nhân';
-                      isDisabled = true; // Cannot toggle pending slots
+                      isDisabled = true;
                       break;
                     case 'CANCELLED_BY_PATIENT':
                     case 'CANCELLED':
@@ -433,18 +435,18 @@ const WeeklyCalendarView = ({
                   }
                 }
 
-                if (past && !isOffline) { // Don't override offline styling
+                if (past && !isOffline) {
                   bgColor = 'bg-gray-50';
                   textColor = 'text-gray-300';
                   borderColor = 'border-gray-100';
                   hoverBgColor = '';
                 }
 
-                const effectiveHover = isInteractive || isOffline ? hoverBgColor : ''; // Allow hover on offline slots
-                const cursorClass = isDisabled ? 'cursor-not-allowed' : (isInteractive || isOffline ? 'cursor-pointer' : 'cursor-default');
+                const effectiveHover = isInteractive || isOffline ? hoverBgColor : '';
+                const cursorClass = isDisabled ? 'cursor-not-allowed' : (isInteractive || isOffline ? 'cursor-pointer' : 'default');
 
                 return (
-                  <div key={dateStr} className="p-1 border-r border-t h-12 flex items-center justify-center">
+                  <div key={dateStr + time} className="p-1 border-r border-t h-12 flex items-center justify-center">
                     <button
                       title={title}
                       disabled={isDisabled}
