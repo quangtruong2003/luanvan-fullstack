@@ -6,6 +6,14 @@ import {
 import { useNotification } from '../../../components/NotificationSystem';
 import { clinicOfflineService } from '../../../services/clinicOfflineService'; // Import a new service
 
+// Helper function to format a Date object to 'YYYY-MM-DD' string, timezone-safe.
+const formatDateToYYYYMMDD = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const WeeklyCalendarView = ({ 
   slots = [], 
   workShifts = [], 
@@ -55,9 +63,8 @@ const WeeklyCalendarView = ({
   const offlineDatesMap = useMemo(() => {
     const map = new Map();
     offlineDates.forEach(d => {
-      // Normalize date to YYYY-MM-DD format without time zone issues
-      const dateKey = new Date(d.date).toISOString().split('T')[0];
-      map.set(dateKey, d.reason || 'Phòng khám nghỉ');
+      // The date from backend is already YYYY-MM-DD string, no conversion needed
+      map.set(d.date, d.reason || 'Phòng khám nghỉ');
     });
     return map;
   }, [offlineDates]);
@@ -186,7 +193,7 @@ const WeeklyCalendarView = ({
   }, [selectedSpecialty]);
 
   const handleSlotClick = (date, time, currentSlot) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatDateToYYYYMMDD(date);
     if (offlineDatesMap.has(dateStr)) {
       showInfo(`Phòng khám nghỉ vào ngày này.`, `Lý do: ${offlineDatesMap.get(dateStr)}`);
       return;
@@ -233,7 +240,7 @@ const WeeklyCalendarView = ({
       const endTime = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
 
       const slotData = {
-        date: date.toISOString().split('T')[0],
+        date: formatDateToYYYYMMDD(date),
         startTime: startTime,
         endTime: endTime,
         specialtyId: selectedSpecialty
@@ -317,7 +324,7 @@ const WeeklyCalendarView = ({
             {weekDates.map(date => {
               const { day, date: dayNum, isToday } = getDayLabel(date);
               return (
-                <div key={date.toISOString()} className={`p-2 text-center border-r border-b ${isToday ? 'bg-blue-50 text-blue-600' : 'bg-gray-50'}`}>
+                <div key={formatDateToYYYYMMDD(date)} className={`p-2 text-center border-r border-b ${isToday ? 'bg-blue-50 text-blue-600' : 'bg-gray-50'}`}>
                   <div className="font-semibold text-xs">{day}</div>
                   <div className="text-sm">{dayNum}</div>
                 </div>
@@ -329,7 +336,7 @@ const WeeklyCalendarView = ({
             <div key={time} className="grid grid-cols-8">
               <div className="p-2 text-center text-xs font-medium text-gray-500 border-r border-t bg-gray-50 flex items-center justify-center">{time}</div>
               {weekDates.map((date) => {
-                const dateStr = date.toISOString().split('T')[0];
+                const dateStr = formatDateToYYYYMMDD(date);
                 const currentSlot = slotsByDateTime[dateStr]?.[time];
                 const past = isPast(date, time);
                 const canCreate = !past && !!currentSpecialtyInfo;
@@ -496,4 +503,4 @@ const WeeklyCalendarView = ({
   );
 };
 
-export default WeeklyCalendarView; 
+export default WeeklyCalendarView;

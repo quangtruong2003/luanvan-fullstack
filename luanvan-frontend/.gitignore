@@ -26,3 +26,8 @@ dist-ssr
 *.logs
 logs/
 luanvan-backend/logs/ 
+
+
+# Log files
+logs/
+*.log

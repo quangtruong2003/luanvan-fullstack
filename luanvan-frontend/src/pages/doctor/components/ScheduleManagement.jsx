@@ -12,6 +12,15 @@ import ConflictResolutionDialog from './ConflictResolutionDialog';
 import BulkConflictDialog from './BulkConflictDialog';
 import AutoGenerationPanel from './AutoGenerationPanel';
 
+// Helper function to format a Date object to 'YYYY-MM-DD' string, timezone-safe.
+const formatDateToYYYYMMDD = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+
 const ScheduleManagement = ({ 
   specialties,
   selectedSpecialtyForSchedule,
@@ -111,7 +120,8 @@ const ScheduleManagement = ({
 
     // Nếu đang bật slot (currentStatus !== 'AVAILABLE'), kiểm tra xung đột
     try {
-      const slotDateTime = new Date(slotTime).toISOString();
+      // Ensure slotTime is a Date object before calling toISOString
+      const slotDateTime = slotTime instanceof Date ? slotTime.toISOString() : new Date(slotTime).toISOString();
       
       console.log('🔍 Checking slot conflicts:', {
         slotId,
@@ -149,7 +159,7 @@ const ScheduleManagement = ({
       }
     } catch (error) {
       console.error('Error checking conflicts:', error);
-      // Nếu lỗi khi kiểm tra xung đột, vẫn thực hiện toggle
+      // If there's an error checking conflicts, still perform the toggle
       try {
         await handleToggleSlot(slotId, currentStatus, slotTime);
         await fetchAvailabilitySlots();
@@ -166,8 +176,8 @@ const ScheduleManagement = ({
     if (internalLoadingSlots) return;
 
     try {
-      // Kiểm tra xung đột trước khi tạo slot
-      const slotDateTime = new Date(`${slotData.date}T${slotData.startTime}`).toISOString();
+      // Create a UTC-based ISO string for conflict checking
+      const slotDateTime = new Date(`${slotData.date}T${slotData.startTime}:00Z`).toISOString();
       
       console.log('🔍 Checking conflicts for new slot:', {
         slotData,
@@ -184,7 +194,7 @@ const ScheduleManagement = ({
 
       if (conflictResponse.hasConflict) {
         console.log('⚠️ Conflicts detected for new slot, showing dialog');
-        // Hiển thị dialog xung đột
+        // Show conflict dialog
         setConflictInfo({
           ...conflictResponse,
           slotData,
@@ -195,14 +205,14 @@ const ScheduleManagement = ({
         setShowConflictDialog(true);
       } else {
         console.log('✅ No conflicts for new slot, creating directly');
-        // Không có xung đột, tạo slot trực tiếp
+        // No conflicts, create the slot directly
         await handleCreateNewSlot(slotData);
         await fetchAvailabilitySlots();
         showSuccess('Đã tạo slot mới thành công!');
       }
     } catch (error) {
       console.error('Error checking conflicts for new slot:', error);
-      // Nếu lỗi khi kiểm tra xung đột, vẫn thực hiện tạo slot
+      // If there's an error checking conflicts, still try to create the slot
       try {
         await handleCreateNewSlot(slotData);
         await fetchAvailabilitySlots();
@@ -287,7 +297,7 @@ const ScheduleManagement = ({
       setShowConflictDialog(false);
       setConflictInfo(null);
     }
-  }, [conflictInfo, handleCreateNewSlot, handleToggleSlot, fetchAvailabilitySlots, showSuccess, showError]);
+  }, [conflictInfo, handleCreateNewSlot, handleToggleSlot, fetchAvailabilitySlots, showSuccess, showError, availabilitySlots]);
 
   // Handle auto-generation request from the panel with work shift filtering
   const handleAutoGenerate = async (settings) => {
@@ -304,12 +314,16 @@ const ScheduleManagement = ({
       return;
     }
 
-    // Hiển thị dialog xác nhận trước khi tạo lịch
+    // Use formatDateToYYYYMMDD for consistency
+    const startDate = settings.startDate ? formatDateToYYYYMMDD(settings.startDate) : null;
+    const endDate = settings.endDate ? formatDateToYYYYMMDD(settings.endDate) : null;
+
+    // Show confirmation dialog before generating schedule
     setBulkConflictInfo({
-      settings,
+      settings: { ...settings, startDate, endDate },
       specialty: currentSpecialty,
       clinicId,
-      totalConflicts: 0 // Sẽ được tính sau
+      totalConflicts: 0 // Will be calculated later
     });
     setShowBulkConflictDialog(true);
   };
@@ -320,14 +334,14 @@ const ScheduleManagement = ({
 
     setAutoGenerating(true);
     try {
-      // Tạo payload với thông tin lọc ca làm việc
+      // Create payload with work shift filtering information
       const generationPayload = {
         specialtyId: selectedSpecialtyForSchedule,
         clinicId: bulkConflictInfo.clinicId,
         startDate: bulkConflictInfo.settings.startDate,
         endDate: bulkConflictInfo.settings.endDate,
         slotDuration: bulkConflictInfo.settings.slotDuration || 30,
-        overwrite: true, // Luôn ghi đè để tránh conflict
+        overwrite: true, // Always overwrite to avoid conflicts
         workShiftFilter: bulkConflictInfo.settings.workShiftFilter || 'all'
       };
 
@@ -335,10 +349,10 @@ const ScheduleManagement = ({
 
       const result = await handleGenerateSlotsFromWorkShifts(generationPayload);
       
-      // Refetch data để cập nhật real-time
+      // Refetch data for real-time update
       await fetchAvailabilitySlots();
       
-      // Hiển thị thông báo với thông tin chi tiết
+      // Display detailed notification
       if (result && result.success) {
         let message = `Đã tạo ${result.createdSlotsCount} slots thành công`;
         if (result.skippedCount > 0) {
