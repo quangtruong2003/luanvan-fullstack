@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiService, adminService } from '../services/api';
 import Calendar from 'react-calendar';
@@ -149,9 +149,9 @@ const DoctorSchedule = () => {
     fetchMinimumBookingDays();
   }, []);
 
-  // Calculate the minimum bookable date based on admin setting
+  // Calculate the minimum bookable date based on business rule (2 days from today)
   const minDate = new Date();
-  minDate.setDate(minDate.getDate() + minimumAdvanceBookingDays);
+  minDate.setDate(minDate.getDate() + 2); // 2 days from today
   minDate.setHours(0, 0, 0, 0);
 
   // Calculate the maximum bookable date (1 month from today)
@@ -311,7 +311,7 @@ const DoctorSchedule = () => {
   }, [doctorId]);
 
   // Create a memoized map of offline dates for quick lookups
-  const offlineDatesMap = React.useMemo(() => {
+  const offlineDatesMap = useMemo(() => {
     const map = new Map();
     offlineDates.forEach(d => {
       // Assuming d.date from API is a string like '2025-08-02' or '2025-08-02T...'
@@ -390,6 +390,12 @@ const DoctorSchedule = () => {
     const tileDate = new Date(date);
     tileDate.setHours(0, 0, 0, 0);
     
+    // Check if this is a neighboring month date
+    const currentMonth = new Date();
+    currentMonth.setHours(0, 0, 0, 0);
+    const isNeighboringMonth = tileDate.getMonth() !== currentMonth.getMonth() || 
+                              tileDate.getFullYear() !== currentMonth.getFullYear();
+    
     const dateString = formatDateToYYYYMMDD(tileDate); // Use helper
     let classes = 'calendar-tile ';
 
@@ -397,8 +403,8 @@ const DoctorSchedule = () => {
       classes += 'calendar-tile-offline ';
     }
     
-    // Past date styling
-    if (tileDate.getTime() < today.getTime()) {
+    // Past date styling (only for current month)
+    if (!isNeighboringMonth && tileDate.getTime() < minDate.getTime()) {
       classes += 'calendar-tile-past ';
     }
     
@@ -412,11 +418,15 @@ const DoctorSchedule = () => {
       classes += 'calendar-tile-selected ';
     }
     
-    // Weekend styling (applies if not selected and not today)
-    if ((tileDate.getDay() === 0 || tileDate.getDay() === 6) && 
-        tileDate.getTime() !== today.getTime() && 
-        (!selectedDate || tileDate.getTime() !== selectedDate.getTime())) {
-      classes += 'calendar-tile-weekend ';
+    // Weekend styling (only for current month, applies if not selected and not today)
+    if (!isNeighboringMonth) {
+      const dayOfWeek = tileDate.getDay();
+      
+      if ((dayOfWeek === 0 || dayOfWeek === 6) && 
+          tileDate.getTime() !== today.getTime() && 
+          (!selectedDate || tileDate.getTime() !== selectedDate.getTime())) {
+        classes += 'calendar-tile-weekend ';
+      }
     }
     
     return classes.trim();
@@ -604,10 +614,7 @@ const DoctorSchedule = () => {
               <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white">
                 <h2 className="text-xl font-bold mb-2">Chọn ngày khám</h2>
                 <p className="text-indigo-100 text-sm">
-                  {minimumAdvanceBookingDays === 0 
-                    ? 'Có thể đặt lịch từ hôm nay, trong vòng 1 tháng'
-                    : `Phải đặt trước ít nhất ${minimumAdvanceBookingDays} ngày, trong vòng 1 tháng`
-                  }
+                  Có thể đặt lịch từ ngày thứ 3 kể từ hôm nay, trong vòng 1 tháng
                 </p>
               </div>
               
@@ -620,17 +627,38 @@ const DoctorSchedule = () => {
                   value={selectedDate}
                   className="w-full border-0 shadow-none modern-calendar"
                   tileClassName={getTileClassName}
-                  tileDisabled={({ date }) => date < minDate || date > maxDate} // Only disable past/future dates, not offline dates
+                  tileDisabled={({ date }) => {
+                    // Check if this is a neighboring month date
+                    const currentMonth = new Date();
+                    const isNeighboringMonth = date.getMonth() !== currentMonth.getMonth() || 
+                                              date.getFullYear() !== currentMonth.getFullYear();
+                    
+                    // Disable past dates and dates before minDate (only for current month)
+                    if (!isNeighboringMonth && date < minDate) return true;
+                    
+                    // Disable future dates beyond maxDate (only for current month)
+                    if (!isNeighboringMonth && date > maxDate) return true;
+                    
+                    // Disable weekends (Saturday and Sunday) - only for current month
+                    if (!isNeighboringMonth) {
+                      const dayOfWeek = date.getDay();
+                      return dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
+                    }
+                    
+                    return false; // Don't disable neighboring month dates
+                  }}
                   locale="vi-VN"
                   formatShortWeekday={(locale, date) => {
-                    const weekdays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-                    return weekdays[date.getDay()];
+                    // Use correct weekday mapping for Sunday start calendar
+                    const weekdays = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']; // Sunday = 0, Monday = 1, etc.
+                    const dayIndex = date.getDay();
+                    return weekdays[dayIndex];
                   }}
                   formatMonthYear={(locale, date) => {
                     return `tháng ${date.getMonth() + 1} năm ${date.getFullYear()}`;
                   }}
-                  showNeighboringMonth={false}
-                  calendarType="iso8601"
+                  showNeighboringMonth={true}
+                  calendarType="gregory" // Force Sunday start to match Windows system calendar
                 />
               </div>
               
@@ -641,9 +669,12 @@ const DoctorSchedule = () => {
                     <h3 className="text-lg font-semibold text-gray-900 mb-1">
                       Chọn giờ khám
                     </h3>
-                    <p className="text-gray-600 text-sm">
+                                         <p className="text-gray-600 text-sm">
                       {selectedDate.toLocaleDateString('vi-VN', {
-                        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
                       })}
                     </p>
                   </div>
@@ -733,4 +764,4 @@ const DoctorSchedule = () => {
   );
 };
 
-export default DoctorSchedule; 
+export default DoctorSchedule;
