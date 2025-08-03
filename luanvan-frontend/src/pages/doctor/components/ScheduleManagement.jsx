@@ -6,20 +6,12 @@ import {
 } from 'lucide-react';
 import { doctorService } from '../../../services/api';
 import { useNotification } from '../../../components/NotificationSystem';
+import { formatDateToYYYYMMDD, createLocalISOString } from '../../../utils/dateUtils';
 import WeeklyCalendarView from './WeeklyCalendarView';
 import SpecialtyTabBar from './SpecialtyTabBar';
 import ConflictResolutionDialog from './ConflictResolutionDialog';
 import BulkConflictDialog from './BulkConflictDialog';
 import AutoGenerationPanel from './AutoGenerationPanel';
-
-// Helper function to format a Date object to 'YYYY-MM-DD' string, timezone-safe.
-const formatDateToYYYYMMDD = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
 
 const ScheduleManagement = ({ 
   specialties,
@@ -120,8 +112,15 @@ const ScheduleManagement = ({
 
     // Nếu đang bật slot (currentStatus !== 'AVAILABLE'), kiểm tra xung đột
     try {
-      // Ensure slotTime is a Date object before calling toISOString
-      const slotDateTime = slotTime instanceof Date ? slotTime.toISOString() : new Date(slotTime).toISOString();
+      // Ensure consistent timezone handling - use createLocalISOString instead of toISOString
+      let slotDateTime;
+      if (slotTime instanceof Date) {
+        slotDateTime = createLocalISOString(slotTime);
+      } else {
+        // Parse the datetime string in local timezone consistently
+        const localDateTime = new Date(slotTime);
+        slotDateTime = createLocalISOString(localDateTime);
+      }
       
       console.log('🔍 Checking slot conflicts:', {
         slotId,
@@ -176,11 +175,14 @@ const ScheduleManagement = ({
     if (internalLoadingSlots) return;
 
     try {
-      // Create a UTC-based ISO string for conflict checking
-      const slotDateTime = new Date(`${slotData.date}T${slotData.startTime}:00Z`).toISOString();
+      // Create a consistent local datetime for conflict checking - avoid timezone confusion
+      // Parse date and time in local timezone, then convert to consistent ISO for API
+      const localDateTime = new Date(`${slotData.date}T${slotData.startTime}:00`);
+      const slotDateTime = createLocalISOString(localDateTime);
       
       console.log('🔍 Checking conflicts for new slot:', {
         slotData,
+        localDateTime,
         slotDateTime,
         selectedSpecialtyForSchedule
       });

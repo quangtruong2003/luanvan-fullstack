@@ -7,15 +7,7 @@ import './DoctorCalendar.css';
 import { useUser, useClerk } from '@clerk/clerk-react';
 import { Calendar as LucideCalendar, Clock, User, ChevronLeft, ChevronRight, AlertCircle, Info } from 'lucide-react';
 import { clinicOfflineService } from '../services/clinicOfflineService'; // Import the service
-
-// Helper function to format a Date object to 'YYYY-MM-DD' string, ignoring timezone.
-const formatDateToYYYYMMDD = (dateObj) => {
-  if (!dateObj) return '';
-  const year = dateObj.getFullYear();
-  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const day = String(dateObj.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+import { formatDateToYYYYMMDD } from '../utils/dateUtils';
 
 const formatWorkingHours = (shifts) => {
   if (!shifts || shifts.length === 0) {
@@ -327,8 +319,8 @@ const DoctorSchedule = () => {
     if (!date || !doctorId) return;
     setSlotLoading(true);
     try {
-      const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-      const formattedDate = utcDate.toISOString().split('T')[0];
+      // Use local timezone formatting to match server expectations
+      const formattedDate = formatDateToYYYYMMDD(date);
       const response = await apiService.getAvailableSlots(doctorId, formattedDate);
       setSlots(response || []);
     } catch (error) {
@@ -365,11 +357,8 @@ const DoctorSchedule = () => {
       return;
     }
 
-    // FIX: Format date locally to avoid timezone shift from toISOString()
-    const year = selectedDate.getFullYear();
-    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-    const day = String(selectedDate.getDate()).padStart(2, '0');
-    const correctDateString = `${year}-${month}-${day}`;
+    // Use consistent date formatting to avoid timezone issues
+    const correctDateString = formatDateToYYYYMMDD(selectedDate);
 
     navigate('/book-appointment-details', {
       state: {

@@ -5,20 +5,7 @@ import {
 } from 'lucide-react';
 import { useNotification } from '../../../components/NotificationSystem';
 import { clinicOfflineService } from '../../../services/clinicOfflineService'; // Import a new service
-
-// Helper function to format a Date object to 'YYYY-MM-DD' string, timezone-safe.
-const formatDateToYYYYMMDD = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-// Helper function to create a Date object in UTC from a 'YYYY-MM-DD' string.
-const createUTCDate = (dateString) => {
-    if (!dateString) return null;
-    return new Date(`${dateString.substring(0, 10)}T00:00:00.000Z`);
-};
+import { formatDateToYYYYMMDD, createLocalDate } from '../../../utils/dateUtils';
 
 const WeeklyCalendarView = ({ 
   slots = [], 
@@ -143,7 +130,7 @@ const WeeklyCalendarView = ({
     weekEnd.setHours(23, 59, 59, 999);
     
     return slots.some(slot => {
-      const slotDate = createUTCDate(slot.date);
+      const slotDate = createLocalDate(slot.date);
       return slotDate && slotDate >= weekStart && slotDate <= weekEnd;
     });
   }, [slots, currentWeek]);
@@ -160,24 +147,24 @@ const WeeklyCalendarView = ({
       today.setHours(0, 0, 0, 0);
 
       const sortedSlots = [...slots]
-        .map(slot => ({ ...slot, utcDate: createUTCDate(slot.date) }))
-        .filter(slot => slot.utcDate && slot.utcDate >= today) // Only future slots
-        .sort((a, b) => a.utcDate - b.utcDate);
+        .map(slot => ({ ...slot, localDate: createLocalDate(slot.date) }))
+        .filter(slot => slot.localDate && slot.localDate >= today) // Only future slots
+        .sort((a, b) => a.localDate - b.localDate);
 
       if (sortedSlots.length === 0) {
         // If no future slots, check past slots
         const pastSlots = [...slots]
-          .map(slot => ({ ...slot, utcDate: createUTCDate(slot.date) }))
-          .filter(slot => slot.utcDate)
-          .sort((a, b) => b.utcDate - a.utcDate);
+          .map(slot => ({ ...slot, localDate: createLocalDate(slot.date) }))
+          .filter(slot => slot.localDate)
+          .sort((a, b) => b.localDate - a.localDate);
         
         if (pastSlots.length > 0) {
-          return pastSlots[0].utcDate;
+          return pastSlots[0].localDate;
         }
         return null;
       }
 
-      return sortedSlots[0].utcDate;
+      return sortedSlots[0].localDate;
     };
 
     const nearestSlotDate = findNearestWeekWithSlots();
