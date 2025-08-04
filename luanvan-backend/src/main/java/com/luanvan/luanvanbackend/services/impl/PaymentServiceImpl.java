@@ -173,7 +173,7 @@ public class PaymentServiceImpl implements PaymentService {
         vnp_Params.put("vnp_ReturnUrl", returnUrl);
         vnp_Params.put("vnp_IpAddr", clientIp);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("Asia/Ho_Chi_Minh"));
         vnp_Params.put("vnp_CreateDate", PaymentUtils.formatDateTime(now, "yyyyMMddHHmmss"));
 
         LocalDateTime expireDate = now.plusMinutes(paymentConfig.getCommon().getPaymentTimeout());
