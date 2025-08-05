@@ -317,8 +317,8 @@ const ScheduleManagement = ({
     }
 
     // Use formatDateToYYYYMMDD for consistency
-    const startDate = settings.startDate ? formatDateToYYYYMMDD(settings.startDate) : null;
-    const endDate = settings.endDate ? formatDateToYYYYMMDD(settings.endDate) : null;
+    const startDate = settings.startDate;
+    const endDate = settings.endDate;
 
     // Show confirmation dialog before generating schedule
     setBulkConflictInfo({

@@ -225,6 +225,11 @@ const AdminDashboardNew = () => {
       indigo: isActive ? 'bg-indigo-100 text-indigo-700 border-indigo-700' : 'text-indigo-600 hover:bg-indigo-50',
       cyan: isActive ? 'bg-cyan-100 text-cyan-700 border-cyan-700' : 'text-cyan-600 hover:bg-cyan-50',
       emerald: isActive ? 'bg-emerald-100 text-emerald-700 border-emerald-700' : 'text-emerald-600 hover:bg-emerald-50',
+      red: isActive ? 'bg-red-100 text-red-700 border-red-700' : 'text-red-600 hover:bg-red-50',
+      pink: isActive ? 'bg-pink-100 text-pink-700 border-pink-700' : 'text-pink-600 hover:bg-pink-50',
+      teal: isActive ? 'bg-teal-100 text-teal-700 border-teal-700' : 'text-teal-600 hover:bg-teal-50',
+      lime: isActive ? 'bg-lime-100 text-lime-700 border-lime-700' : 'text-lime-600 hover:bg-lime-50',
+      sky: isActive ? 'bg-sky-100 text-sky-700 border-sky-700' : 'text-sky-600 hover:bg-sky-50',
       gray: isActive ? 'bg-gray-100 text-gray-700 border-gray-700' : 'text-gray-600 hover:bg-gray-50'
     };
     return colors[color] || colors.gray;
@@ -313,7 +318,7 @@ const AdminDashboardNew = () => {
         >
           <div className="p-5">
             <div className="flex items-center">
-              <div className="flex-shrink-0 bg-blue-500 rounded-md p-3">
+              <div className="flex-shrink-0 bg-pink-500 rounded-md p-3">
                 <Users className="h-6 w-6 text-white" />
               </div>
               <div className="ml-5 w-0 flex-1">

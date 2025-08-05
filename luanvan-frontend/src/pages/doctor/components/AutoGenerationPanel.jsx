@@ -4,6 +4,9 @@ import {
   RefreshCw, AlertCircle, CheckCircle, Building,
   Activity, Info
 } from 'lucide-react';
+import { formatDateToYYYYMMDD, createLocalDate } from '../../../utils/dateUtils';
+
+const daysOfWeekJava = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
 const AutoGenerationPanel = ({
   workShifts = [],
@@ -14,31 +17,29 @@ const AutoGenerationPanel = ({
   loadingWorkShifts = false
 }) => {
   const [settings, setSettings] = useState({
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: formatDateToYYYYMMDD(new Date()),
     endDate: (() => {
       const date = new Date();
       date.setDate(date.getDate() + 7);
-      return date.toISOString().split('T')[0];
+      return formatDateToYYYYMMDD(date);
     })(),
     workShiftFilter: 'all', // 'all', 'morning', 'afternoon'
   });
 
   useEffect(() => {
-    const start = new Date(settings.startDate);
-    const end = new Date(settings.endDate);
+    const start = createLocalDate(settings.startDate);
+    const end = createLocalDate(settings.endDate);
     if (start > end) {
       const newEndDate = new Date(start);
       newEndDate.setDate(start.getDate() + 7);
-      setSettings(prev => ({ ...prev, endDate: newEndDate.toISOString().split('T')[0] }));
+      setSettings(prev => ({ ...prev, endDate: formatDateToYYYYMMDD(newEndDate) }));
     }
-  }, [settings.startDate]);
+  }, [settings.startDate, settings.endDate]);
 
   const currentSpecialty = useMemo(() => {
     if (!selectedSpecialty) return null;
     return specialties.find(s => (s.specialty_id || s.specialtyId) === selectedSpecialty);
   }, [specialties, selectedSpecialty]);
-
-  const daysOfWeekJava = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
 
   // Lọc ca làm việc theo lựa chọn
   const filteredWorkShifts = useMemo(() => {
@@ -66,8 +67,8 @@ const AutoGenerationPanel = ({
       return { totalSlots: 0, dailySlots: 0, shifts: [], totalDays: 0 };
     }
 
-    const start = new Date(settings.startDate);
-    const end = new Date(settings.endDate);
+    const start = createLocalDate(settings.startDate);
+    const end = createLocalDate(settings.endDate);
     if (start > end) return { totalSlots: 0, dailySlots: 0, shifts: [], totalDays: 0 };
 
     let totalSlots = 0;
@@ -136,8 +137,8 @@ const AutoGenerationPanel = ({
     
     setSettings(prev => ({
       ...prev,
-      startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0],
+      startDate: formatDateToYYYYMMDD(startDate),
+      endDate: formatDateToYYYYMMDD(endDate),
     }));
   };
 

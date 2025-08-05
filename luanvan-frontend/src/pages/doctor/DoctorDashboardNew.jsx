@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Clock, CheckCircle, XCircle, LogOut } from 'lucide-react';
 import { doctorService } from '../../services/api';
 import { useNotification } from '../../components/NotificationSystem';
+import { formatDateToYYYYMMDD, createLocalDate } from '../../utils/dateUtils';
 
 // Import components
 import {
@@ -78,8 +79,8 @@ const DoctorDashboardNew = () => {
       let slots = slotsRes.content || slotsRes || [];
       slots = slots.map(slot => ({
         ...slot,
-        // Đảm bảo date có định dạng YYYY-MM-DD
-        date: slot.date ? new Date(slot.date).toISOString().split('T')[0] : null,
+        // Đảm bảo date có định dạng YYYY-MM-DD mà không bị timezone conversion
+        date: slot.date ? (typeof slot.date === 'string' ? slot.date.substring(0, 10) : formatDateToYYYYMMDD(createLocalDate(slot.date))) : null,
         // Đảm bảo status có giá trị
         status: slot.status || 'CANCELLED_BY_CLINIC'
       }));
@@ -122,10 +123,14 @@ const DoctorDashboardNew = () => {
       }
         
         // Calculate stats
-        const today = new Date().toDateString();
-      const todayAppointments = rawAppointmentList.filter(apt => 
-        new Date(apt.appointment_date_time).toDateString() === today
-      );
+        const today = formatDateToYYYYMMDD(new Date());
+      const todayAppointments = rawAppointmentList.filter(apt => {
+        if (!apt.appointment_date_time) return false;
+        const aptDate = typeof apt.appointment_date_time === 'string' 
+          ? apt.appointment_date_time.substring(0, 10)
+          : formatDateToYYYYMMDD(createLocalDate(apt.appointment_date_time));
+        return aptDate === today;
+      });
         
         setStats({
         todayAppointments: todayAppointments.length,
