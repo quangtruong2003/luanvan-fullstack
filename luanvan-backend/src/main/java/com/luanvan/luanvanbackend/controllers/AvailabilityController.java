@@ -325,7 +325,7 @@ public class AvailabilityController {
         if (slotId != null) {
             return ResponseEntity.ok(slotId);
         } else {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.noContent().build(); // Trả về 204 khi không tìm thấy
         }
     }
 }
